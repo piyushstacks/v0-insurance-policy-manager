@@ -7,8 +7,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'PolicyVault - Insurance Management',
+  description: 'Smart insurance policy management with OCR extraction and automated reminders',
   generator: 'v0.app',
   icons: {
     icon: [

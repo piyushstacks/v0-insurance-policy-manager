@@ -6,6 +6,7 @@
 
 import { ExtractionResult } from '@/lib/schemas';
 import { DocumentProcessorServiceClient } from '@google-cloud/documentai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Safe runtime require — works because pdf-parse is serverExternalPackages
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -54,7 +55,7 @@ class PDFParseProvider implements OCRProvider {
   }
 
   async extractStructuredData(text: string): Promise<ExtractionResult> {
-    console.log('[v0/OCR] Running regex extraction...');
+    console.log('[v0/OCR] Running AI extraction...');
 
     const now = new Date();
     const nextYear = new Date(now);
@@ -67,10 +68,60 @@ class PDFParseProvider implements OCRProvider {
         coverage_start: now.toISOString(),
         coverage_end: nextYear.toISOString(),
         premium_amount: 0,
-        insurer_name: 'Unknown',
-        customer_name: 'Unknown',
+        insurer_name: 'Unknown Insurer',
+        customer_name: 'Unknown Customer',
       };
     }
+
+    // ── GEN AI INJECTION (Super Intelligent LLM Parsing) ─────────────
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        console.log('[v0/AI] Gemini API Key found. Routing raw text through LLM Intelligence...');
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+          You are an expert insurance document analyst. I am providing you with messy, raw OCR text.
+          Read carefully and extract the following exact fields natively. Fix capitalization and spelling.
+          Output EXCLUSIVELY a pure JSON object. NO markdown formatting, NO backticks.
+
+          Fields Required:
+          {
+            "policy_number": "exact alphanumeric string (e.g. 141300/48/2026)",
+            "policy_type": "type of insurance (e.g. Health Insurance, Motor Vehicle, General)",
+            "coverage_start": "ISO8601 date string for when policy begins (e.g. 2024-05-14T00:00:00Z)",
+            "coverage_end": "ISO8601 date string for when policy expires",
+            "premium_amount": Total Gross Premium or Net Premium paid as a pure Number (e.g. 20527),
+            "insurer_name": "Name of insurance company (e.g. HDFC ERGO General Insurance)",
+            "customer_name": "Name of the insured person or proposer (e.g. Piyush Bhagchandani)"
+          }
+
+          Raw Document Text:
+          ${text.substring(0, 15000)}
+        `;
+
+        const response = await model.generateContent(prompt);
+        let rawContent = response.response.text().trim();
+        // Clear backticks just in case
+        rawContent = rawContent.replace(/^```json/i, '').replace(/```$/i, '').trim();
+        const parsed = JSON.parse(rawContent);
+        
+        console.log('[v0/AI] Gemini LLM parsed structured JSON perfectly!');
+        return {
+          policy_number: parsed.policy_number || `OCR-${Date.now()}`,
+          policy_type: parsed.policy_type || 'Unknown Type',
+          coverage_start: parsed.coverage_start || now.toISOString(),
+          coverage_end: parsed.coverage_end || nextYear.toISOString(),
+          premium_amount: Number(parsed.premium_amount) || 0,
+          insurer_name: parsed.insurer_name || 'Unknown Insurer',
+          customer_name: parsed.customer_name || 'Unknown Customer',
+        };
+      } catch (aiErr) {
+        console.error('[v0/AI] Gemini failed to parse properly. Falling back to Regex.', aiErr);
+      }
+    }
+
+    console.log('[v0/Regex] Using structural RegEx fallback heuristics...');
 
     // Normalize whitespace but keep newlines for multi-line matching
     const t = text.replace(/[ \t]+/g, ' ');

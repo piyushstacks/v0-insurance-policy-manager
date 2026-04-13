@@ -5,6 +5,7 @@
  */
 
 import { ExtractionResult } from '@/lib/schemas';
+import { DocumentProcessorServiceClient } from '@google-cloud/documentai';
 
 // Safe runtime require — works because pdf-parse is serverExternalPackages
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -95,7 +96,6 @@ class PDFParseProvider implements OCRProvider {
       ?.replace(/\s+/g, ' ').trim() ?? `OCR-${Date.now()}`;
 
     // ── Policy Type ────────────────────────────────────────────────────────
-    // Look for lines containing 'Insurance Policy' or 'Plan' near the top
     let policyType = 'General Insurance';
     for (const line of lines.slice(0, 50)) {
       const m = line.match(/([A-Za-z][A-Za-z ]{5,80}?(?:Insurance|Health|Motor|Life|Travel|Fire|Marine|Policy|Plan|Cover))(?:\s|,|$)/i);
@@ -104,7 +104,6 @@ class PDFParseProvider implements OCRProvider {
         break;
       }
     }
-    // Cleaner: try 'Renewal of Your X Policy' pattern
     const typeFromRenewal = grab(/[Rr]enewal of [Yy]our\s+([A-Za-z][A-Za-z ]{3,60}?)\s+(?:[Ii]nsurance\s+)?[Pp]olicy/i);
     if (typeFromRenewal) policyType = typeFromRenewal + ' Insurance Policy';
     
@@ -124,7 +123,6 @@ class PDFParseProvider implements OCRProvider {
       if (s) coverageStart = s.toISOString();
       if (e) coverageEnd   = e.toISOString();
     } else {
-      // Fallback: look for 'for period of DD/MM/YYYY to DD/MM/YYYY'
       const periodFallback = t.match(
         /for\s+period\s+of\s+(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})\s*to\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/i
       );
@@ -148,12 +146,10 @@ class PDFParseProvider implements OCRProvider {
     const insurer =
       grab(/(?:issued by|underwriter|administrator)[:\-\s]+([A-Za-z][A-Za-z ]{3,80}?(?:Insurance|Assurance)\s+(?:Company|Co\.?|Ltd\.?|Limited))/i) ??
       (() => {
-        // Search all lines for a clean company name
         for (const line of lines) {
           const m = line.match(/^([A-Za-z][A-Za-z ]{5,80}?(?:Insurance|Assurance)\s+(?:Company|Co\.?|Ltd\.?|Limited))$/i);
           if (m) return m[1].trim();
         }
-        // Wider search anywhere in text
         return grab(/([A-Za-z][A-Za-z ]+?(?:Insurance|Assurance)\s+(?:Company|Co\.?|Ltd\.?|Limited))/i);
       })() ??
       'Unknown Insurer';
@@ -179,4 +175,77 @@ class PDFParseProvider implements OCRProvider {
   }
 }
 
-export const ocrProvider = new PDFParseProvider();
+class GoogleDocumentAIProvider implements OCRProvider {
+  name = 'google-document-ai';
+  client: DocumentProcessorServiceClient | null = null;
+  
+  constructor() {
+    try {
+       // Only initialize if Google Cloud is properly set up in environment
+       if (process.env.GOOGLE_CLOUD_PROJECT_ID) {
+          this.client = new DocumentProcessorServiceClient();
+       }
+    } catch (err: any) {
+       console.warn('[v0/GCP] Document AI Client failed to init (likely missing CREDENTIALS):', err.message);
+    }
+  }
+
+  async extractText(fileUrl: string): Promise<string> {
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+    const location = process.env.GOOGLE_CLOUD_LOCATION || 'us';
+    const processorId = process.env.GOOGLE_CLOUD_PROCESSOR_ID;
+
+    // Soft fallback if user forgot to configure GCP Env variables
+    if (!this.client || !projectId || !processorId) {
+       console.warn('[v0/GCP] Configurations missing. Falling back to local pdf-parse.');
+       const fb = new PDFParseProvider();
+       return fb.extractText(fileUrl);
+    }
+
+    console.log(`[v0/GCP] Fetching document for Google Cloud processing: ${fileUrl}`);
+    const response = await fetch(fileUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    let mimeType = 'application/pdf';
+    if (/\.(jpe?g)(\?|$)/i.test(fileUrl)) mimeType = 'image/jpeg';
+    else if (/\.(png)(\?|$)/i.test(fileUrl)) mimeType = 'image/png';
+
+    console.log(`[v0/GCP] Sending ${mimeType} to Google Document AI (${location}/${processorId})...`);
+
+    const name = `projects/${projectId}/locations/${location}/processors/${processorId}`;
+
+    const request = {
+      name,
+      rawDocument: {
+        content: buffer.toString('base64'),
+        mimeType,
+      },
+    };
+
+    try {
+      const [result] = await this.client.processDocument(request);
+      const text = result.document?.text?.trim() ?? '';
+      
+      console.log(`[v0/GCP] Google Cloud extracted ${text.length} chars natively.`);
+      return text;
+    } catch (err: any) {
+      console.error('[v0/GCP] Google Cloud Document AI processing failed:', err.message);
+      throw new Error(`Google Cloud OCR Failed: ${err.message}`);
+    }
+  }
+
+  async extractStructuredData(text: string): Promise<ExtractionResult> {
+     // Regex data heuristics works beautifully on top of GCP text.
+     const fallbackEngine = new PDFParseProvider();
+     return fallbackEngine.extractStructuredData(text);
+  }
+}
+
+const providerType = process.env.OCR_PROVIDER || 'google-document-ai';
+export const ocrProvider = providerType === 'google-document-ai' 
+  ? new GoogleDocumentAIProvider() 
+  : new PDFParseProvider();
+

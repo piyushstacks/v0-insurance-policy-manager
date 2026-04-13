@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, User, Phone, Mail, MapPin, IndianRupee, FileText, Calendar, Building, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
 
 interface Insurer { name: string }
@@ -27,14 +28,18 @@ interface CustomerDetails {
   policies: CustomerPolicy[];
 }
 
-export default function CustomerProfilePage({ params }: { params: { id: string } }) {
+export default function CustomerProfilePage() {
+  const params = useParams();
+  const id = params?.id as string;
+
   const [customer, setCustomer] = useState<CustomerDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!id) return;
     async function load() {
        try {
-          const res = await fetch(`/api/customers/${params.id}`);
+          const res = await fetch(`/api/customers/${id}`);
           if (!res.ok) throw new Error('Data rejected');
           const data = await res.json();
           setCustomer(data.data);
@@ -45,7 +50,7 @@ export default function CustomerProfilePage({ params }: { params: { id: string }
        }
     }
     load();
-  }, [params.id]);
+  }, [id]);
 
   if (isLoading) return <div className="p-8 text-slate-500 animate-pulse text-center pt-24 font-medium">Loading Client Profile...</div>;
   if (!customer) return <div className="p-8 text-center pt-24">Customer strictly not found.</div>;

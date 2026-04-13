@@ -6,6 +6,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  serverExternalPackages: ['pdf-parse', 'tesseract.js', 'pdf2pic'],
 }
 
 export default nextConfig

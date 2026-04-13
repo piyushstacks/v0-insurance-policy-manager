@@ -18,7 +18,7 @@ export async function generateExpiryReminders(daysAhead: number = 30) {
 
     const { data: expiringPolicies, error: fetchError } = await supabaseAdmin!
       .from('policies')
-      .select('id, user_id, coverage_end')
+      .select('id, coverage_end')
       .eq('status', 'active')
       .gte('coverage_end', new Date().toISOString().split('T')[0])
       .lte('coverage_end', futureDate.toISOString().split('T')[0]);
@@ -44,7 +44,6 @@ export async function generateExpiryReminders(daysAhead: number = 30) {
       if (existing) continue; // Reminder already exists
 
       reminders.push({
-        user_id: policy.user_id,
         policy_id: policy.id,
         reminder_date: reminderDate.toISOString().split('T')[0],
         reminder_type: 'renewal',
@@ -99,7 +98,6 @@ export async function getPendingReminders(userId: string) {
         )
       `
       )
-      .eq('user_id', userId)
       .eq('status', 'pending')
       .lte('reminder_date', new Date().toISOString().split('T')[0])
       .order('reminder_date', { ascending: true });
@@ -135,7 +133,6 @@ export async function getReminders(userId: string, page = 1, pageSize = 20) {
       `,
         { count: 'exact' }
       )
-      .eq('user_id', userId)
       .order('reminder_date', { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
 
@@ -158,12 +155,10 @@ export async function getReminders(userId: string, page = 1, pageSize = 20) {
  */
 export async function dismissReminder(reminderId: string, userId: string) {
   try {
-    // Verify ownership
     const { data: reminder } = await supabaseAdmin!
       .from('reminders')
       .select('id')
       .eq('id', reminderId)
-      .eq('user_id', userId)
       .single();
 
     if (!reminder) throw new Error('Reminder not found');

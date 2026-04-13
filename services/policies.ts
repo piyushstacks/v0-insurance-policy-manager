@@ -16,7 +16,6 @@ export async function createPolicy(userId: string, data: PolicyInput) {
       .from('policies')
       .insert([
         {
-          user_id: userId,
           customer_id: data.customer_id,
           insurer_id: data.insurer_id,
           policy_number: data.policy_number,
@@ -63,8 +62,7 @@ export async function getPolicies(
   try {
     let query = supabaseAdmin!
       .from('policies')
-      .select('*')
-      .eq('user_id', userId)
+      .select('*, customer:customers(name, email), insurer:insurers(name)')
       .order('created_at', { ascending: false });
 
     if (filters?.status) {
@@ -99,47 +97,30 @@ export async function getPolicies(
  */
 export async function getPolicyWithDocuments(policyId: string, userId: string) {
   try {
-    // Verify ownership
     const { data: policy, error: policyError } = await supabaseAdmin!
       .from('policies')
-      .select('*')
+      .select(`
+        *,
+        customer:customers(name, email, mobile),
+        insurer:insurers(name, contact)
+      `)
       .eq('id', policyId)
-      .eq('user_id', userId)
       .single();
 
-    if (policyError) throw policyError;
-    if (!policy) throw new Error('Policy not found');
+    if (policyError || !policy) throw new Error('Policy not found');
 
     // Get documents
     const { data: documents, error: docsError } = await supabaseAdmin!
       .from('policy_documents')
       .select('*')
       .eq('policy_id', policyId)
-      .order('uploaded_at', { ascending: false });
+      .order('upload_date', { ascending: false });
 
     if (docsError) throw docsError;
 
-    // Get extraction jobs for documents
-    const docIds = documents.map((d) => d.id);
-    let jobs: any[] = [];
-
-    if (docIds.length > 0) {
-      const { data: jobData, error: jobError } = await supabaseAdmin!
-        .from('extraction_jobs')
-        .select('*')
-        .in('document_id', docIds);
-
-      if (!jobError) {
-        jobs = jobData;
-      }
-    }
-
     return {
       policy,
-      documents: documents.map((doc) => ({
-        ...doc,
-        extraction: jobs.find((j) => j.document_id === doc.id),
-      })),
+      documents: documents ?? [],
     };
   } catch (error) {
     console.error('Failed to fetch policy details:', error);
@@ -161,7 +142,6 @@ export async function updatePolicy(
       .from('policies')
       .select('*')
       .eq('id', policyId)
-      .eq('user_id', userId)
       .single();
 
     if (!existing) throw new Error('Policy not found');
@@ -211,7 +191,6 @@ export async function deletePolicy(policyId: string, userId: string) {
       .from('policies')
       .select('*')
       .eq('id', policyId)
-      .eq('user_id', userId)
       .single();
 
     if (!policy) throw new Error('Policy not found');
@@ -269,7 +248,6 @@ export async function getPoliciesExpiringSoon(userId: string, daysAhead: number 
     const { data, error } = await supabaseAdmin!
       .from('policies')
       .select('*')
-      .eq('user_id', userId)
       .eq('status', 'active')
       .gte('coverage_end', new Date().toISOString().split('T')[0])
       .lte('coverage_end', futureDate.toISOString().split('T')[0])

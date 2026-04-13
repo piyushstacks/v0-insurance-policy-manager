@@ -61,7 +61,14 @@ export default function SignupPage() {
         }
       }
 
-      router.push('/auth/login?message=Check your email to confirm your account');
+      router.refresh();
+      if (data.session) {
+        // Automatically logged in (email confirmation is off)
+        router.push('/app');
+      } else {
+        // Session not created yet (email confirmation is required)
+        router.push('/auth/login?message=Check your email to confirm your account');
+      }
     } catch (err: any) {
       if (err.errors) {
         setError(err.errors.map((e: any) => e.message).join(', '));

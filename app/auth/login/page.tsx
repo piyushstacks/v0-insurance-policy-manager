@@ -31,6 +31,7 @@ export default function LoginPage() {
         return;
       }
 
+      router.refresh();
       router.push('/app');
     } catch (err: any) {
       if (err.errors) {

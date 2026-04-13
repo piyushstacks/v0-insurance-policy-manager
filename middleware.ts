@@ -17,6 +17,10 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+          response = NextResponse.next({
+            request,
+          });
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
@@ -40,6 +44,15 @@ export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/auth')) {
     if (user) {
       return NextResponse.redirect(new URL('/app', request.url));
+    }
+  }
+
+  // Redirect root path to app or login
+  if (request.nextUrl.pathname === '/') {
+    if (user) {
+      return NextResponse.redirect(new URL('/app', request.url));
+    } else {
+      return NextResponse.redirect(new URL('/auth/login', request.url));
     }
   }
 

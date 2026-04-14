@@ -214,7 +214,6 @@ export default function CustomerProfilePage() {
  * Component to display policies grouped by financial year and category
  */
 function PoliciesGroupedView({ policies }: { policies: CustomerPolicy[] }) {
-  const [expandedYear, setExpandedYear] = useState<string | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<Record<string, boolean>>({});
 
   // Group policies by financial year and category
@@ -281,43 +280,39 @@ function PoliciesGroupedView({ policies }: { policies: CustomerPolicy[] }) {
     <div className="divide-y divide-slate-200">
       {sortedYears.map((year) => (
         <div key={year} className="border-b last:border-b-0">
-          {/* Financial Year Header */}
-          <div
-            className="px-5 py-4 bg-linear-to-r from-slate-800 to-slate-900 text-white cursor-pointer hover:from-slate-700 hover:to-slate-800 transition-all flex items-center justify-between"
-            onClick={() => setExpandedYear(expandedYear === year ? null : year)}
-          >
+          {/* Financial Year Header - No Dropdown */}
+          <div className="px-5 py-4 bg-linear-to-r from-slate-800 to-slate-900 text-white flex items-center justify-between">
             <h3 className="font-bold text-lg">📅 FY {year}</h3>
             <span className="text-sm font-medium">
               {Object.values(grouped[year]).reduce((sum, cats) => sum + cats.length, 0)} policies
             </span>
           </div>
 
-          {/* Categories within this year */}
-          {expandedYear === year && (
-            <div className="bg-slate-50 divide-y">
-              {Object.entries(grouped[year]).map(([category, policiesList]) => (
-                <div key={category} className={`border border-l-4 ${getCategoryColor(category)} m-3 rounded-lg overflow-hidden`}>
-                  {/* Category Header */}
-                  <div
-                    className="px-4 py-3 bg-white flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                    onClick={() => {
-                      const key = `${year}-${category}`;
-                      setExpandedCategory(prev => ({
-                        ...prev,
-                        [key]: !prev[key]
-                      }));
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getCategoryBadgeColor(category)}`}>
-                        {category}
-                      </span>
-                      <span className="text-sm text-slate-600 font-medium">
-                        {policiesList.length} {policiesList.length === 1 ? 'policy' : 'policies'}
-                      </span>
-                    </div>
-                    <span className="text-slate-400">
-                      {expandedCategory[`${year}-${category}`] ? '▼' : '▶'}
+          {/* Categories within this year - Always Visible */}
+          <div className="bg-slate-50 divide-y">
+            {Object.entries(grouped[year]).map(([category, policiesList]) => (
+              <div key={category} className={`border border-l-4 ${getCategoryColor(category)} m-3 rounded-lg overflow-hidden`}>
+                {/* Category Header - Has Dropdown */}
+                <div
+                  className="px-4 py-3 bg-white flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                  onClick={() => {
+                    const key = `${year}-${category}`;
+                    setExpandedCategory(prev => ({
+                      ...prev,
+                      [key]: !prev[key]
+                    }));
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getCategoryBadgeColor(category)}`}>
+                      {category}
+                    </span>
+                    <span className="text-sm text-slate-600 font-medium">
+                      {policiesList.length} {policiesList.length === 1 ? 'policy' : 'policies'}
+                    </span>
+                  </div>
+                  <span className="text-slate-400">
+                    {expandedCategory[`${year}-${category}`] ? '▼' : '▶'}
                     </span>
                   </div>
 
@@ -356,7 +351,6 @@ function PoliciesGroupedView({ policies }: { policies: CustomerPolicy[] }) {
                 </div>
               ))}
             </div>
-          )}
         </div>
       ))}
     </div>

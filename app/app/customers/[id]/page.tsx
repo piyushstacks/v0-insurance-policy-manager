@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, User, Phone, Mail, MapPin, IndianRupee, FileText, Calendar, Building, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -34,6 +35,10 @@ export default function CustomerProfilePage() {
 
   const [customer, setCustomer] = useState<CustomerDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '', mobile: '', address: '' });
 
   useEffect(() => {
     if (!id) return;
@@ -43,6 +48,12 @@ export default function CustomerProfilePage() {
           if (!res.ok) throw new Error('Data rejected');
           const data = await res.json();
           setCustomer(data.data);
+          setFormData({
+            name: data.data.name || '',
+            email: data.data.email || '',
+            mobile: data.data.mobile || '',
+            address: data.data.address || ''
+          });
        } catch (e) {
           toast.error("Failed to load customer profile");
        } finally {
@@ -77,7 +88,37 @@ export default function CustomerProfilePage() {
              </div>
           </div>
         </div>
-        <Button size="sm" variant="outline">Edit Details</Button>
+        {!isEditing ? (
+           <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>Edit Details</Button>
+        ) : (
+           <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => {
+                 setIsEditing(false);
+                 setFormData({ name: customer.name || '', email: customer.email || '', mobile: customer.mobile || '', address: customer.address || '' });
+              }} disabled={isSaving}>Cancel</Button>
+              <Button size="sm" onClick={async () => {
+                 setIsSaving(true);
+                 try {
+                    const res = await fetch(`/api/customers/${id}`, {
+                       method: 'PATCH',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify(formData)
+                    });
+                    const d = await res.json();
+                    if (!res.ok) throw new Error(d.error || 'Failed to save');
+                    setCustomer(prev => ({ ...prev!, ...formData }));
+                    toast.success('Profile updated successfully');
+                    setIsEditing(false);
+                 } catch (e: any) {
+                    toast.error(e.message);
+                 } finally {
+                    setIsSaving(false);
+                 }
+              }} disabled={isSaving}>
+                 {isSaving ? 'Saving...' : 'Save Profile'}
+              </Button>
+           </div>
+        )}
       </div>
 
       <div className="max-w-5xl mx-auto w-full p-4 md:p-8 space-y-6">
@@ -87,18 +128,40 @@ export default function CustomerProfilePage() {
            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
               <User className="w-4 h-4" /> Personal Information
            </h2>
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           {isEditing && (
+              <div className="mb-6 p-4 bg-slate-50 border rounded-lg space-y-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                       <label className="text-xs font-bold text-slate-500 uppercase">Full Name</label>
+                       <Input value={formData.name} onChange={e => setFormData(f => ({...f, name: e.target.value}))} />
+                    </div>
+                    <div className="space-y-1.5">
+                       <label className="text-xs font-bold text-slate-500 uppercase">Email Address</label>
+                       <Input value={formData.email} onChange={e => setFormData(f => ({...f, email: e.target.value}))} />
+                    </div>
+                    <div className="space-y-1.5">
+                       <label className="text-xs font-bold text-slate-500 uppercase">Phone Number</label>
+                       <Input value={formData.mobile} onChange={e => setFormData(f => ({...f, mobile: e.target.value}))} />
+                    </div>
+                    <div className="space-y-1.5">
+                       <label className="text-xs font-bold text-slate-500 uppercase">Physical Address</label>
+                       <Input value={formData.address} onChange={e => setFormData(f => ({...f, address: e.target.value}))} />
+                    </div>
+                 </div>
+              </div>
+           )}
+           <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${isEditing ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
               <div className="flex gap-3 items-center p-3 rounded-lg bg-slate-50 border border-slate-100">
                  <Mail className="w-5 h-5 text-slate-400" />
-                 <div><p className="text-xs text-slate-500">Email Address</p><p className="font-medium text-slate-800">{customer.email || '—'}</p></div>
+                 <div className="min-w-0"><p className="text-xs text-slate-500">Email Address</p><p className="font-medium text-slate-800 truncate" title={customer.email || '—'}>{customer.email || '—'}</p></div>
               </div>
               <div className="flex gap-3 items-center p-3 rounded-lg bg-slate-50 border border-slate-100">
                  <Phone className="w-5 h-5 text-slate-400" />
-                 <div><p className="text-xs text-slate-500">Phone</p><p className="font-medium text-slate-800">{customer.mobile || '—'}</p></div>
+                 <div className="min-w-0"><p className="text-xs text-slate-500">Phone</p><p className="font-medium text-slate-800 truncate">{customer.mobile || '—'}</p></div>
               </div>
               <div className="flex gap-3 items-center p-3 rounded-lg bg-slate-50 border border-slate-100">
                  <MapPin className="w-5 h-5 text-slate-400" />
-                 <div><p className="text-xs text-slate-500">Address</p><p className="font-medium text-slate-800 truncate">{customer.address || '—'}</p></div>
+                 <div className="min-w-0"><p className="text-xs text-slate-500">Address</p><p className="font-medium text-slate-800 truncate" title={customer.address || '—'}>{customer.address || '—'}</p></div>
               </div>
            </div>
         </div>

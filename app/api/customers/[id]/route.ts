@@ -40,3 +40,28 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
     return NextResponse.json({ error: 'Failed to fetch details' }, { status: 500 });
   }
 }
+
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  try {
+    const params = await props.params;
+    const body = await request.json();
+
+    const { data: updated, error } = await supabaseAdmin!
+      .from('customers')
+      .update({
+        name: body.name,
+        email: body.email,
+        mobile: body.mobile,
+        address: body.address
+      })
+      .eq('id', params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ data: updated }, { status: 200 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

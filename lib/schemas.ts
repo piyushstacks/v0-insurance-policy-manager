@@ -55,10 +55,12 @@ export const documentUploadSchema = z.object({
     ),
 });
 
-// Extraction result schema (mock OCR output)
+// Extraction result schema
 export const extractionResultSchema = z.object({
   policy_number: z.string().optional(),
   policy_type: z.string().optional(),
+  policy_category: z.string().optional(),
+  policy_sub_category: z.string().optional(),
   coverage_start: z.string().optional(),
   coverage_end: z.string().optional(),
   premium_amount: z.number().optional(),
@@ -69,6 +71,8 @@ export const extractionResultSchema = z.object({
   vehicle_number: z.string().optional().nullable(),
   nominee_name: z.string().optional().nullable(),
   health_ped: z.string().optional().nullable(),
+  key_important_details: z.string().optional(),
+  agent_notes: z.string().optional(),
   additional_fields: z.record(z.any()).optional(),
 });
 

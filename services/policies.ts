@@ -93,7 +93,7 @@ export async function getPolicies(
 }
 
 /**
- * Get single policy with documents
+ * Get single policy with documents and all extraction data
  */
 export async function getPolicyWithDocuments(policyId: string, userId: string) {
   try {
@@ -109,18 +109,61 @@ export async function getPolicyWithDocuments(policyId: string, userId: string) {
 
     if (policyError || !policy) throw new Error('Policy not found');
 
-    // Get documents
-    const { data: documents, error: docsError } = await supabaseAdmin!
-      .from('policy_documents')
-      .select('*')
-      .eq('policy_id', policyId)
-      .order('upload_date', { ascending: false });
+    // Get documents with their extraction jobs - gracefully handle if extracted_data doesn't exist
+    let documents: any[] = [];
+    try {
+      const { data, error: docsError } = await supabaseAdmin!
+        .from('policy_documents')
+        .select(`
+          *,
+          extraction_jobs (
+            id,
+            status,
+            extracted_data,
+            raw_ocr_text,
+            error_message,
+            completed_at
+          )
+        `)
+        .eq('policy_id', policyId)
+        .order('upload_date', { ascending: false });
 
-    if (docsError) throw docsError;
+      if (!docsError) {
+        documents = data || [];
+      }
+    } catch (e) {
+      console.warn('Failed to fetch extraction jobs with extracted_data, fetching documents only:', e);
+      // Fallback: fetch just documents without extraction jobs
+      const { data } = await supabaseAdmin!
+        .from('policy_documents')
+        .select('*')
+        .eq('policy_id', policyId)
+        .order('upload_date', { ascending: false });
+      documents = data || [];
+    }
+
+    // Aggregate all extracted data from all documents and extraction jobs
+    const allExtractionData: Record<string, any> = {};
+    if (documents && documents.length > 0) {
+      for (const doc of documents) {
+        const jobs = (doc.extraction_jobs as any[]) || [];
+        for (const job of jobs) {
+          if (job.extracted_data) {
+            // Merge extraction data, preferring non-null values
+            Object.entries(job.extracted_data).forEach(([key, value]) => {
+              if (value !== null && value !== undefined && value !== '') {
+                allExtractionData[key] = value;
+              }
+            });
+          }
+        }
+      }
+    }
 
     return {
       policy,
       documents: documents ?? [],
+      extractedData: allExtractionData,
     };
   } catch (error) {
     console.error('Failed to fetch policy details:', error);
@@ -233,6 +276,67 @@ export async function deletePolicy(policyId: string, userId: string) {
     return { success: true };
   } catch (error) {
     console.error('Failed to delete policy:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get customer policies grouped by financial year and category
+ */
+export async function getCustomerPoliciesByYearAndCategory(customerId: string) {
+  try {
+    const { data: policies, error } = await supabaseAdmin!
+      .from('policies')
+      .select(`
+        *,
+        insurer:insurers(name)
+      `)
+      .eq('customer_id', customerId)
+      .order('start_date', { ascending: false });
+
+    if (error) throw error;
+
+    // Group policies by financial year (Apr-Mar) and category
+    interface GroupedPolicies {
+      [year: string]: {
+        [category: string]: typeof policies;
+      };
+    }
+    
+    const grouped: GroupedPolicies = {};
+
+    policies?.forEach((policy) => {
+      // Calculate financial year (Apr to Mar)
+      const date = new Date(policy.start_date);
+      let financialYear = date.getFullYear();
+      if (date.getMonth() < 3) {
+        // Jan, Feb, Mar belong to previous financial year
+        financialYear -= 1;
+      }
+      const fyStart = financialYear;
+      const fyEnd = financialYear + 1;
+      const yearLabel = `${fyStart}-${fyEnd}`;
+
+      // Extract category from policy_type
+      const category = policy.policy_type?.split('|')[0]?.trim() || 'General';
+
+      // Initialize year group if not exists
+      if (!grouped[yearLabel]) {
+        grouped[yearLabel] = {};
+      }
+
+      // Initialize category group if not exists
+      if (!grouped[yearLabel][category]) {
+        grouped[yearLabel][category] = [];
+      }
+
+      // Add policy to the appropriate group
+      grouped[yearLabel][category].push(policy);
+    });
+
+    return grouped;
+  } catch (error) {
+    console.error('Failed to fetch customer policies by year and category:', error);
     throw error;
   }
 }

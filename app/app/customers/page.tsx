@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { Button as ActionButton } from '@/components/base/buttons/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Users, Search, IndianRupee, FileText } from 'lucide-react';
 import Link from 'next/link';
@@ -119,9 +120,9 @@ export default function CustomersPage() {
              <span className="text-xs font-bold text-slate-600 tracking-wider">ALL</span>
           </div>
           {selected.size > 0 && (
-             <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={isDeleting} className="shrink-0 shadow-sm">
-               <span className="hidden md:inline mr-2">Delete ({selected.size})</span>
-             </Button>
+             <ActionButton color="primary-destructive" size="sm" onClick={handleBulkDelete} isLoading={isDeleting} className="shrink-0 shadow-sm">
+               Delete ({selected.size})
+             </ActionButton>
           )}
           <Link href="/app/customers/new">
              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 shadow-sm">
@@ -132,7 +133,7 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 md:p-8">
+      <div className="flex-1 overflow-auto p-4 md:p-8 pb-32">
         {isLoading ? (
           <PageLoader words={['customers', 'profiles', 'contacts', 'clients', 'customers']} label="loading" />
         ) : filtered.length === 0 ? (

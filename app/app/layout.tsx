@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import Sidebar from '@/components/sidebar';
+import BottomNav from '@/components/bottom-nav';
 
 export default async function AppLayout({
   children,
@@ -40,13 +41,14 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50/50 font-sans">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50/50 font-sans overflow-hidden">
       <Sidebar user={user} />
-      <main className="flex-1 w-full flex flex-col min-w-0 h-screen overflow-hidden">
-        <div className="flex-1 overflow-y-auto w-full">
+      <main className="flex-1 w-full flex flex-col min-w-0 h-screen">
+        <div className="flex-1 overflow-y-auto w-full pb-20 lg:pb-0 relative">
           {children}
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 }

@@ -84,7 +84,7 @@ export function Loader({ words, label = 'loading' }: LoaderProps) {
 /** Full-page centered loader */
 export function PageLoader({ words, label }: { words?: string[]; label?: string }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center min-h-[400px]">
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-[2px] z-[100]">
       <Loader words={words} label={label} />
     </div>
   );

@@ -77,7 +77,14 @@ export async function extractDocumentInline(
 
     // Run OCR
     const rawText = await ocrProvider.extractText(fileUrl);
-    const extracted = await ocrProvider.extractStructuredData(rawText, existingInsurers, existingCustomers);
+    let extracted = await ocrProvider.extractStructuredData(rawText, existingInsurers, existingCustomers);
+
+    // --- AUTO-CONSENSUS FALLBACK ---
+    // If critical fields are missing, run the heavy consensus engine
+    if (!extracted.customer_name || extracted.customer_name.toLowerCase().includes('unknown')) {
+      console.log('[v0/inline] ⚠️ Missing customer name. Triggering Consensus AI Fallback...');
+      extracted = await ocrProvider.consensusExtract(rawText, existingInsurers, existingCustomers);
+    }
 
     console.log('[v0/inline] Extraction result:', extracted);
 
@@ -144,7 +151,7 @@ export async function extractDocumentInline(
       start_date:    startDate,
       expiry_date:   expiryDate,
       premium_amount: extracted.premium_amount || 1,
-      agent_notes:   extracted.agent_notes || null,
+      agent_notes:   extracted.key_important_details || extracted.agent_notes || null,
     };
 
     if (finalCustId) {
@@ -228,13 +235,20 @@ export async function processExtractionJob() {
     const existingCustomers = dbCusts?.map(c => c.name) || [];
 
     // Parse into structured data using explicit mapping logic
-    const structuredData = await ocrProvider.extractStructuredData(extractedText, existingInsurers, existingCustomers);
+    let structuredData = await ocrProvider.extractStructuredData(extractedText, existingInsurers, existingCustomers);
 
-    // Update job with results
+    // --- AUTO-CONSENSUS FALLBACK ---
+    if (!structuredData.customer_name || structuredData.customer_name.toLowerCase().includes('unknown')) {
+      console.log('[v0/worker] ⚠️ Missing customer name. Triggering Consensus AI Fallback...');
+      structuredData = await ocrProvider.consensusExtract(extractedText, existingInsurers, existingCustomers);
+    }
+
+    // Update job with results and store extracted data
     await supabaseAdmin!
       .from('extraction_jobs')
       .update({
         status: 'completed',
+        extracted_data: structuredData,
         completed_at: new Date().toISOString()
       })
       .eq('id', jobId);

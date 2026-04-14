@@ -49,18 +49,25 @@ export default function Sidebar({ user }: SidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { name: 'Home', href: '/app', icon: Home, exact: true },
-    { name: 'Dashboard', href: '/app', icon: BarChart3, exact: true },
+    { 
+      name: 'Home', 
+      href: '/app', 
+      icon: Home, 
+      exact: true,
+      children: [
+        { name: 'Dashboard', href: '/app', icon: BarChart3, exact: true }
+      ]
+    },
     { name: 'Policies', href: '/app/policies', icon: FileText, exact: false },
     { divider: true },
     { name: 'Customers', href: '/app/customers', icon: Users, exact: false },
     { name: 'Reminders', href: '/app/reminders', icon: CalendarDays, exact: false },
-    { name: 'Reporting', href: '/app/settings', icon: PieChart, exact: false },
+    { name: 'Reporting', href: '/app/reporting', icon: PieChart, exact: false },
     { divider: true },
     { name: 'Settings', href: '/app/settings', icon: Settings, exact: false },
     { 
       name: 'Support', 
-      href: '/app/settings', 
+      href: '/app/support', 
       icon: ShieldCheck, 
       badge: <BadgeWithDot color="success">Online</BadgeWithDot> 
     },
@@ -75,22 +82,46 @@ export default function Sidebar({ user }: SidebarProps) {
     if (item.divider) return <div className="h-px bg-slate-100 my-4 mx-3" />;
     
     const isActive = item.exact ? pathname === item.href : pathname?.startsWith(item.href);
+    
     return (
-      <Link
-        href={item.href}
-        className={`flex items-center justify-between group px-3 py-2 rounded-xl transition-all duration-200 ${
-          isActive 
-            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-        }`}
-        onClick={() => setIsMobileMenuOpen(false)}
-      >
-        <div className="flex items-center gap-3">
-          <item.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2 group-hover:text-blue-600'}`} />
-          <span className="font-semibold text-sm tracking-tight">{item.name}</span>
-        </div>
-        {item.badge ? item.badge : (isActive && <ChevronRight className="w-4 h-4 opacity-70" />)}
-      </Link>
+      <div className="space-y-1">
+        <Link
+          href={item.href}
+          className={`flex items-center justify-between group px-3 py-2 rounded-xl transition-all duration-200 ${
+            isActive 
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+          onClick={() => setIsMobileMenuOpen(false)}
+        >
+          <div className="flex items-center gap-3">
+            <item.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2 group-hover:text-blue-600'}`} />
+            <span className="font-semibold text-sm tracking-tight">{item.name}</span>
+          </div>
+          {item.badge ? item.badge : (isActive && <ChevronRight className="w-4 h-4 opacity-70" />)}
+        </Link>
+        
+        {item.children && (
+          <div className="pl-9 space-y-1">
+            {item.children.map((child: any) => {
+              const isChildActive = child.exact ? pathname === child.href : pathname?.startsWith(child.href);
+              return (
+                <Link
+                  key={child.name}
+                  href={child.href}
+                  className={`flex items-center gap-3 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    isChildActive ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <child.icon className="w-3.5 h-3.5" />
+                  {child.name}
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -114,9 +145,9 @@ export default function Sidebar({ user }: SidebarProps) {
 
       {/* Sidebar Desktop / Mobile Overlay */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ease-in-out
-        lg:translate-x-0 lg:static lg:h-screen
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        fixed inset-y-0 right-0 z-50 w-72 bg-white border-l border-slate-200 flex flex-col transition-transform duration-300 ease-in-out
+        lg:left-0 lg:right-auto lg:border-r lg:border-l-0 lg:translate-x-0 lg:static lg:h-screen
+        ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
       `}>
         {/* Header / Logo */}
         <div className="p-6">

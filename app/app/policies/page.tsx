@@ -7,6 +7,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { Button as ActionButton } from '@/components/base/buttons/button';
 import { Input } from '@/components/ui/input';
 import { PageLoader } from '@/components/ui/loader';
 import {
@@ -195,7 +196,7 @@ export default function PoliciesPage() {
   const isPending = (p: Policy) => p.policy_number.startsWith('PENDING_OCR');
 
   return (
-    <div className="flex flex-col p-4 md:p-8 min-h-full max-w-[1600px] mx-auto w-full">
+    <div className="flex flex-col p-4 md:p-8 min-h-full max-w-7xl mx-auto w-full">
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
         <div>
@@ -204,26 +205,30 @@ export default function PoliciesPage() {
         </div>
         
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <Button 
-             variant={showMobileFilters ? "default" : "outline"}
-             className={showMobileFilters ? "bg-indigo-600 text-white" : "text-slate-600 border-slate-300 bg-white shadow-sm"}
+          <ActionButton 
+             color={showMobileFilters ? "primary" : "secondary"}
+             size="md"
              onClick={() => setShowMobileFilters(!showMobileFilters)}
+             iconLeading={Filter}
           >
-            <Filter className="w-4 h-4 mr-2" /> 
             {showMobileFilters ? 'Hide Filters' : 'Show Filters'}
-          </Button>
+          </ActionButton>
 
           {selected.size > 0 && (
-             <>
+            <>
                <Button variant="secondary" onClick={handleReExtract} disabled={reExtracting || isDeleting} className="bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200">
                  <RefreshCw className={`w-4 h-4 mr-2 ${reExtracting ? 'animate-spin' : ''}`} />
                  Re-extract ({selected.size})
                </Button>
-               <Button variant="destructive" onClick={handleBulkDelete} disabled={isDeleting} className="shadow-sm">
-                 <Trash2 className={`w-4 h-4 ${isDeleting ? 'animate-pulse' : 'mr-2'}`} />
-                 <span className="hidden sm:inline">Delete Selected</span>
-               </Button>
-             </>
+               <ActionButton 
+                 color="primary-destructive" 
+                 onClick={handleBulkDelete} 
+                 isLoading={isDeleting}
+                 iconLeading={Trash2}
+               >
+                 Delete Selected
+               </ActionButton>
+            </>
           )}
 
           <Link href="/app/policies/new" className="ml-auto md:ml-0">
@@ -288,9 +293,9 @@ export default function PoliciesPage() {
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">To</label>
               <div className="flex gap-2">
                  <Input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} className="h-9 text-sm bg-slate-50 border-slate-200" />
-                 <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-slate-400 hover:text-slate-800 bg-slate-100" onClick={clearFilters} title="Clear Filters">
-                   <X className="w-4 h-4" />
-                 </Button>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-slate-400 hover:text-slate-800 bg-slate-100" onClick={clearFilters} title="Clear Filters">
+                    <X className="w-4 h-4" />
+                  </Button>
               </div>
             </div>
           </div>
@@ -407,11 +412,11 @@ export default function PoliciesPage() {
                           {!pending && p.premium_amount ? <span>₹{p.premium_amount.toLocaleString('en-IN')}</span> : '—'}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <Link href={`/app/policies/${p.id}`}>
-                             <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 inline-flex">
-                               <FilePenLine className="w-4 h-4" />
-                             </Button>
-                          </Link>
+                           <Link href={`/app/policies/${p.id}`}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 inline-flex">
+                                <FilePenLine className="w-4 h-4" />
+                              </Button>
+                           </Link>
                         </td>
                       </tr>
                     );

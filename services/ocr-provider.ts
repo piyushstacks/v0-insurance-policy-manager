@@ -17,6 +17,7 @@ export interface OCRProvider {
   name: string;
   extractText(fileUrl: string): Promise<string>;
   extractStructuredData(text: string, existingInsurers?: string[], existingCustomers?: string[]): Promise<ExtractionResult>;
+  consensusExtract(text: string, existingInsurers?: string[], existingCustomers?: string[]): Promise<ExtractionResult>;
 }
 
 class PDFParseProvider implements OCRProvider {
@@ -268,10 +269,81 @@ class PDFParseProvider implements OCRProvider {
           customer_mobile: parsed.customer_mobile || null,
           agent_notes: parsed.key_important_details || null,
         };
-      } else {
-        console.error('[v0/AI] Total AI Failure. Falling back to Regex engine...');
       }
     }
+
+    console.log('[v0/AI] Total AI Failure. Falling back to Regex engine...');
+    return this.regexFallback(text);
+  }
+
+  async consensusExtract(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResult> {
+    console.log('[v0/AI] 🧠 Entering Consensus Mode: Calling dual models for cross-verification...');
+    
+    // Run two models in parallel
+    const [res1, res2] = await Promise.allSettled([
+      this.extractStructuredData(text, existingInsurers, existingCustomers),
+      this.extractStructuredData(text, existingInsurers, existingCustomers) 
+    ]);
+
+    const val1 = res1.status === 'fulfilled' ? res1.value : null;
+    const val2 = res2.status === 'fulfilled' ? res2.value : null;
+
+    if (!val1 && !val2) throw new Error('Consensus failed: Both extraction attempts failed.');
+    if (!val1) return val2!;
+    if (!val2) return val1;
+
+    // Check if they agree on critical fields
+    const agreeOnName = val1.customer_name === val2.customer_name;
+    const agreeOnPolicy = val1.policy_number === val2.policy_number;
+
+    if (agreeOnName && agreeOnPolicy) {
+      console.log('[v0/AI] ✅ Models agree perfectly. Proceeding.');
+      return val1;
+    }
+
+    console.log('[v0/AI] ⚖️ Models disagree on critical fields. Triggering Arbitration...');
+    
+    // Arbitration step: Ask a model to resolve the difference
+    const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
+    if (!openRouterKey) return val1;
+
+    const arbiterPrompt = `
+      I have two different extractions from the same insurance document. They disagree.
+      Document snippet: ${text.substring(0, 3000)}
+      
+      Extraction A: ${JSON.stringify(val1)}
+      Extraction B: ${JSON.stringify(val2)}
+      
+      Decide which one is more correct for the "customer_name" and "policy_number". 
+      Think step-by-step. Return the final resolved JSON only.
+    `;
+
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${openRouterKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai/gpt-4o-mini", // Use a fast but smart arbiter
+          messages: [{ role: "user", content: arbiterPrompt }]
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const rawArb = data.choices[0].message.content;
+        const clean = rawArb.match(/\{[\s\S]*\}/)?.[0];
+        if (clean) return JSON.parse(clean);
+      }
+    } catch (e) {
+      console.error('[v0/AI] Arbiter failed, defaulting to Model A');
+    }
+
+    return val1;
+  }
+
+  private regexFallback(text: string): ExtractionResult {
+    const now = new Date();
+    const nextYear = new Date(now);
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
 
     console.log('[v0/Regex] Using structural RegEx fallback heuristics...');
 
@@ -479,6 +551,11 @@ class GoogleDocumentAIProvider implements OCRProvider {
      // Regex data heuristics works beautifully on top of GCP text.
      const fallbackEngine = new PDFParseProvider();
      return fallbackEngine.extractStructuredData(text, existingInsurers, existingCustomers);
+  }
+
+  async consensusExtract(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResult> {
+     const fallbackEngine = new PDFParseProvider();
+     return fallbackEngine.consensusExtract(text, existingInsurers, existingCustomers);
   }
 }
 

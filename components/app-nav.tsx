@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { FileText, Home, Users, Settings, LogOut, Navigation2, FileSpreadsheet, Fingerprint, CalendarDays } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { FileText, Home, Users, Settings, LogOut } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 
 interface AppNavProps {

@@ -42,6 +42,7 @@ export default function PoliciesPage() {
   // UI State
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reExtracting, setReExtracting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   
   // Filters
@@ -129,6 +130,31 @@ export default function PoliciesPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!window.confirm(`Are you absolutely sure you want to delete ${selected.size} policies?\n\nThis will permanently remove the underlying document files from Cloud Storage and erase all associated database records. This action cannot be undone.`)) {
+       return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      const res = await fetch('/api/policies/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ policyIds: Array.from(selected) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success('Successfully deleted', { description: data.message });
+      setSelected(new Set());
+      setPolicies(prev => prev.filter(p => !selected.has(p.id))); // Optimistic UI update
+    } catch (err: any) {
+      toast.error('Bulk deletion failed', { description: err.message });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const isPending = (p: Policy) => p.policy_number.startsWith('PENDING_OCR');
 
   return (
@@ -151,10 +177,16 @@ export default function PoliciesPage() {
           </Button>
 
           {selected.size > 0 && (
-             <Button variant="secondary" onClick={handleReExtract} disabled={reExtracting} className="bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200">
-               <RefreshCw className={`w-4 h-4 mr-2 ${reExtracting ? 'animate-spin' : ''}`} />
-               Re-extract ({selected.size})
-             </Button>
+             <>
+               <Button variant="secondary" onClick={handleReExtract} disabled={reExtracting || isDeleting} className="bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200">
+                 <RefreshCw className={`w-4 h-4 mr-2 ${reExtracting ? 'animate-spin' : ''}`} />
+                 Re-extract ({selected.size})
+               </Button>
+               <Button variant="destructive" onClick={handleBulkDelete} disabled={isDeleting} className="shadow-sm">
+                 <Trash2 className={`w-4 h-4 ${isDeleting ? 'animate-pulse' : 'mr-2'}`} />
+                 <span className="hidden sm:inline">Delete Selected</span>
+               </Button>
+             </>
           )}
 
           <Link href="/app/policies/new" className="ml-auto md:ml-0">

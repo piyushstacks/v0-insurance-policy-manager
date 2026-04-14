@@ -37,7 +37,7 @@ export async function generateExpiryReminders(daysAhead: number = 30) {
         .from('reminders')
         .select('id')
         .eq('policy_id', policy.id)
-        .eq('reminder_type', 'renewal')
+        .eq('reminder_type', 'renewal_7days')
         .eq('status', 'pending')
         .single();
 
@@ -45,8 +45,8 @@ export async function generateExpiryReminders(daysAhead: number = 30) {
 
       reminders.push({
         policy_id: policy.id,
-        reminder_date: reminderDate.toISOString().split('T')[0],
-        reminder_type: 'renewal',
+        scheduled_date: reminderDate.toISOString().split('T')[0],
+        reminder_type: 'renewal_7days',
         status: 'pending',
       });
     }
@@ -81,7 +81,7 @@ export async function getPendingReminders(userId: string) {
       .select(
         `
         id,
-        reminder_date,
+        scheduled_date,
         reminder_type,
         status,
         policies (
@@ -99,8 +99,8 @@ export async function getPendingReminders(userId: string) {
       `
       )
       .eq('status', 'pending')
-      .lte('reminder_date', new Date().toISOString().split('T')[0])
-      .order('reminder_date', { ascending: true });
+      .lte('scheduled_date', new Date().toISOString().split('T')[0])
+      .order('scheduled_date', { ascending: true });
 
     if (error) throw error;
 
@@ -121,7 +121,7 @@ export async function getReminders(userId: string, page = 1, pageSize = 20) {
       .select(
         `
         id,
-        reminder_date,
+        scheduled_date,
         reminder_type,
         status,
         policies (
@@ -133,7 +133,7 @@ export async function getReminders(userId: string, page = 1, pageSize = 20) {
       `,
         { count: 'exact' }
       )
-      .order('reminder_date', { ascending: false })
+      .order('scheduled_date', { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
 
     if (error) throw error;
@@ -165,7 +165,7 @@ export async function dismissReminder(reminderId: string, userId: string) {
 
     const { error } = await supabaseAdmin!
       .from('reminders')
-      .update({ status: 'dismissed' })
+      .update({ status: 'skipped' })
       .eq('id', reminderId);
 
     if (error) throw error;
@@ -217,8 +217,8 @@ export async function generateAllReminders() {
  * Check if a reminder needs action
  * Returns true if reminder date has passed and is still pending
  */
-export function isReminderDue(reminderDate: string): boolean {
-  const reminder = new Date(reminderDate);
+export function isReminderDue(scheduledDate: string): boolean {
+  const reminder = new Date(scheduledDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   reminder.setHours(0, 0, 0, 0);
@@ -229,8 +229,8 @@ export function isReminderDue(reminderDate: string): boolean {
 /**
  * Format days until reminder
  */
-export function daysUntilReminder(reminderDate: string): number {
-  const reminder = new Date(reminderDate);
+export function daysUntilReminder(scheduledDate: string): number {
+  const reminder = new Date(scheduledDate);
   const today = new Date();
   
   reminder.setHours(0, 0, 0, 0);

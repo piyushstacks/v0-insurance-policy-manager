@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 
 interface Reminder {
   id: string;
-  reminder_date: string;
-  reminder_type: 'renewal' | 'payment' | 'review' | 'expiry';
-  status: 'pending' | 'sent' | 'dismissed';
+  scheduled_date: string;
+  reminder_type: 'renewal_30days' | 'renewal_7days' | 'premium_due' | 'followup';
+  status: 'pending' | 'sent' | 'skipped';
   policies?: {
     id: string;
     policy_number: string;
@@ -81,8 +81,8 @@ export default function RemindersPage() {
                             {reminder.policies?.policy_number}
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            {reminder.reminder_type === 'renewal' ? 'Policy renewal' : 'Policy review'} due{' '}
-                            {new Date(reminder.reminder_date).toLocaleDateString()}
+                            {reminder.reminder_type.includes('renewal') ? 'Policy renewal' : 'Action required'} due{' '}
+                            {new Date(reminder.scheduled_date).toLocaleDateString()}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
                             Expires: {new Date(reminder.policies?.coverage_end || '').toLocaleDateString()}
@@ -112,8 +112,8 @@ export default function RemindersPage() {
                           {reminder.policies?.policy_number}
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                          {reminder.status === 'sent' ? 'Sent' : 'Dismissed'} on{' '}
-                          {new Date(reminder.reminder_date).toLocaleDateString()}
+                          {reminder.status === 'sent' ? 'Sent' : 'Skipped'} on{' '}
+                          {new Date(reminder.scheduled_date).toLocaleDateString()}
                         </p>
                       </div>
                     </div>

@@ -107,6 +107,9 @@ class PDFParseProvider implements OCRProvider {
             - "policy_sub_category" MUST be a VERY short noun phrase identifying the product (e.g. "Family Floater", "Comprehensive", "Third Party", "Term Plan"). 
             - ABSOLUTELY DO NOT put full sentences, marketing messages, or phrases like "Thank you for choosing..." in the category fields. If you cannot find a clear product name, put "Standard Cover".
 
+            CRITICAL VALIDATION RULE FOR CONTACT DATA:
+            - NEVER GENERATE FAKE placeholders like 'auto@ocr.local' or 'none@email.com'. If exactly missing, output null.
+
             Fields Required:
             {
               "policy_number": "exact alphanumeric string (e.g. 141300/48/2026)",
@@ -134,6 +137,16 @@ class PDFParseProvider implements OCRProvider {
           // Validation Layer
           const cName = (parsed.customer_name || '').toLowerCase();
           const invalidPhrases = ['details', 'gender', 'nominee', 'unknown', 'name', 'insured'];
+          
+          if (parsed.customer_email) {
+             const lowerE = parsed.customer_email.toLowerCase();
+             if (lowerE.includes('ocr.local') || lowerE.includes('auto@') || lowerE.includes('none') || !lowerE.includes('@')) {
+                 parsed.customer_email = null;
+             }
+          }
+          if (parsed.customer_mobile && String(parsed.customer_mobile).length < 7) {
+             parsed.customer_mobile = null;
+          }
           
           // Category Validation Array (Hard constraint)
           const validCats = ['Health', 'Motor', 'Life', 'Travel', 'Property', 'General', 'Business'];

@@ -289,43 +289,39 @@ export default function PoliciesPage() {
           ) : (
             <div className="min-w-max">
               {/* Header */}
-              <div className="flex px-4 py-3 bg-slate-100 border-b text-xs font-semibold text-slate-600 uppercase tracking-wider sticky top-0 z-10 items-center shadow-sm w-max min-w-full">
-                <div style={{ width: '40px', flexShrink: 0 }} className="flex justify-center items-center">
-                   <input 
-                     type="checkbox" 
-                     className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer"
-                     checked={selected.size === filteredPolicies.length && filteredPolicies.length > 0} 
-                     onChange={toggleAll} 
-                   />
-                </div>
-                <div style={{ width: '160px', flexShrink: 0, resize: 'horizontal', overflow: 'hidden' }} className="pr-2 border-r border-slate-200 mr-2 flex items-center">Policy No</div>
-                <div style={{ width: '200px', flexShrink: 0, resize: 'horizontal', overflow: 'hidden' }} className="pr-2 border-r border-slate-200 mr-2 flex items-center">Insured</div>
-                <div style={{ width: '200px', flexShrink: 0, resize: 'horizontal', overflow: 'hidden' }} className="pr-2 border-r border-slate-200 mr-2 flex items-center">Company</div>
-                <div style={{ width: '180px', flexShrink: 0, resize: 'horizontal', overflow: 'hidden' }} className="pr-2 border-r border-slate-200 mr-2 flex items-center">Product</div>
-                <div style={{ width: '140px', flexShrink: 0, resize: 'horizontal', overflow: 'hidden' }} className="pr-2 border-r border-slate-200 mr-2 flex items-center">Dates</div>
-                <div style={{ width: '140px', flexShrink: 0, resize: 'horizontal', overflow: 'hidden' }} className="pr-2 border-r border-slate-200 mr-2 flex items-center justify-end">Gross Prem</div>
-                <div style={{ width: '100px', flexShrink: 0, resize: 'horizontal', overflow: 'hidden' }} className="flex items-center justify-center">Action</div>
+              <div className="grid grid-cols-[auto_minmax(120px,1fr)_minmax(150px,1.5fr)_minmax(150px,2fr)_minmax(120px,1.5fr)_130px_130px_90px] gap-3 px-4 py-3 bg-slate-100 border-b text-xs font-semibold text-slate-600 uppercase tracking-wider sticky top-0 z-10 items-center shadow-sm">
+                <input 
+                  type="checkbox" 
+                  className="rounded border-slate-300 mx-1 accent-blue-600 w-4 h-4 cursor-pointer"
+                  checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} 
+                  onChange={toggleAll} 
+                />
+                <div>Policy No</div>
+                <div>Insured</div>
+                <div>Company</div>
+                <div>Product</div>
+                <div>Dates</div>
+                <div className="text-right">Gross Prem</div>
+                <div className="text-center">Action</div>
               </div>
 
               {/* Rows */}
-              <div className="divide-y divide-slate-100 w-max min-w-full">
+              <div className="divide-y divide-slate-100">
                 {paginatedPolicies.map((p) => {
                   const pending = isPending(p);
                   return (
                     <div 
                       key={p.id} 
-                      className={`flex px-4 py-3 items-center hover:bg-slate-50/80 transition-colors text-sm ${pending ? 'bg-amber-50/30' : ''}`}
+                      className={`grid grid-cols-[auto_minmax(120px,1fr)_minmax(150px,1.5fr)_minmax(150px,2fr)_minmax(120px,1.5fr)_130px_130px_90px] gap-3 px-4 py-3 items-center hover:bg-slate-50/80 transition-colors text-sm ${pending ? 'bg-amber-50/30' : ''}`}
                     >
-                      <div style={{ width: '40px', flexShrink: 0 }} className="flex justify-center items-center">
-                         <input 
-                           type="checkbox" 
-                           className="rounded border-slate-300 accent-blue-600 w-4 h-4 mt-0.5 cursor-pointer"
-                           checked={selected.has(p.id)} 
-                           onChange={() => toggleSelect(p.id)} 
-                         />
-                      </div>
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-300 mx-1 accent-blue-600 w-4 h-4 shrink-0 mt-0.5 cursor-pointer"
+                        checked={selected.has(p.id)} 
+                        onChange={() => toggleSelect(p.id)} 
+                      />
                       
-                      <div className="font-medium text-slate-900 truncate pr-2 mr-2" style={{ width: '160px', flexShrink: 0 }}>
+                      <div className="font-medium text-slate-900 truncate pr-2">
                         {pending ? (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 uppercase tracking-widest">
                             Pending OCR
@@ -337,15 +333,15 @@ export default function PoliciesPage() {
                         )}
                       </div>
                       
-                      <div className="truncate text-slate-700 pr-2 mr-2" style={{ width: '200px', flexShrink: 0 }}>
+                      <div className="truncate text-slate-700 pr-2">
                         {p.customer?.name || '—'}
                       </div>
                       
-                      <div className="truncate text-slate-700 pr-2 mr-2" style={{ width: '200px', flexShrink: 0 }}>
+                      <div className="truncate text-slate-700 pr-2">
                         {p.insurer?.name || '—'}
                       </div>
                       
-                      <div className="text-slate-600 text-xs flex flex-col gap-1 min-w-0 pr-2 mr-2" style={{ width: '180px', flexShrink: 0 }}>
+                      <div className="text-slate-600 text-xs flex flex-col gap-1 min-w-0 pr-2">
                         {p.policy_type ? (
                           <>
                              <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-sm w-max uppercase text-[9px] tracking-wider border border-indigo-100">
@@ -358,18 +354,18 @@ export default function PoliciesPage() {
                         ) : '—'}
                       </div>
                       
-                      <div className="text-xs text-slate-500 whitespace-nowrap pr-2 mr-2" style={{ width: '140px', flexShrink: 0 }}>
+                      <div className="text-xs text-slate-500 whitespace-nowrap">
                         <div className="font-medium text-slate-700 mb-0.5">{p.start_date ? new Date(p.start_date).toLocaleDateString('en-GB') : '—'}</div>
                         <div className="opacity-70 text-[10px] uppercase">to {p.expiry_date ? new Date(p.expiry_date).toLocaleDateString('en-GB') : '—'}</div>
                       </div>
                       
-                      <div className="text-slate-700 font-medium whitespace-nowrap flex items-center justify-end gap-1 pr-2 mr-2" style={{ width: '140px', flexShrink: 0 }}>
+                      <div className="text-right text-slate-700 font-medium whitespace-nowrap flex items-center justify-end gap-1">
                         {!pending && p.premium_amount ? (
                            <span>₹{p.premium_amount.toLocaleString('en-IN')}</span>
                         ) : '—'}
                       </div>
 
-                      <div className="flex items-center justify-center gap-1" style={{ width: '100px', flexShrink: 0 }}>
+                      <div className="flex items-center justify-center gap-1">
                         <Link href={`/app/policies/${p.id}`}>
                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                              <FilePenLine className="w-4 h-4" />

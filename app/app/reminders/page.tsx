@@ -13,7 +13,7 @@ interface Reminder {
     id: string;
     policy_number: string;
     policy_type: string;
-    coverage_end: string;
+    expiry_date: string;
   };
 }
 
@@ -26,7 +26,10 @@ export default function RemindersPage() {
     async function fetchReminders() {
       try {
         const response = await fetch('/api/reminders');
-        if (!response.ok) throw new Error('Failed to fetch reminders');
+        if (!response.ok) {
+           const errData = await response.json().catch(() => null);
+           throw new Error(errData?.error || `HTTP ${response.status}: Failed to fetch reminders`);
+        }
         const data = await response.json();
         setReminders(data.data || []);
       } catch (err) {
@@ -85,7 +88,7 @@ export default function RemindersPage() {
                             {new Date(reminder.scheduled_date).toLocaleDateString()}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Expires: {new Date(reminder.policies?.coverage_end || '').toLocaleDateString()}
+                            Expires: {new Date(reminder.policies?.expiry_date || '').toLocaleDateString()}
                           </p>
                         </div>
                       </div>

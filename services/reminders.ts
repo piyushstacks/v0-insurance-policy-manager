@@ -18,10 +18,10 @@ export async function generateExpiryReminders(daysAhead: number = 30) {
 
     const { data: expiringPolicies, error: fetchError } = await supabaseAdmin!
       .from('policies')
-      .select('id, coverage_end')
+      .select('id, expiry_date')
       .eq('status', 'active')
-      .gte('coverage_end', new Date().toISOString().split('T')[0])
-      .lte('coverage_end', futureDate.toISOString().split('T')[0]);
+      .gte('expiry_date', new Date().toISOString().split('T')[0])
+      .lte('expiry_date', futureDate.toISOString().split('T')[0]);
 
     if (fetchError) throw fetchError;
 
@@ -29,7 +29,7 @@ export async function generateExpiryReminders(daysAhead: number = 30) {
 
     // Create reminder for each expiring policy (if not already created)
     for (const policy of expiringPolicies) {
-      const reminderDate = new Date(policy.coverage_end);
+      const reminderDate = new Date(policy.expiry_date);
       reminderDate.setDate(reminderDate.getDate() - 7); // 7 days before expiry
 
       // Check if reminder already exists
@@ -88,7 +88,7 @@ export async function getPendingReminders(userId: string) {
           id,
           policy_number,
           policy_type,
-          coverage_end,
+          expiry_date,
           customers (
             name
           ),
@@ -128,7 +128,7 @@ export async function getReminders(userId: string, page = 1, pageSize = 20) {
           id,
           policy_number,
           policy_type,
-          coverage_end
+          expiry_date
         )
       `,
         { count: 'exact' }

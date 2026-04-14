@@ -93,7 +93,11 @@ class PDFParseProvider implements OCRProvider {
             "coverage_end": "ISO8601 date string for when policy expires",
             "premium_amount": Total Gross Premium or Net Premium paid as a pure Number (e.g. 20527),
             "insurer_name": "Name of insurance company (e.g. HDFC ERGO General Insurance)",
-            "customer_name": "Name of the insured person or proposer (e.g. Piyush Bhagchandani)"
+            "customer_name": "Name of the insured person or proposer (e.g. Piyush Bhagchandani)",
+            "customer_email": "The exact valid email address of the customer if present, otherwise null",
+            "customer_mobile": "The exact mobile/phone number of the customer if present, otherwise null",
+            "vehicle_number": "If this is Motor insurance, extract the Vehicle Reg No. (e.g. MH04XY9999), else null",
+            "nominee_name": "Name of the nominee if available, else null"
           }
 
           Raw Document Text:
@@ -115,6 +119,10 @@ class PDFParseProvider implements OCRProvider {
           premium_amount: Number(parsed.premium_amount) || 0,
           insurer_name: parsed.insurer_name || 'Unknown Insurer',
           customer_name: parsed.customer_name || 'Unknown Customer',
+          customer_email: parsed.customer_email || null,
+          customer_mobile: parsed.customer_mobile || null,
+          vehicle_number: parsed.vehicle_number || null,
+          nominee_name: parsed.nominee_name || null,
         };
       } catch (aiErr) {
         console.error('[v0/AI] Gemini failed to parse properly. Falling back to Regex.', aiErr);

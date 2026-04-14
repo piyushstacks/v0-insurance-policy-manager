@@ -11,33 +11,35 @@ export default function NewPolicyPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
   async function handleUpload() {
-    if (!uploadFile) return;
+    if (uploadFiles.length === 0) return;
     setError(undefined);
     setLoading(true);
 
     try {
-      // Upload Document directly without a predefined policy ID
-      // The API will auto-provision a placeholder record
-      const fileData = new FormData();
-      fileData.append('file', uploadFile);
-      fileData.append('autoExtract', 'true');
+      let successCount = 0;
+      for (const uploadFile of uploadFiles) {
+          const fileData = new FormData();
+          fileData.append('file', uploadFile);
+          fileData.append('autoExtract', 'true');
 
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        body: fileData
-      });
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            body: fileData
+          });
 
-      if (!uploadRes.ok) {
-        const errJson = await uploadRes.json().catch(() => ({}));
-        throw new Error(errJson.error || 'File upload failed');
+          if (uploadRes.ok) {
+              successCount++;
+          }
       }
 
-      toast.success("Document Uploaded!", {
-         description: "The AI is processing data in the background."
+      if (successCount === 0) throw new Error('All file uploads failed. Verify format.');
+
+      toast.success(`${successCount} Document(s) Uploaded!`, {
+         description: `AI is structurally sorting and extracting all data natively.`
       });
 
       router.refresh();
@@ -66,8 +68,8 @@ export default function NewPolicyPage() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setUploadFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setUploadFiles(Array.from(e.dataTransfer.files));
     }
   };
 
@@ -79,9 +81,9 @@ export default function NewPolicyPage() {
       </div>
 
       <div 
-        className={`relative flex flex-col items-center justify-center w-full h-[320px] rounded-xl border-2 border-dashed transition-all duration-200 ${
+        className={`relative flex flex-col items-center justify-center w-full min-h-[320px] rounded-xl border-2 border-dashed transition-all duration-200 p-8 ${
           dragActive ? 'border-primary bg-primary/5 scale-[1.02]' : 'border-border bg-card hover:bg-accent/50 hover:border-muted-foreground/50'
-        } ${uploadFile ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : ''}`}
+        } ${uploadFiles.length > 0 ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : ''}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -89,12 +91,13 @@ export default function NewPolicyPage() {
       >
         <input 
           type="file" 
+          multiple
           accept="application/pdf,image/jpeg,image/png"
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-          onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
+          onChange={(e) => setUploadFiles(e.target.files ? Array.from(e.target.files) : [])}
         />
         
-        {!uploadFile ? (
+        {uploadFiles.length === 0 ? (
           <>
             <div className="p-4 rounded-full bg-primary/10 mb-4">
               <UploadCloud className="w-10 h-10 text-primary" />
@@ -108,14 +111,18 @@ export default function NewPolicyPage() {
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center z-20 pointer-events-none">
+          <div className="flex flex-col items-center z-20 pointer-events-none text-center">
             <div className="p-3 rounded-full bg-green-100 dark:bg-green-900 mb-3 text-green-600 dark:text-green-400">
               <CheckCircle2 className="w-10 h-10" />
             </div>
-            <p className="text-lg font-semibold text-foreground mb-1">{uploadFile.name}</p>
-            <p className="text-sm text-muted-foreground mb-6">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
+            <p className="text-lg font-semibold text-foreground mb-1">{uploadFiles.length} file(s) selected</p>
+            <div className="text-sm text-muted-foreground mb-6 max-h-32 overflow-y-auto space-y-1 mt-2">
+               {uploadFiles.map((f, i) => (
+                  <p key={i}>{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</p>
+               ))}
+            </div>
             
-            <p className="text-xs font-medium text-primary mb-2">Click to replace file</p>
+            <p className="text-xs font-medium text-primary mb-2 mt-auto">Click to replace files array</p>
           </div>
         )}
       </div>
@@ -130,8 +137,8 @@ export default function NewPolicyPage() {
         <Button variant="outline" size="lg" onClick={() => router.back()} disabled={loading} className="w-full sm:w-auto min-w-[140px]">
           Cancel
         </Button>
-        <Button size="lg" onClick={handleUpload} disabled={loading || !uploadFile} className="w-full sm:w-auto min-w-[200px] shadow-md">
-          {loading ? 'Processing Upload...' : 'Upload & Start Extraction'}
+        <Button size="lg" onClick={handleUpload} disabled={loading || uploadFiles.length === 0} className="w-full sm:w-auto min-w-[200px] shadow-md">
+          {loading ? 'Processing Upload Batch...' : 'Upload & Start Extraction'}
         </Button>
       </div>
     </div>

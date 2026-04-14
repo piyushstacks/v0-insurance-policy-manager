@@ -100,7 +100,11 @@ export async function extractDocumentInline(
       } else {
         const { data: custNew } = await supabaseAdmin!
           .from('customers')
-          .insert([{ name: extracted.customer_name, email: 'auto@ocr.local' }])
+          .insert([{ 
+              name: extracted.customer_name, 
+              email: extracted.customer_email || null,
+              mobile: extracted.customer_mobile || null 
+          }])
           .select('id')
           .single();
         if (custNew) finalCustId = custNew.id;
@@ -135,7 +139,19 @@ export async function extractDocumentInline(
       premium_amount: extracted.premium_amount || 1,
     };
 
-    if (finalCustId) updatePayload.customer_id = finalCustId;
+    if (finalCustId) {
+      updatePayload.customer_id = finalCustId;
+      // Gently update customer contact dynamically without overwriting existing data if present
+      if (extracted.customer_email || extracted.customer_mobile) {
+         const { data: c } = await supabaseAdmin!.from('customers').select('email, mobile').eq('id', finalCustId).single();
+         if (c && (!c.email || !c.mobile)) {
+             await supabaseAdmin!.from('customers').update({
+                email: c.email || extracted.customer_email || null,
+                mobile: c.mobile || extracted.customer_mobile || null,
+             }).eq('id', finalCustId);
+         }
+      }
+    }
     if (finalInsId) updatePayload.insurer_id = finalInsId;
 
     await supabaseAdmin!

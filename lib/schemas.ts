@@ -64,6 +64,11 @@ export const extractionResultSchema = z.object({
   premium_amount: z.number().optional(),
   insurer_name: z.string().optional(),
   customer_name: z.string().optional(),
+  customer_email: z.string().optional().nullable(),
+  customer_mobile: z.string().optional().nullable(),
+  vehicle_number: z.string().optional().nullable(),
+  nominee_name: z.string().optional().nullable(),
+  health_ped: z.string().optional().nullable(),
   additional_fields: z.record(z.any()).optional(),
 });
 

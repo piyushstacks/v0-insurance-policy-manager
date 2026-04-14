@@ -281,6 +281,12 @@ export default function PolicyDetailPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <a href={`${process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://vvueurxfbdrfbdanxbnl.supabase.co'}/storage/v1/object/public/policy-documents/${doc.file_path}`} 
+                     target="_blank" 
+                     rel="noreferrer"
+                     className="px-3 py-1 text-xs font-semibold bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 transition-colors">
+                     Download original PDF
+                  </a>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${extractionColors[doc.extraction_status] ?? 'bg-gray-100 text-gray-700'}`}>
                     {doc.extraction_status}
                   </span>

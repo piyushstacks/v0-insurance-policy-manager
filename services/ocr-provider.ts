@@ -88,7 +88,8 @@ class PDFParseProvider implements OCRProvider {
           Fields Required:
           {
             "policy_number": "exact alphanumeric string (e.g. 141300/48/2026)",
-            "policy_type": "type of insurance (e.g. Health Insurance, Motor Vehicle, General)",
+            "policy_category": "Strictly choose one: 'Health', 'Motor', 'Life', or 'General'",
+            "policy_sub_category": "e.g., 'Family Floater', 'Comprehensive', 'Term Plan', 'ULIP'",
             "coverage_start": "ISO8601 date string for when policy begins (e.g. 2024-05-14T00:00:00Z)",
             "coverage_end": "ISO8601 date string for when policy expires",
             "premium_amount": Total Gross Premium or Net Premium paid as a pure Number (e.g. 20527),
@@ -96,8 +97,7 @@ class PDFParseProvider implements OCRProvider {
             "customer_name": "Name of the insured person or proposer (e.g. Piyush Bhagchandani)",
             "customer_email": "The exact valid email address of the customer if present, otherwise null",
             "customer_mobile": "The exact mobile/phone number of the customer if present, otherwise null",
-            "vehicle_number": "If this is Motor insurance, extract the Vehicle Reg No. (e.g. MH04XY9999), else null",
-            "nominee_name": "Name of the nominee if available, else null"
+            "key_important_details": "A clean HTML string formatting ALL other highly-specific information found. E.g. Sum Insured, Nominees, Vehicle Reg No, IDV limit, Engine No, Pre-Existing Diseases, Waiting Periods, Add-ons. Use <li> tags for lists. If none, pass empty string."
           }
 
           Raw Document Text:
@@ -113,7 +113,7 @@ class PDFParseProvider implements OCRProvider {
         console.log('[v0/AI] Gemini LLM parsed structured JSON perfectly!');
         return {
           policy_number: parsed.policy_number || `OCR-${Date.now()}`,
-          policy_type: parsed.policy_type || 'Unknown Type',
+          policy_type: `${parsed.policy_category || 'General'} | ${parsed.policy_sub_category || 'Insurance'}`,
           coverage_start: parsed.coverage_start || now.toISOString(),
           coverage_end: parsed.coverage_end || nextYear.toISOString(),
           premium_amount: Number(parsed.premium_amount) || 0,
@@ -121,8 +121,7 @@ class PDFParseProvider implements OCRProvider {
           customer_name: parsed.customer_name || 'Unknown Customer',
           customer_email: parsed.customer_email || null,
           customer_mobile: parsed.customer_mobile || null,
-          vehicle_number: parsed.vehicle_number || null,
-          nominee_name: parsed.nominee_name || null,
+          agent_notes: parsed.key_important_details || null,
         };
       } catch (aiErr) {
         console.error('[v0/AI] Gemini failed to parse properly. Falling back to Regex.', aiErr);

@@ -311,8 +311,17 @@ export default function PoliciesPage() {
                         {p.insurer?.name || '—'}
                       </div>
                       
-                      <div className="truncate text-slate-600 text-xs">
-                        {p.policy_type || '—'}
+                      <div className="text-slate-600 text-xs flex flex-col gap-1 min-w-0 pr-2">
+                        {p.policy_type ? (
+                          <>
+                             <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-sm w-max uppercase text-[9px] tracking-wider border border-indigo-100">
+                               {p.policy_type.split(' | ')[0] || 'General'}
+                             </span>
+                             <span className="text-[11px] truncate" title={p.policy_type.split(' | ')[1] || ''}>
+                               {p.policy_type.split(' | ')[1] || ''}
+                             </span>
+                          </>
+                        ) : '—'}
                       </div>
                       
                       <div className="text-xs text-slate-500 whitespace-nowrap">

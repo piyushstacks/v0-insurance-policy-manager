@@ -137,6 +137,7 @@ export async function extractDocumentInline(
       start_date:    startDate,
       expiry_date:   expiryDate,
       premium_amount: extracted.premium_amount || 1,
+      agent_notes:   extracted.agent_notes || null,
     };
 
     if (finalCustId) {

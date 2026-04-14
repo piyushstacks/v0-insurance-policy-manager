@@ -159,8 +159,18 @@ export default function PolicyDetailPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">{policy.policy_number}</h1>
-            <p className="text-muted-foreground text-sm">{policy.policy_type}</p>
+            <h1 className="text-2xl font-bold mb-1">{policy.policy_number}</h1>
+            {(() => {
+              const parts = policy.policy_type?.split(' | ') || [];
+              const category = parts[0] || 'General';
+              const subcat = parts[1] || '';
+              return (
+                 <div className="flex items-center gap-2">
+                     <span className="bg-indigo-100 text-indigo-800 font-semibold px-2 py-0.5 rounded text-xs tracking-wider">{category}</span>
+                     {subcat && <span className="text-muted-foreground text-sm">{subcat}</span>}
+                 </div>
+              );
+            })()}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -247,18 +257,15 @@ export default function PolicyDetailPage() {
       </div>
 
       {/* Extra Details */}
-      {(policy.vehicle_number || policy.nominee || policy.agent_notes) && (
-        <div className="rounded-lg border bg-card p-4 space-y-3">
-          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Additional Details</h3>
-          {policy.vehicle_number && (
-            <div><span className="text-xs text-muted-foreground">Vehicle: </span><span className="font-medium">{policy.vehicle_number}</span></div>
-          )}
-          {policy.nominee && (
-            <div><span className="text-xs text-muted-foreground">Nominee: </span><span className="font-medium">{policy.nominee}</span></div>
-          )}
-          {policy.agent_notes && (
-            <div><span className="text-xs text-muted-foreground">Notes: </span><span>{policy.agent_notes}</span></div>
-          )}
+      {policy.agent_notes && (
+        <div className="rounded-lg border bg-card p-5 space-y-3 shadow-sm border-t-4 border-t-indigo-400">
+          <h3 className="font-semibold text-sm text-indigo-900 uppercase tracking-wide flex items-center gap-2">
+             <AlertCircle className="w-4 h-4 text-indigo-500" /> 
+             Deep AI Extraction Insights
+          </h3>
+          <div className="bg-muted/30 p-4 rounded-md text-sm prose prose-sm max-w-none break-words" 
+               dangerouslySetInnerHTML={{ __html: policy.agent_notes }} 
+          />
         </div>
       )}
 

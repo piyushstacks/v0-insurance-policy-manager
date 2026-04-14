@@ -1,14 +1,18 @@
 /**
- * Extraction Worker - Process extraction queue one-by-one
+ * Extraction Worker - Process extraction queue in parallel
  * This endpoint should be called by a cron job or external scheduler
- * Example: Call this every 10 seconds to continuously process the queue
+ * Processes multiple jobs concurrently (configurable max parallel jobs)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { processPendingExtractions } from '@/services/extraction';
+import { getNextJob, completeJob, failJob, getQueueLength } from '@/lib/redis';
+import { processExtractionJob } from '@/services/extraction';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes max
+
+// Maximum number of concurrent extraction jobs
+const MAX_PARALLEL_JOBS = parseInt(process.env.MAX_PARALLEL_EXTRACTIONS || '5', 10);
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,18 +29,57 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('[v0] Starting extraction worker...');
+    console.log(`[v0] Starting extraction worker (max ${MAX_PARALLEL_JOBS} parallel jobs)...`);
 
-    // Process all pending extractions in queue (one-by-one)
-    const results = await processPendingExtractions();
+    // Get current queue length
+    const queueLength = await getQueueLength();
+    console.log(`[v0] Queue length: ${queueLength} jobs pending`);
 
-    console.log(`[v0] Extraction worker completed. Processed ${results.length} jobs.`);
+    // Determine how many jobs to process in parallel
+    const jobsToProcess = Math.min(MAX_PARALLEL_JOBS, queueLength);
+
+    if (jobsToProcess === 0) {
+      return NextResponse.json(
+        {
+          success: true,
+          jobsProcessed: 0,
+          queueLength: 0,
+          message: 'No jobs in queue',
+        },
+        { status: 200 }
+      );
+    }
+
+    console.log(`[v0] Processing ${jobsToProcess} extraction jobs in parallel...`);
+
+    // Create promises for parallel job processing
+    const processingPromises = [];
+    for (let i = 0; i < jobsToProcess; i++) {
+      processingPromises.push(processExtractionJobSafely());
+    }
+
+    // Wait for all jobs to complete
+    const results = await Promise.allSettled(processingPromises);
+
+    // Count successes and failures
+    const successCount = results.filter(r => r.status === 'fulfilled' && r.value?.success).length;
+    const failureCount = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value?.success)).length;
+
+    console.log(`[v0] Extraction worker completed: ${successCount} succeeded, ${failureCount} failed`);
+
+    // Get updated queue length
+    const updatedQueueLength = await getQueueLength();
 
     return NextResponse.json(
       {
         success: true,
-        jobsProcessed: results.length,
-        results,
+        jobsProcessed: jobsToProcess,
+        jobsSucceeded: successCount,
+        jobsFailed: failureCount,
+        queueLength: updatedQueueLength,
+        results: results
+          .filter(r => r.status === 'fulfilled')
+          .map(r => (r as PromiseFulfilledResult<any>).value),
       },
       { status: 200 }
     );
@@ -46,5 +89,25 @@ export async function GET(request: NextRequest) {
       { error: error instanceof Error ? error.message : 'Worker error' },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Safely process a single extraction job
+ * Handles errors and retries without crashing the worker
+ */
+async function processExtractionJobSafely() {
+  try {
+    const result = await processExtractionJob();
+    return {
+      success: true,
+      ...result,
+    };
+  } catch (error) {
+    console.error('[v0] Error processing extraction job:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }

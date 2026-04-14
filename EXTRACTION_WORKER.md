@@ -4,27 +4,31 @@
 
 The Insurance Policy Manager now uses a **background extraction queue** for processing policy documents. This means:
 
-✅ **Bulk uploads all files at once** - No sequential waiting on frontend  
-✅ **Extracts one-by-one in background** - Independent of user session  
+✅ **User uploads files and closes app** - No need to wait  
+✅ **All extractions happen in parallel** - Configurable concurrency  
 ✅ **Automatic real-time updates** - Supabase Realtime notifies when extraction completes  
-✅ **No app dependency** - Extraction continues even if user closes app  
+✅ **No user session dependency** - Extraction continues in background  
 
 ## Architecture
 
 ```
-User Uploads Files
+User Uploads Multiple Files
         ↓
 All Files Uploaded (Parallel)
         ↓
 Each File → Redis Queue
         ↓
-Background Worker Processes Queue (One-by-One)
+User CLOSES APP (doesn't matter!)
         ↓
-Extract Data via AI Service
+Background Worker Processes Multiple Jobs (Parallel)
         ↓
-Update Policy in Supabase
-        ↓
-Realtime Alert → Auto-refresh in Policies List
+Job 1: Extract via AI      Job 2: Extract via AI      Job 3: Extract via AI
+        ↓                          ↓                          ↓
+    Update Policy 1          Update Policy 2          Update Policy 3
+        ↓                          ↓                          ↓
+    Realtime Alert 1          Realtime Alert 2          Realtime Alert 3
+        ↓                          ↓                          ↓
+Auto-Update in Policies List (for any connected users)
 ```
 
 ## Setup Instructions
@@ -40,6 +44,13 @@ UPSTASH_REDIS_REST_TOKEN=your-redis-token
 
 # Worker Secret (for authentication)
 EXTRACTION_WORKER_SECRET=your-secure-random-token-here
+
+# Max parallel extraction jobs (default: 5)
+# Increase based on your AI API rate limits and server capacity
+# For light testing: 2-3
+# For production: 5-10
+# For high-volume: 10-20+
+MAX_PARALLEL_EXTRACTIONS=5
 ```
 
 Generate a secure token:
@@ -49,7 +60,7 @@ openssl rand -hex 32
 
 ### 2. Configure Extraction Worker
 
-The extraction worker is available at: `POST /api/worker/extract`
+The extraction worker is available at: `GET /api/worker/extract`
 
 **Request:**
 ```bash
@@ -61,16 +72,34 @@ curl -X GET "https://your-domain.com/api/worker/extract" \
 ```json
 {
   "success": true,
-  "jobsProcessed": 3,
+  "jobsProcessed": 5,
+  "jobsSucceeded": 5,
+  "jobsFailed": 0,
+  "queueLength": 3,
   "results": [
     {
       "success": true,
-      "jobId": "job-uuid",
+      "jobId": "extraction-uuid-1",
       "data": { ... extracted data ... }
-    }
+    },
+    ...
   ]
 }
 ```
+
+**Cron Frequency Recommendation:**
+
+The worker processes **all available jobs up to MAX_PARALLEL_EXTRACTIONS** in each call.
+
+- Call every **30 seconds** for continuous processing
+- Or every **1 minute** if you want less frequent checks
+- Or every **5 minutes** for low-volume scenarios
+
+Example: If you have 20 jobs queued and MAX_PARALLEL_EXTRACTIONS=5:
+- Call 1 (T=30s): Processes 5 jobs → 15 remaining
+- Call 2 (T=60s): Processes 5 jobs → 10 remaining  
+- Call 3 (T=90s): Processes 5 jobs → 5 remaining
+- Call 4 (T=120s): Processes 5 jobs → 0 remaining
 
 ### 3. Setup Cron Job (Continuous Processing)
 
@@ -82,7 +111,8 @@ curl -X GET "https://your-domain.com/api/worker/extract" \
 4. Method: `GET`
 5. Custom Headers:
    - `Authorization: Bearer YOUR_EXTRACTION_WORKER_SECRET`
-6. Schedule: `*/10 * * * *` (every 10 seconds)
+6. Schedule: `*/30 * * * * *` (every 30 seconds)
+   - Or `*/1 * * * *` (every 1 minute) for less frequent checks
 
 **Option B: Using AWS Lambda + EventBridge**
 
@@ -107,7 +137,7 @@ def lambda_handler(event, context):
 ```
 
 2. Set up EventBridge rule:
-   - Schedule: `rate(10 seconds)`
+   - Schedule: `rate(30 seconds)`
    - Target: Lambda function
 
 **Option C: Using Vercel Crons (For Vercel Deployment)**
@@ -118,15 +148,16 @@ Add to `vercel.json`:
   "crons": [
     {
       "path": "/api/worker/extract",
-      "schedule": "*/10 * * * *"
+      "schedule": "*/30 * * * * *"
     }
   ]
 }
 ```
 
-Set environment variable in Vercel dashboard:
+Set environment variables in Vercel dashboard:
 ```
 EXTRACTION_WORKER_SECRET=your-token
+MAX_PARALLEL_EXTRACTIONS=5
 ```
 
 ### 4. Queue Status Monitoring
@@ -143,36 +174,42 @@ console.log(`Jobs in queue: ${pendingJobs}`);
 
 ### Upload Flow
 
-1. User adds files to bulk uploader
+1. User adds 10 files to bulk uploader
 2. Clicks "Upload" button
-3. **All files upload in parallel** to storage
+3. **All 10 files upload in parallel** to storage (2-5 seconds)
 4. Policy records created for each file
-5. Each file **queued in Redis** for extraction
-6. Upload response returns immediately
-7. **No waiting for extraction**
+5. Each file **added to Redis queue** for extraction
+6. Upload response returns **immediately**
+7. **User can close app now** - extraction happens independently
 
 ### Extraction Flow
 
-1. Worker calls `/api/worker/extract` (every 10 seconds)
-2. Gets next job from Redis queue
-3. Fetches document from storage
-4. Runs OCR/AI extraction
-5. Updates policy with extracted data
-6. Sends Realtime update to Supabase
-7. Polls processes next job
+1. Cron job calls `/api/worker/extract` every 30 seconds
+2. Worker fetches up to `MAX_PARALLEL_EXTRACTIONS` jobs (default: 5)
+3. **All 5 jobs run in parallel**:
+   - Job 1: Extract PDF document via OpenRouter
+   - Job 2: Extract PDF document via Gemini
+   - Job 3: Extract PDF document via OpenRouter
+   - Job 4: Extract PDF document via Gemini
+   - Job 5: Extract PDF document via OpenRouter
+4. Each job updates its policy with extracted data
+5. Each sends Realtime notification to Supabase
+6. Next batch of 5 jobs starts immediately
+7. Process continues until queue is empty
 
 ### User Experience
 
-1. User uploads 10 files
-2. **All 10 upload in ~2-5 seconds**
-3. User sees "Queued for extraction" status
-4. Can close app immediately
-5. Extraction happens in background
-6. When extraction completes:
-   - Policy automatically updates in Supabase
-   - Realtime notification sent
-   - Policies list updates for any user viewing it
-7. User sees extracted data without refresh
+**Scenario: User uploads 10 files**
+
+1. **T=0s**: User drags 10 PDFs to uploader
+2. **T=2s**: All uploaded, queued for extraction
+3. **T=5s**: **User closes app** (doesn't matter!)
+4. **T=30s**: Worker starts processing (first 5 jobs in parallel)
+5. **T=60s**: First 5 jobs done, policies updated
+6. **T=90s**: Next 5 jobs start
+7. **T=120s**: All 10 extractions complete
+8. **T=130s**: User reopens app
+9. **✅ Sees all 10 policies with extracted data** (via Realtime sync)
 
 ## Monitoring & Debugging
 
@@ -225,35 +262,48 @@ console.log(JSON.parse(jobData));
 
 ## Performance Notes
 
-- **Concurrent uploads**: Limited by browser (typically 6 parallel)
-- **Sequential extraction**: One file at a time from queue
+- **Concurrent uploads**: Limited by browser (typically 6-10 parallel)
+- **Parallel extraction**: Multiple files at once (configurable: 5-20)
 - **Extraction time**: 10-60 seconds per document (depending on size)
-- **Recommended cron frequency**: Every 10 seconds
-- **Max workers**: Run multiple worker instances for faster processing
+- **Recommended cron frequency**: Every 30 seconds
+- **Throughput**: With MAX_PARALLEL_EXTRACTIONS=5 and 30-40 second extraction time:
+  - ~7-10 documents per minute
+  - ~400-600 documents per hour
+  - ~10,000 documents per day
 
-## Scaling to Multiple Workers
+## Tuning MAX_PARALLEL_EXTRACTIONS
 
-If you want **parallel extraction** instead of sequential:
+Choose based on your setup:
 
-1. Run multiple worker instances:
+| Environment | Setting | Notes |
+|------------|---------|-------|
+| **Development** | 2-3 | Avoid rate limiting while testing |
+| **Small Deployment** | 5 | Default, balanced for most use cases |
+| **Medium Deployment** | 10 | Good for steady 100-200 docs/day |
+| **Large Deployment** | 15-20 | For high-volume scenarios |
+| **Enterprise** | 30+ | With multi-instance setup and pooling |
+
+⚠️ **Consider:**
+- OpenRouter/Gemini API rate limits
+- Server CPU and memory
+- Database connection pool size
+- Network bandwidth
+
+**Monitor queue length:**
 ```bash
-# Worker 1
-curl /api/worker/extract?instanceId=1
-# Worker 2  
-curl /api/worker/extract?instanceId=2
-# Worker 3
-curl /api/worker/extract?instanceId=3
+# Check how many jobs are pending
+curl -X GET "https://your-domain.com/api/worker/extract" \
+  -H "Authorization: Bearer YOUR_EXTRACTION_WORKER_SECRET" \
+  | jq '.queueLength'
 ```
 
-2. Each gets independent queue: `queue:extraction:instance:1`, etc.
-
-3. Update worker logic to use instance-specific queues
+If queue keeps growing, increase MAX_PARALLEL_EXTRACTIONS.
 
 ## API Reference
 
-### POST /api/worker/extract
+### GET /api/worker/extract
 
-Process next extraction job from queue.
+Process extraction jobs from queue (parallel).
 
 **Headers:**
 ```
@@ -264,7 +314,10 @@ Authorization: Bearer YOUR_EXTRACTION_WORKER_SECRET
 ```json
 {
   "success": true,
-  "jobsProcessed": 1,
+  "jobsProcessed": 5,
+  "jobsSucceeded": 5,
+  "jobsFailed": 0,
+  "queueLength": 15,
   "results": [
     {
       "success": true,
@@ -272,10 +325,22 @@ Authorization: Bearer YOUR_EXTRACTION_WORKER_SECRET
       "data": {
         "customer_name": "John Doe",
         "policy_number": "POL123456",
+        "policy_type": "Motor Insurance",
         ...
       }
-    }
+    },
+    ...
   ]
+}
+```
+
+**Empty Queue Response (200):**
+```json
+{
+  "success": true,
+  "jobsProcessed": 0,
+  "queueLength": 0,
+  "message": "No jobs in queue"
 }
 ```
 
@@ -289,11 +354,36 @@ Authorization: Bearer YOUR_EXTRACTION_WORKER_SECRET
 ## Next Steps
 
 1. ✅ Set `EXTRACTION_WORKER_SECRET`
-2. ✅ Configure Redis (UPSTASH_REDIS_*) 
-3. ✅ Set up cron job to call `/api/worker/extract` every 10 seconds
-4. ✅ Test with bulk upload
-5. ✅ Monitor queue length and extraction jobs
-6. ✅ Adjust cron frequency if needed
+2. ✅ Configure `MAX_PARALLEL_EXTRACTIONS` (start with 5)
+3. ✅ Configure Redis (UPSTASH_REDIS_*) 
+4. ✅ Set up cron job to call `/api/worker/extract` every 30 seconds
+5. ✅ Test with bulk upload (5+ files)
+6. ✅ Monitor queue length: increases during upload, decreases during extraction
+7. ✅ Adjust MAX_PARALLEL_EXTRACTIONS if queue keeps growing
+8. ✅ Verify Realtime subscriptions update policies in real-time
+
+## Quick Test
+
+```bash
+# 1. Set token
+export TOKEN="your-extraction-worker-secret"
+
+# 2. Call worker manually (see what happens)
+curl -X GET "http://localhost:3000/api/worker/extract" \
+  -H "Authorization: Bearer $TOKEN" | jq .
+
+# Output should show:
+# - jobsProcessed: how many jobs were processed
+# - jobsSucceeded: number of successful extractions
+# - jobsFailed: number of failed extractions
+# - queueLength: how many jobs remain
+
+# 3. Upload files and watch extraction happen
+# Open http://localhost:3000/app/policies/upload
+# Upload 10 PDFs
+# Call worker endpoint multiple times
+# See queue length decrease as jobs are processed
+```
 
 ## Support
 

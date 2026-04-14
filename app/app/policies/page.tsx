@@ -272,7 +272,55 @@ export default function PoliciesPage() {
 
       {/* --- FULL WIDTH TABLE --- */}
       <main className="flex-1 flex flex-col min-w-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        {/* Table Area Extends Full Flow downwards */}
+        
+        {/* Header: Pagination Toolbar */}
+        <div className="p-3 border-b bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-slate-500 z-20">
+            <div className="flex items-center gap-3">
+               <div className="flex items-center gap-1.5">
+                   <span className="font-medium">Rows per page:</span>
+                   <select 
+                     value={pageSize} 
+                     onChange={(e) => {
+                       setPageSize(Number(e.target.value));
+                       setCurrentPage(1);
+                     }} 
+                     className="border border-slate-200 rounded px-2 py-1 bg-white font-medium text-slate-700 outline-none hover:border-indigo-300 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
+                   >
+                      <option value="10">10</option>
+                      <option value="25">25</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                   </select>
+               </div>
+               <div className="hidden sm:block ml-2 px-3 py-1 border-l border-slate-200">
+                   Showing <span className="font-bold text-slate-700">{filteredPolicies.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> to <span className="font-bold text-slate-700">{Math.min(currentPage * pageSize, filteredPolicies.length)}</span> of <span className="font-bold text-slate-700">{filteredPolicies.length}</span> entries
+               </div>
+            </div>
+            
+            <div className="flex items-center gap-1 w-full sm:w-auto justify-between sm:justify-end">
+               <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600" 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                  disabled={currentPage === 1}
+               >
+                 Prev
+               </Button>
+               <span className="font-bold text-slate-700 px-3 bg-white border border-slate-200 py-1.5 rounded-md shadow-sm">
+                 {currentPage} <span className="text-slate-400 font-medium mx-1">/</span> {totalPages || 1}
+               </span>
+               <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600" 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                  disabled={currentPage === totalPages || totalPages === 0}
+               >
+                 Next
+               </Button>
+            </div>
+        </div>
 
         {/* Table Area */}
         <div className="flex-1 overflow-auto bg-white">
@@ -378,55 +426,6 @@ export default function PoliciesPage() {
               </div>
             </div>
           )}
-        </div>
-        
-        {/* Footer: Pagination */}
-        <div className="p-3 border-t bg-slate-50 flex justify-between items-center text-xs text-slate-500">
-            <div className="flex items-center gap-3">
-               <div className="flex items-center gap-1.5">
-                   <span className="font-medium">Rows per page:</span>
-                   <select 
-                     value={pageSize} 
-                     onChange={(e) => {
-                       setPageSize(Number(e.target.value));
-                       setCurrentPage(1);
-                     }} 
-                     className="border border-slate-200 rounded px-2 py-1 bg-white font-medium text-slate-700 outline-none hover:border-indigo-300 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
-                   >
-                      <option value="10">10</option>
-                      <option value="25">25</option>
-                      <option value="50">50</option>
-                      <option value="100">100</option>
-                   </select>
-               </div>
-               <div className="hidden sm:block ml-2 px-3 py-1 border-l border-slate-200">
-                   Showing <span className="font-bold text-slate-700">{filteredPolicies.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> to <span className="font-bold text-slate-700">{Math.min(currentPage * pageSize, filteredPolicies.length)}</span> of <span className="font-bold text-slate-700">{filteredPolicies.length}</span> entries
-               </div>
-            </div>
-            
-            <div className="flex items-center gap-1">
-               <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 px-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600" 
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-                  disabled={currentPage === 1}
-               >
-                 Prev
-               </Button>
-               <span className="font-bold text-slate-700 px-3 bg-white border border-slate-200 py-1.5 rounded-md shadow-sm">
-                 {currentPage} <span className="text-slate-400 font-medium mx-1">/</span> {totalPages || 1}
-               </span>
-               <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 px-2.5 text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600" 
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-                  disabled={currentPage === totalPages || totalPages === 0}
-               >
-                 Next
-               </Button>
-            </div>
         </div>
       </main>
     </div>

@@ -58,6 +58,14 @@ export default function CustomersPage() {
     });
   };
 
+  const toggleAll = () => {
+    if (selected.size === filtered.length && filtered.length > 0) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(c => c.id)));
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (selected.size === 0) return;
     if (!window.confirm(`Are you sure you want to delete ${selected.size} clients?\n\nIf they have active policies attached, the database will safely block the deletion to prevent data loss.`)) {
@@ -99,6 +107,15 @@ export default function CustomersPage() {
                 placeholder="Search clients..." 
                 className="pl-9 h-9 w-full bg-slate-50/50 border-slate-200" 
              />
+          </div>
+          <div className="flex items-center gap-2 px-3 h-9 bg-slate-100 rounded-md border border-slate-200 shadow-sm">
+             <input 
+               type="checkbox" 
+               className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer"
+               checked={selected.size === filtered.length && filtered.length > 0} 
+               onChange={toggleAll} 
+             />
+             <span className="text-xs font-bold text-slate-600 tracking-wider">ALL</span>
           </div>
           {selected.size > 0 && (
              <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={isDeleting} className="shrink-0 shadow-sm">

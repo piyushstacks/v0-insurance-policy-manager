@@ -29,7 +29,7 @@ export const insurerSchema = z.object({
 });
 
 // Policy schemas
-export const policySchema = z.object({
+const policyBaseSchema = z.object({
   customer_id: z.string().uuid('Invalid customer'),
   insurer_id: z.string().uuid('Invalid insurer'),
   policy_number: z.string().min(1, 'Policy number is required'),
@@ -39,10 +39,16 @@ export const policySchema = z.object({
   premium_amount: z.number().positive('Premium must be positive'),
   status: z.enum(['active', 'expired', 'cancelled', 'pending_renewal']),
   renewal_date: z.coerce.date().optional(),
-}).refine((data) => data.coverage_end > data.coverage_start, {
+});
+
+// Full policy schema with cross-field validation (for creates)
+export const policySchema = policyBaseSchema.refine((data) => data.coverage_end > data.coverage_start, {
   message: 'End date must be after start date',
   path: ['coverage_end'],
 });
+
+// Partial update schema (no .refine() — ZodEffects doesn't support .partial())
+export const policyUpdateSchema = policyBaseSchema.partial();
 
 // Document upload schema
 export const documentUploadSchema = z.object({
@@ -81,5 +87,6 @@ export type SignupInput = z.infer<typeof signupSchema>;
 export type CustomerInput = z.infer<typeof customerSchema>;
 export type InsurerInput = z.infer<typeof insurerSchema>;
 export type PolicyInput = z.infer<typeof policySchema>;
+export type PolicyUpdateInput = z.infer<typeof policyUpdateSchema>;
 export type DocumentUploadInput = z.infer<typeof documentUploadSchema>;
 export type ExtractionResult = z.infer<typeof extractionResultSchema>;

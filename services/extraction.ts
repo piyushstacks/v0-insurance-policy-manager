@@ -209,14 +209,30 @@ export async function extractDocumentInline(
  * For development, can be called from an API route
  */
 export async function processExtractionJob() {
-  const job = await getNextJob();
-  if (!job) return null;
+  console.log('[v0] Starting processExtractionJob...');
+  
+  let job;
+  try {
+    job = await getNextJob();
+    console.log('[v0] Got next job:', job?.id);
+  } catch (err) {
+    console.error('[v0] Error getting next job:', err);
+    throw err;
+  }
+  
+  if (!job) {
+    console.log('[v0] No job available');
+    return null;
+  }
 
   const jobId = job.id;
   const { documentId, userId, fileUrl } = job.payload;
 
+  console.log(`[v0] Processing extraction job ${jobId} - documentId: ${documentId}, userId: ${userId}, fileUrl: ${fileUrl?.substring(0, 50)}...`);
+
   try {
     // Mark job as processing
+    console.log(`[v0] Marking job ${jobId} as processing...`);
     await supabaseAdmin!
       .from('extraction_jobs')
       .update({ status: 'processing' })
@@ -225,16 +241,21 @@ export async function processExtractionJob() {
     console.log(`[v0] Processing extraction job ${jobId}`);
 
     // Extract text from document
+    console.log(`[v0] Extracting text from ${fileUrl}...`);
     const extractedText = await ocrProvider.extractText(fileUrl);
+    console.log(`[v0] Extracted ${extractedText.length} characters`);
 
     // Fetch Entity References for strict mapping
+    console.log(`[v0] Fetching entity references...`);
     const { data: dbInsurers } = await supabaseAdmin!.from('insurers').select('name');
     const existingInsurers = dbInsurers?.map(i => i.name) || [];
 
     const { data: dbCusts } = await supabaseAdmin!.from('customers').select('name');
     const existingCustomers = dbCusts?.map(c => c.name) || [];
+    console.log(`[v0] Found ${existingInsurers.length} insurers and ${existingCustomers.length} customers`);
 
     // Parse into structured data using explicit mapping logic
+    console.log(`[v0] Extracting structured data...`);
     let structuredData = await ocrProvider.extractStructuredData(extractedText, existingInsurers, existingCustomers);
 
     // --- AUTO-CONSENSUS FALLBACK ---
@@ -242,8 +263,10 @@ export async function processExtractionJob() {
       console.log('[v0/worker] ⚠️ Missing customer name. Triggering Consensus AI Fallback...');
       structuredData = await ocrProvider.consensusExtract(extractedText, existingInsurers, existingCustomers);
     }
+    console.log(`[v0] Structured data extracted: customer_name=${structuredData.customer_name}, policy_number=${structuredData.policy_number}`);
 
     // Update job with results and store extracted data
+    console.log(`[v0] Updating extraction job ${jobId} as completed...`);
     await supabaseAdmin!
       .from('extraction_jobs')
       .update({
@@ -254,15 +277,19 @@ export async function processExtractionJob() {
       .eq('id', jobId);
 
     // Fetch the policy ID for this document
+    console.log(`[v0] Fetching document data for documentId: ${documentId}...`);
     const { data: docData } = await supabaseAdmin!
         .from('policy_documents')
         .update({ extraction_status: 'extracted' })
         .eq('id', documentId)
         .select('policy_id')
         .single();
+    
+    console.log(`[v0] Document data:`, docData);
         
     // Write OCR Output back to the DB to overwrite the placeholder
     if (docData?.policy_id) {
+        console.log(`[v0] Updating policy ${docData.policy_id} with extracted data...`);
         await supabaseAdmin!
            .from('policies')
            .update({
@@ -274,9 +301,13 @@ export async function processExtractionJob() {
                status: 'active'
            })
            .eq('id', docData.policy_id);
+        console.log(`[v0] Policy updated successfully`);
+    } else {
+        console.log(`[v0] No policy_id found for document ${documentId}`);
     }
     
     // Mark job as complete in queue
+    console.log(`[v0] Marking job ${jobId} as complete in queue...`);
     await completeJob(jobId, structuredData);
 
     console.log(`[v0] Extraction job ${jobId} completed successfully`);

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { policySchema } from '@/lib/schemas';
+import { policySchema, policyUpdateSchema } from '@/lib/schemas';
 import { updatePolicy, deletePolicy, getPolicyWithDocuments } from '@/services/policies';
 import { z } from 'zod';
+import type { CookieOptions } from '@supabase/ssr';
 
 export const runtime = 'nodejs';
 
@@ -27,7 +28,7 @@ export async function GET(
           getAll() {
             return cookieStore.getAll();
           },
-          setAll(cookiesToSet) {
+          setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
             try {
               cookiesToSet.forEach(({ name, value, options }) =>
                 cookieStore.set(name, value, options)
@@ -102,8 +103,8 @@ export async function PUT(
     }
 
     const body = await request.json();
-    // Allow partial updates
-    const validated = policySchema.partial().parse(body);
+    // Allow partial updates using policyUpdateSchema (base object without ZodEffects wrapper)
+    const validated = policyUpdateSchema.parse(body);
 
     const policy = await updatePolicy(id, user.id, validated);
 

@@ -100,10 +100,13 @@ export async function uploadPolicyDocument(
     const documentId = docData.id;
     console.log(`[v0] Document created: ${documentId}`);
 
-    // Queue for extraction (background processing, one-by-one)
+    // Run extraction:
+    // autoExtract=true  → inline (synchronous, used by single-file upload)
+    // autoExtract=false → caller handles queueing (bulk upload calls queueDocumentExtraction separately)
     if (autoExtract) {
-      queueDocumentExtraction(userId, documentId, policyId, fileUrl).catch((e) =>
-        console.error('[v0] Failed to queue extraction:', e)
+      // Run inline extraction — does NOT block response (fire-and-forget, best-effort)
+      extractDocumentInline(documentId, policyId, fileUrl).catch((e) =>
+        console.error('[v0] Inline extraction failed (non-fatal):', e)
       );
     }
 

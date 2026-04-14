@@ -3,6 +3,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { uploadPolicyDocument } from '@/services/upload';
 import { supabaseAdmin } from '@/lib/supabase';
+import { queueDocumentExtraction } from '@/services/extraction';
 
 export const runtime = 'nodejs';
 
@@ -132,15 +133,18 @@ export async function POST(request: NextRequest) {
 
         const policyId = polData.id;
 
-        // Upload the file
-        const result = await uploadPolicyDocument(user.id, policyId, file, true);
+        // Upload the file — pass autoExtract=false so upload is fast (no inline OCR)
+        const result = await uploadPolicyDocument(user.id, policyId, file, false);
+
+        // Explicitly queue for background extraction via Redis
+        await queueDocumentExtraction(user.id, result.documentId, policyId, result.fileUrl);
 
         uploadResults.push({
           fileName: file.name,
           policyId,
           documentId: result.documentId,
-          status: 'success',
-          message: 'Extraction in progress',
+          status: 'queued',
+          message: 'Queued for background extraction',
         });
       } catch (err: any) {
         uploadResults.push({

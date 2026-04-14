@@ -153,6 +153,7 @@ CREATE TABLE extraction_jobs (
   document_id UUID NOT NULL REFERENCES policy_documents(id) ON DELETE CASCADE,
   status TEXT CHECK (status IN ('queued', 'processing', 'completed', 'failed')) DEFAULT 'queued',
   job_id TEXT,
+  extracted_data JSONB,           -- OCR structured output stored here after extraction
   error_message TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

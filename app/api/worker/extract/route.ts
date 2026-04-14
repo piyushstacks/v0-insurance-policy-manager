@@ -97,17 +97,34 @@ export async function GET(request: NextRequest) {
  * Handles errors and retries without crashing the worker
  */
 async function processExtractionJobSafely() {
+  let jobId = 'unknown';
   try {
+    console.log('[v0] Starting extraction job processing...');
     const result = await processExtractionJob();
-    return {
+    
+    if (!result) {
+      console.log('[v0] No job available in queue');
+      return {
+        success: true,
+        message: 'No job in queue',
+        result: null,
+      };
+    }
+
+    console.log('[v0] Extraction job completed successfully:', result?.jobId);
+    return result || {
       success: true,
-      ...result,
+      message: 'Job processed',
     };
   } catch (error) {
-    console.error('[v0] Error processing extraction job:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[v0] Error processing extraction job ${jobId}:`, errorMessage);
+    console.error('[v0] Full error:', error);
+    
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
+      jobId,
     };
   }
 }

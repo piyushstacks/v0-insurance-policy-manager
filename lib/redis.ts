@@ -47,13 +47,21 @@ export async function enqueueExtractionJob(
     createdAt: Date.now(),
   };
 
+  console.log('[v0/redis] Enqueueing job:', jobId);
+
   // Store job details
-  await redis.set(`${JOB_PREFIX}${jobId}`, JSON.stringify(jobData), {
+  const jobKey = `${JOB_PREFIX}${jobId}`;
+  console.log('[v0/redis] Storing job data with key:', jobKey);
+  await redis.set(jobKey, JSON.stringify(jobData), {
     ex: 86400, // 24 hour expiry
   });
+  console.log('[v0/redis] Job data stored');
 
   // Add to queue
-  await redis.lpush(`${QUEUE_PREFIX}extraction`, jobId);
+  const queueKey = `${QUEUE_PREFIX}extraction`;
+  console.log('[v0/redis] Adding to queue:', queueKey);
+  await redis.lpush(queueKey, jobId);
+  console.log('[v0/redis] Job added to queue');
 
   return jobData;
 }
@@ -62,13 +70,31 @@ export async function enqueueExtractionJob(
  * Get next job from queue
  */
 export async function getNextJob() {
+  console.log('[v0/redis] Getting next job from queue...');
+  
   const jobId = await redis.rpop(`${QUEUE_PREFIX}extraction`);
-  if (!jobId) return null;
+  console.log('[v0/redis] rpop returned jobId:', jobId);
+  
+  if (!jobId) {
+    console.log('[v0/redis] No jobId in queue');
+    return null;
+  }
 
-  const jobData = await redis.get(`${JOB_PREFIX}${jobId}`);
-  if (!jobData) return null;
+  const jobKey = `${JOB_PREFIX}${jobId}`;
+  console.log('[v0/redis] Looking for job data with key:', jobKey);
+  
+  const jobData = await redis.get(jobKey);
+  console.log('[v0/redis] Job data from redis:', jobData ? 'found' : 'not found');
+  
+  if (!jobData) {
+    console.log('[v0/redis] ⚠️ Job ID was in queue but job data not found. JobId:', jobId);
+    return null;
+  }
 
-  return JSON.parse(jobData as string) as JobData;
+  const parsed = JSON.parse(jobData as string) as JobData;
+  console.log('[v0/redis] Parsed job:', parsed.id, 'type:', parsed.type);
+  
+  return parsed;
 }
 
 /**

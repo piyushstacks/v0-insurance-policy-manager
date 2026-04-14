@@ -372,6 +372,18 @@ class PDFParseProvider implements OCRProvider {
       grab(/[Pp]olicy\s*[Nn]o\.?\s*[:\-]?\s*([A-Z0-9][A-Z0-9 \/\-]{5,40})/i) ??
       `OCR-${Date.now()}`;
 
+    // ── Insurer ────────────────────────────────────────────────────────────
+    const insurer =
+      grab(/(?:issued by|underwriter|administrator)[:\-\s]+([A-Za-z][A-Za-z ]{3,80}?(?:Insurance|Assurance)\s+(?:Company|Co\.?|Ltd\.?|Limited))/i) ??
+      (() => {
+        for (const line of lines) {
+          const m = line.match(/^([A-Za-z][A-Za-z ]{5,80}?(?:Insurance|Assurance)\s+(?:Company|Co\.?|Ltd\.?|Limited))$/i);
+          if (m) return m[1].trim();
+        }
+        return grab(/([A-Za-z][A-Za-z ]+?(?:Insurance|Assurance)\s+(?:Company|Co\.?|Ltd\.?|Limited))/i);
+      })() ??
+      'Unknown Insurer';
+
     // ── Policy Type: extract actual plan name (e.g. "Star Health Assure") ─
     let policyType = 'General | Standard Cover';
     // Default to Health if insurer name contains Health keywords
@@ -428,17 +440,7 @@ class PDFParseProvider implements OCRProvider {
     const rawPrem = rsPremSlash ?? netPrem ?? totalPrem ?? rsPrem ?? grossPrem;
     if (rawPrem) premium = parseFloat(rawPrem.replace(/,/g, ''));
 
-    // ── Insurer ────────────────────────────────────────────────────────────
-    const insurer =
-      grab(/(?:issued by|underwriter|administrator)[:\-\s]+([A-Za-z][A-Za-z ]{3,80}?(?:Insurance|Assurance)\s+(?:Company|Co\.?|Ltd\.?|Limited))/i) ??
-      (() => {
-        for (const line of lines) {
-          const m = line.match(/^([A-Za-z][A-Za-z ]{5,80}?(?:Insurance|Assurance)\s+(?:Company|Co\.?|Ltd\.?|Limited))$/i);
-          if (m) return m[1].trim();
-        }
-        return grab(/([A-Za-z][A-Za-z ]+?(?:Insurance|Assurance)\s+(?:Company|Co\.?|Ltd\.?|Limited))/i);
-      })() ??
-      'Unknown Insurer';
+    // ── Insurer — moved above policy type block (see above) ───────────────
 
     // ── Customer: Multi-pattern extraction optimized for Star Health ────────
     // Pattern 1: Address block 'To,\nFULL NAME,' - captures up to 2 lines for multi-line names
@@ -477,7 +479,7 @@ class PDFParseProvider implements OCRProvider {
       coverage_end:   coverageEnd,
       premium_amount: premium,
       insurer_name:   insurer.trim(),
-      customer_name:  customer.trim(),
+      customer_name:  customer?.trim() ?? undefined,
     };
 
     console.log('[v0/OCR] Result:', JSON.stringify(result, null, 2));

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/piyushbhagchandani/Apex Solutions/policy manager/v0-insurance-policy-manager"
+      ]
+    }
+  }
+}

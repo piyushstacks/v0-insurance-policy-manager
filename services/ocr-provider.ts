@@ -83,12 +83,13 @@ class PDFParseProvider implements OCRProvider {
       
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
+          // Utilize advanced reasoning capable models for messy Indian formats
           const modelName = attempt === 1 ? "gemini-1.5-flash" : "gemini-1.5-pro";
           console.log(`[v0/AI] Attempt ${attempt} using ${modelName}...`);
           const model = genAI.getGenerativeModel({ model: modelName });
 
           const prompt = `
-            You are an expert insurance document analyst. I am providing you with messy, raw OCR text.
+            You are an expert insurance document analyst. I am providing you with messy, raw OCR text from a complex insurance policy document (e.g., Star Health, HDFC Ergo, etc).
             Read carefully and extract the following exact fields natively. Fix capitalization and spelling.
             Output EXCLUSIVELY a pure JSON object. NO markdown formatting, NO backticks.
 
@@ -97,18 +98,20 @@ class PDFParseProvider implements OCRProvider {
             - Existing Customers in Database: [${existingCustomers.join(', ')}]
             If the extracted insurer or customer name is a typo, substring, or capitalization variant of ANY of the existing entities above, YOU MUST map it to the EXACT string from the arrays above to prevent database duplication.
 
-            CRITICAL VALIDATION RULE:
-            For 'customer_name', you MUST extract the ACTUAL human or business name of the insured policyholder. 
-            ABSOLUTELY DO NOT extract generic table headers like "Person Details", "GenderDOBNominee Name", "Insured Name", or "Name". 
-            If you cannot strictly find the actual real name, output null.
+            CRITICAL VALIDATION RULE FOR CUSTOMER:
+            For 'customer_name', you MUST extract the ACTUAL human or business name of the primary insured policyholder/proposer. 
+            ABSOLUTELY DO NOT extract generic table headers like "Person Details", "GenderDOBNominee Name", "Insured Name", "Name", "Code", "Client ID", or "UIN". 
+            If the text mixes labels like "Insured Name: Code: 1A2B Name: Piyush Bhagchandani", extract ONLY "Piyush Bhagchandani".
+            If you cannot strictly find the actual real human/company name, output null. Do NOT guess.
 
             CRITICAL VALIDATION RULE FOR CATEGORY & PRODUCT:
             - "policy_category" MUST STRICTLY be one of the following words: "Health", "Motor", "Life", "Travel", "Property", "General", or "Business". Do not use any other words.
             - "policy_sub_category" MUST be a VERY short noun phrase identifying the product (e.g. "Family Floater", "Comprehensive", "Third Party", "Term Plan"). 
-            - ABSOLUTELY DO NOT put full sentences, marketing messages, or phrases like "Thank you for choosing..." in the category fields. If you cannot find a clear product name, put "Standard Cover".
+            - NEVER use the insurance company's name (e.g. "Star Health and Allied Insurance", "HDFC Ergo") as the policy sub-category. It must be the actual plan name like "MediClassic" or "Optima Restore".
+            - ABSOLUTELY DO NOT put full sentences, marketing messages, or phrases like "Thank you for choosing...". If you cannot find a clear product name, put "Standard Cover".
 
             CRITICAL VALIDATION RULE FOR CONTACT DATA:
-            - NEVER GENERATE FAKE placeholders like 'auto@ocr.local' or 'none@email.com'. If exactly missing, output null.
+            - NEVER GENERATE FAKE placeholders like 'auto@ocr.local', 'test@test.com', or 'none@email.com'. If exactly missing organically on the document, output null.
 
             Fields Required:
             {
@@ -136,7 +139,7 @@ class PDFParseProvider implements OCRProvider {
           
           // Validation Layer
           const cName = (parsed.customer_name || '').toLowerCase();
-          const invalidPhrases = ['details', 'gender', 'nominee', 'unknown', 'name', 'insured'];
+          const invalidPhrases = ['details', 'gender', 'nominee', 'unknown', 'name', 'insured', 'code', 'client id'];
           
           if (parsed.customer_email) {
              const lowerE = parsed.customer_email.toLowerCase();
@@ -156,13 +159,16 @@ class PDFParseProvider implements OCRProvider {
           let finalSubCat = parsed.policy_sub_category || 'Insurance';
           if (finalSubCat.length > 35) finalSubCat = 'Standard Policy'; // Ban long sentences
           
-          if (!cName || invalidPhrases.some(p => cName.includes(p)) || cName.length < 3) {
+          if (!cName || invalidPhrases.some(p => cName === p || (cName.includes(p) && cName.length < 15)) || cName.length < 3) {
              console.warn(`[v0/AI] Extraction Validation Failed on Attempt ${attempt} (Extracted: ${parsed.customer_name}). Retrying...`);
-             if (attempt === 1) continue; // Escalate to Gemini Pro on next loop
+             if (attempt === 1) {
+                 // Push aggressively to Gemini-1.5-Pro on Failure 2
+                 continue;
+             }
              else parsed.customer_name = 'REVIEW REQUIRED - EXTRACT FAILED';
           }
           
-          if (!parsed.policy_number || parsed.policy_number.length < 4) {
+          if (!parsed.policy_number || parsed.policy_number.length < 4 || parsed.policy_number.toLowerCase() === 'code') {
              console.warn(`[v0/AI] Policy Number Validation Failed. Retrying...`);
              if (attempt === 1) continue;
              else parsed.policy_number = `REVIEW-${Date.now()}`;

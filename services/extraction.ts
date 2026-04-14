@@ -68,9 +68,16 @@ export async function extractDocumentInline(
   const jobDbId = jobRow?.id;
 
   try {
+    // Fetch mapping dependencies dynamically to pass to AI Intelligence
+    const { data: dbInsurers } = await supabaseAdmin!.from('insurers').select('name');
+    const existingInsurers = dbInsurers?.map(i => i.name) || [];
+
+    const { data: dbCusts } = await supabaseAdmin!.from('customers').select('name');
+    const existingCustomers = dbCusts?.map(c => c.name) || [];
+
     // Run OCR
     const rawText = await ocrProvider.extractText(fileUrl);
-    const extracted = await ocrProvider.extractStructuredData(rawText);
+    const extracted = await ocrProvider.extractStructuredData(rawText, existingInsurers, existingCustomers);
 
     console.log('[v0/inline] Extraction result:', extracted);
 
@@ -213,8 +220,15 @@ export async function processExtractionJob() {
     // Extract text from document
     const extractedText = await ocrProvider.extractText(fileUrl);
 
-    // Parse into structured data
-    const structuredData = await ocrProvider.extractStructuredData(extractedText);
+    // Fetch Entity References for strict mapping
+    const { data: dbInsurers } = await supabaseAdmin!.from('insurers').select('name');
+    const existingInsurers = dbInsurers?.map(i => i.name) || [];
+
+    const { data: dbCusts } = await supabaseAdmin!.from('customers').select('name');
+    const existingCustomers = dbCusts?.map(c => c.name) || [];
+
+    // Parse into structured data using explicit mapping logic
+    const structuredData = await ocrProvider.extractStructuredData(extractedText, existingInsurers, existingCustomers);
 
     // Update job with results
     await supabaseAdmin!

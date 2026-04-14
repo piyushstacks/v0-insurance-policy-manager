@@ -16,7 +16,7 @@ const pdfParse: (buf: Buffer) => Promise<{ text: string; numpages: number }> =
 export interface OCRProvider {
   name: string;
   extractText(fileUrl: string): Promise<string>;
-  extractStructuredData(text: string): Promise<ExtractionResult>;
+  extractStructuredData(text: string, existingInsurers?: string[], existingCustomers?: string[]): Promise<ExtractionResult>;
 }
 
 class PDFParseProvider implements OCRProvider {
@@ -54,8 +54,8 @@ class PDFParseProvider implements OCRProvider {
     }
   }
 
-  async extractStructuredData(text: string): Promise<ExtractionResult> {
-    console.log('[v0/OCR] Running AI extraction...');
+  async extractStructuredData(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResult> {
+    console.log('[v0/OCR] Running AI extraction with Entity Resolution Maps...');
 
     const now = new Date();
     const nextYear = new Date(now);
@@ -84,6 +84,11 @@ class PDFParseProvider implements OCRProvider {
           You are an expert insurance document analyst. I am providing you with messy, raw OCR text.
           Read carefully and extract the following exact fields natively. Fix capitalization and spelling.
           Output EXCLUSIVELY a pure JSON object. NO markdown formatting, NO backticks.
+
+          CRITICAL ENTITY RESOLUTION:
+          - Existing Insurers in Database: [${existingInsurers.join(', ')}]
+          - Existing Customers in Database: [${existingCustomers.join(', ')}]
+          If the extracted insurer or customer name is a typo, substring, or capitalization variant (e.g. 'HDFC ergo' -> 'HDFC ERGO' or 'Piyush' -> 'Piyush Bhagchandani') of ANY of the existing entities above, YOU MUST map it to the EXACT string from the arrays above to prevent database duplication. Only generate a new string if it's completely new.
 
           Fields Required:
           {
@@ -295,10 +300,10 @@ class GoogleDocumentAIProvider implements OCRProvider {
     }
   }
 
-  async extractStructuredData(text: string): Promise<ExtractionResult> {
+  async extractStructuredData(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResult> {
      // Regex data heuristics works beautifully on top of GCP text.
      const fallbackEngine = new PDFParseProvider();
-     return fallbackEngine.extractStructuredData(text);
+     return fallbackEngine.extractStructuredData(text, existingInsurers, existingCustomers);
   }
 }
 

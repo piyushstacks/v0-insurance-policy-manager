@@ -335,95 +335,62 @@ export default function PoliciesPage() {
               <p className="text-sm text-slate-500">Try clearing your filters or adding a new policy.</p>
             </div>
           ) : (
-            <div className="min-w-max">
-              {/* Header */}
-              <div className="grid grid-cols-[auto_minmax(120px,1fr)_minmax(150px,1.5fr)_minmax(150px,2fr)_minmax(120px,1.5fr)_130px_130px_90px] gap-3 px-4 py-3 bg-slate-100 border-b text-xs font-semibold text-slate-600 uppercase tracking-wider sticky top-0 z-10 items-center shadow-sm">
-                <input 
-                  type="checkbox" 
-                  className="rounded border-slate-300 mx-1 accent-blue-600 w-4 h-4 cursor-pointer"
-                  checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} 
-                  onChange={toggleAll} 
-                />
-                <div>Policy No</div>
-                <div>Insured</div>
-                <div>Company</div>
-                <div>Product</div>
-                <div>Dates</div>
-                <div className="text-right">Gross Prem</div>
-                <div className="text-center">Action</div>
-              </div>
-
-              {/* Rows */}
-              <div className="divide-y divide-slate-100">
-                {paginatedPolicies.map((p) => {
-                  const pending = isPending(p);
-                  return (
-                    <div 
-                      key={p.id} 
-                      className={`grid grid-cols-[auto_minmax(120px,1fr)_minmax(150px,1.5fr)_minmax(150px,2fr)_minmax(120px,1.5fr)_130px_130px_90px] gap-3 px-4 py-3 items-center hover:bg-slate-50/80 transition-colors text-sm ${pending ? 'bg-amber-50/30' : ''}`}
-                    >
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-slate-300 mx-1 accent-blue-600 w-4 h-4 shrink-0 mt-0.5 cursor-pointer"
-                        checked={selected.has(p.id)} 
-                        onChange={() => toggleSelect(p.id)} 
-                      />
-                      
-                      <div className="font-medium text-slate-900 truncate pr-2">
-                        {pending ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 uppercase tracking-widest">
-                            Pending OCR
-                          </span>
-                        ) : (
-                          <Link href={`/app/policies/${p.id}`} className="hover:text-blue-600 hover:underline">
-                            {p.policy_number}
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed', minWidth: '900px' }}>
+                <thead>
+                  <tr className="bg-slate-100 border-b text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                    <th className="w-12 px-4 py-3"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} onChange={toggleAll} /></th>
+                    <th className="px-4 py-3 border-r border-slate-200" style={{ width: '160px', resize: 'horizontal', overflow: 'hidden' }}>Policy No</th>
+                    <th className="px-4 py-3 border-r border-slate-200" style={{ width: '180px', resize: 'horizontal', overflow: 'hidden' }}>Insured</th>
+                    <th className="px-4 py-3 border-r border-slate-200" style={{ width: '250px', resize: 'horizontal', overflow: 'hidden' }}>Company</th>
+                    <th className="px-4 py-3 border-r border-slate-200" style={{ width: '200px', resize: 'horizontal', overflow: 'hidden' }}>Product</th>
+                    <th className="px-4 py-3 border-r border-slate-200" style={{ width: '140px', resize: 'horizontal', overflow: 'hidden' }}>Dates</th>
+                    <th className="px-4 py-3 text-right border-r border-slate-200" style={{ width: '120px', resize: 'horizontal', overflow: 'hidden' }}>Gross Prem</th>
+                    <th className="px-4 py-3 text-center" style={{ width: '80px' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedPolicies.map((p) => {
+                    const pending = isPending(p);
+                    return (
+                      <tr key={p.id} className={`hover:bg-slate-50/80 transition-colors text-sm ${pending ? 'bg-amber-50/30' : ''}`}>
+                        <td className="px-4 py-3 align-middle"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
+                        <td className="px-4 py-3 font-medium text-slate-900 truncate">
+                          {pending ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 uppercase tracking-widest">Pending</span>
+                          ) : (
+                            <Link href={`/app/policies/${p.id}`} className="hover:text-blue-600 hover:underline">{p.policy_number}</Link>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 truncate text-slate-700">{p.customer?.name || '—'}</td>
+                        <td className="px-4 py-3 truncate text-slate-700">{p.insurer?.name || '—'}</td>
+                        <td className="px-4 py-3 text-slate-600 text-xs truncate">
+                          {p.policy_type ? (
+                            <div className="flex flex-col gap-1 min-w-0">
+                               <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-sm w-max uppercase text-[9px] tracking-wider border border-indigo-100">{p.policy_type.split(' | ')[0] || 'General'}</span>
+                               <span className="text-[11px] truncate" title={p.policy_type.split(' | ')[1] || ''}>{p.policy_type.split(' | ')[1] || ''}</span>
+                            </div>
+                          ) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                          <div className="font-medium text-slate-700 mb-0.5">{p.start_date ? new Date(p.start_date).toLocaleDateString('en-GB') : '—'}</div>
+                          <div className="opacity-70 text-[10px] uppercase">to {p.expiry_date ? new Date(p.expiry_date).toLocaleDateString('en-GB') : '—'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-700 font-medium whitespace-nowrap">
+                          {!pending && p.premium_amount ? <span>₹{p.premium_amount.toLocaleString('en-IN')}</span> : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <Link href={`/app/policies/${p.id}`}>
+                             <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 inline-flex">
+                               <FilePenLine className="w-4 h-4" />
+                             </Button>
                           </Link>
-                        )}
-                      </div>
-                      
-                      <div className="truncate text-slate-700 pr-2">
-                        {p.customer?.name || '—'}
-                      </div>
-                      
-                      <div className="truncate text-slate-700 pr-2">
-                        {p.insurer?.name || '—'}
-                      </div>
-                      
-                      <div className="text-slate-600 text-xs flex flex-col gap-1 min-w-0 pr-2">
-                        {p.policy_type ? (
-                          <>
-                             <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-sm w-max uppercase text-[9px] tracking-wider border border-indigo-100">
-                               {p.policy_type.split(' | ')[0] || 'General'}
-                             </span>
-                             <span className="text-[11px] truncate" title={p.policy_type.split(' | ')[1] || ''}>
-                               {p.policy_type.split(' | ')[1] || ''}
-                             </span>
-                          </>
-                        ) : '—'}
-                      </div>
-                      
-                      <div className="text-xs text-slate-500 whitespace-nowrap">
-                        <div className="font-medium text-slate-700 mb-0.5">{p.start_date ? new Date(p.start_date).toLocaleDateString('en-GB') : '—'}</div>
-                        <div className="opacity-70 text-[10px] uppercase">to {p.expiry_date ? new Date(p.expiry_date).toLocaleDateString('en-GB') : '—'}</div>
-                      </div>
-                      
-                      <div className="text-right text-slate-700 font-medium whitespace-nowrap flex items-center justify-end gap-1">
-                        {!pending && p.premium_amount ? (
-                           <span>₹{p.premium_amount.toLocaleString('en-IN')}</span>
-                        ) : '—'}
-                      </div>
-
-                      <div className="flex items-center justify-center gap-1">
-                        <Link href={`/app/policies/${p.id}`}>
-                           <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                             <FilePenLine className="w-4 h-4" />
-                           </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

@@ -102,11 +102,16 @@ class PDFParseProvider implements OCRProvider {
             ABSOLUTELY DO NOT extract generic table headers like "Person Details", "GenderDOBNominee Name", "Insured Name", or "Name". 
             If you cannot strictly find the actual real name, output null.
 
+            CRITICAL VALIDATION RULE FOR CATEGORY & PRODUCT:
+            - "policy_category" MUST STRICTLY be one of the following words: "Health", "Motor", "Life", "Travel", "Property", "General", or "Business". Do not use any other words.
+            - "policy_sub_category" MUST be a VERY short noun phrase identifying the product (e.g. "Family Floater", "Comprehensive", "Third Party", "Term Plan"). 
+            - ABSOLUTELY DO NOT put full sentences, marketing messages, or phrases like "Thank you for choosing..." in the category fields. If you cannot find a clear product name, put "Standard Cover".
+
             Fields Required:
             {
               "policy_number": "exact alphanumeric string (e.g. 141300/48/2026)",
-              "policy_category": "Strictly choose one: 'Health', 'Motor', 'Life', or 'General'",
-              "policy_sub_category": "e.g., 'Family Floater', 'Comprehensive', 'Term Plan', 'ULIP'",
+              "policy_category": "Strictly choose one: 'Health', 'Motor', 'Life', 'Travel', 'Property', 'General', or 'Business'",
+              "policy_sub_category": "Short product name (e.g. 'Family Floater', 'Comprehensive'. NO SENTENCES!)",
               "coverage_start": "ISO8601 date string for when policy begins (e.g. 2024-05-14T00:00:00Z)",
               "coverage_end": "ISO8601 date string for when policy expires",
               "premium_amount": Total Gross Premium or Net Premium paid as a pure Number (e.g. 20527),
@@ -129,6 +134,14 @@ class PDFParseProvider implements OCRProvider {
           // Validation Layer
           const cName = (parsed.customer_name || '').toLowerCase();
           const invalidPhrases = ['details', 'gender', 'nominee', 'unknown', 'name', 'insured'];
+          
+          // Category Validation Array (Hard constraint)
+          const validCats = ['Health', 'Motor', 'Life', 'Travel', 'Property', 'General', 'Business'];
+          let finalCat = parsed.policy_category || 'General';
+          if (!validCats.includes(finalCat)) finalCat = 'General';
+          
+          let finalSubCat = parsed.policy_sub_category || 'Insurance';
+          if (finalSubCat.length > 35) finalSubCat = 'Standard Policy'; // Ban long sentences
           
           if (!cName || invalidPhrases.some(p => cName.includes(p)) || cName.length < 3) {
              console.warn(`[v0/AI] Extraction Validation Failed on Attempt ${attempt} (Extracted: ${parsed.customer_name}). Retrying...`);
@@ -155,7 +168,7 @@ class PDFParseProvider implements OCRProvider {
       if (parsed) {
         return {
           policy_number: parsed.policy_number || `OCR-${Date.now()}`,
-          policy_type: `${parsed.policy_category || 'General'} | ${parsed.policy_sub_category || 'Insurance'}`,
+          policy_type: `${finalCat} | ${finalSubCat}`,
           coverage_start: parsed.coverage_start || now.toISOString(),
           coverage_end: parsed.coverage_end || nextYear.toISOString(),
           premium_amount: Number(parsed.premium_amount) || 0,

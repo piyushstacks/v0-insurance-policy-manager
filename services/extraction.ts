@@ -94,7 +94,7 @@ export async function extractDocumentInline(
     let finalCustId;
     let finalInsId;
 
-    if (extracted.customer_name && extracted.customer_name !== 'Unknown Customer') {
+    if (extracted.customer_name && !extracted.customer_name.includes('Unknown') && !extracted.customer_name.includes('REVIEW REQUIRED')) {
       const { data: custExt } = await supabaseAdmin!
         .from('customers')
         .select('id')
@@ -118,7 +118,7 @@ export async function extractDocumentInline(
       }
     }
 
-    if (extracted.insurer_name && extracted.insurer_name !== 'Unknown Insurer') {
+    if (extracted.insurer_name && !extracted.insurer_name.includes('Unknown') && !extracted.insurer_name.includes('REVIEW REQUIRED')) {
       const { data: insExt } = await supabaseAdmin!
         .from('insurers')
         .select('id')
@@ -139,7 +139,7 @@ export async function extractDocumentInline(
     }
 
     const updatePayload: any = {
-      policy_number: extracted.policy_number || `OCR-${Date.now()}`,
+      policy_number: (extracted.policy_number && extracted.policy_number.includes('REVIEW-')) ? 'PENDING_OCR_REVIEW' : (extracted.policy_number || `OCR-${Date.now()}`),
       policy_type:   extracted.policy_type   || 'General Insurance',
       start_date:    startDate,
       expiry_date:   expiryDate,
@@ -252,7 +252,7 @@ export async function processExtractionJob() {
         await supabaseAdmin!
            .from('policies')
            .update({
-               policy_number: structuredData.policy_number || `OCR_UNKNOWN_${Date.now()}`,
+               policy_number: (structuredData.policy_number && structuredData.policy_number.includes('REVIEW-')) ? 'PENDING_OCR_REVIEW' : (structuredData.policy_number || `OCR_UNKNOWN_${Date.now()}`),
                policy_type: structuredData.policy_type || 'Unknown Type',
                start_date: structuredData.coverage_start ? new Date(structuredData.coverage_start).toISOString() : new Date().toISOString(),
                expiry_date: structuredData.coverage_end ? new Date(structuredData.coverage_end).toISOString() : new Date(Date.now() + 31536000000).toISOString(),

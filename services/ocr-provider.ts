@@ -75,47 +75,84 @@ class PDFParseProvider implements OCRProvider {
 
     // ── GEN AI INJECTION (Super Intelligent LLM Parsing) ─────────────
     if (process.env.GEMINI_API_KEY) {
-      try {
-        console.log('[v0/AI] Gemini API Key found. Routing raw text through LLM Intelligence...');
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      console.log('[v0/AI] Gemini API Key found. Routing raw text through LLM Intelligence...');
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      
+      let parsed: any = null;
+      let aiErrLog = null;
+      
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const modelName = attempt === 1 ? "gemini-1.5-flash" : "gemini-1.5-pro";
+          console.log(`[v0/AI] Attempt ${attempt} using ${modelName}...`);
+          const model = genAI.getGenerativeModel({ model: modelName });
 
-        const prompt = `
-          You are an expert insurance document analyst. I am providing you with messy, raw OCR text.
-          Read carefully and extract the following exact fields natively. Fix capitalization and spelling.
-          Output EXCLUSIVELY a pure JSON object. NO markdown formatting, NO backticks.
+          const prompt = `
+            You are an expert insurance document analyst. I am providing you with messy, raw OCR text.
+            Read carefully and extract the following exact fields natively. Fix capitalization and spelling.
+            Output EXCLUSIVELY a pure JSON object. NO markdown formatting, NO backticks.
 
-          CRITICAL ENTITY RESOLUTION:
-          - Existing Insurers in Database: [${existingInsurers.join(', ')}]
-          - Existing Customers in Database: [${existingCustomers.join(', ')}]
-          If the extracted insurer or customer name is a typo, substring, or capitalization variant (e.g. 'HDFC ergo' -> 'HDFC ERGO' or 'Piyush' -> 'Piyush Bhagchandani') of ANY of the existing entities above, YOU MUST map it to the EXACT string from the arrays above to prevent database duplication. Only generate a new string if it's completely new.
+            CRITICAL ENTITY RESOLUTION:
+            - Existing Insurers in Database: [${existingInsurers.join(', ')}]
+            - Existing Customers in Database: [${existingCustomers.join(', ')}]
+            If the extracted insurer or customer name is a typo, substring, or capitalization variant of ANY of the existing entities above, YOU MUST map it to the EXACT string from the arrays above to prevent database duplication.
 
-          Fields Required:
-          {
-            "policy_number": "exact alphanumeric string (e.g. 141300/48/2026)",
-            "policy_category": "Strictly choose one: 'Health', 'Motor', 'Life', or 'General'",
-            "policy_sub_category": "e.g., 'Family Floater', 'Comprehensive', 'Term Plan', 'ULIP'",
-            "coverage_start": "ISO8601 date string for when policy begins (e.g. 2024-05-14T00:00:00Z)",
-            "coverage_end": "ISO8601 date string for when policy expires",
-            "premium_amount": Total Gross Premium or Net Premium paid as a pure Number (e.g. 20527),
-            "insurer_name": "Name of insurance company (e.g. HDFC ERGO General Insurance)",
-            "customer_name": "Name of the insured person or proposer (e.g. Piyush Bhagchandani)",
-            "customer_email": "The exact valid email address of the customer if present, otherwise null",
-            "customer_mobile": "The exact mobile/phone number of the customer if present, otherwise null",
-            "key_important_details": "A clean HTML string formatting ALL other highly-specific information found. E.g. Sum Insured, Nominees, Vehicle Reg No, IDV limit, Engine No, Pre-Existing Diseases, Waiting Periods, Add-ons. Use <li> tags for lists. If none, pass empty string."
+            CRITICAL VALIDATION RULE:
+            For 'customer_name', you MUST extract the ACTUAL human or business name of the insured policyholder. 
+            ABSOLUTELY DO NOT extract generic table headers like "Person Details", "GenderDOBNominee Name", "Insured Name", or "Name". 
+            If you cannot strictly find the actual real name, output null.
+
+            Fields Required:
+            {
+              "policy_number": "exact alphanumeric string (e.g. 141300/48/2026)",
+              "policy_category": "Strictly choose one: 'Health', 'Motor', 'Life', or 'General'",
+              "policy_sub_category": "e.g., 'Family Floater', 'Comprehensive', 'Term Plan', 'ULIP'",
+              "coverage_start": "ISO8601 date string for when policy begins (e.g. 2024-05-14T00:00:00Z)",
+              "coverage_end": "ISO8601 date string for when policy expires",
+              "premium_amount": Total Gross Premium or Net Premium paid as a pure Number (e.g. 20527),
+              "insurer_name": "Name of insurance company (e.g. HDFC ERGO General Insurance)",
+              "customer_name": "Name of the insured person or proposer (Null if not found)",
+              "customer_email": "The exact valid email address of the customer if present, otherwise null",
+              "customer_mobile": "The exact mobile/phone number of the customer if present, otherwise null",
+              "key_important_details": "A clean HTML string formatting ALL other highly-specific information found. Use <li> tags for lists. If none, pass empty string."
+            }
+
+            Raw Document Text:
+            ${text.substring(0, 15000)}
+          `;
+
+          const response = await model.generateContent(prompt);
+          let rawContent = response.response.text().trim();
+          rawContent = rawContent.replace(/^```json/i, '').replace(/```$/i, '').trim();
+          parsed = JSON.parse(rawContent);
+          
+          // Validation Layer
+          const cName = (parsed.customer_name || '').toLowerCase();
+          const invalidPhrases = ['details', 'gender', 'nominee', 'unknown', 'name', 'insured'];
+          
+          if (!cName || invalidPhrases.some(p => cName.includes(p)) || cName.length < 3) {
+             console.warn(`[v0/AI] Extraction Validation Failed on Attempt ${attempt} (Extracted: ${parsed.customer_name}). Retrying...`);
+             if (attempt === 1) continue; // Escalate to Gemini Pro on next loop
+             else parsed.customer_name = 'REVIEW REQUIRED - EXTRACT FAILED';
+          }
+          
+          if (!parsed.policy_number || parsed.policy_number.length < 4) {
+             console.warn(`[v0/AI] Policy Number Validation Failed. Retrying...`);
+             if (attempt === 1) continue;
+             else parsed.policy_number = `REVIEW-${Date.now()}`;
           }
 
-          Raw Document Text:
-          ${text.substring(0, 15000)}
-        `;
+          console.log(`[v0/AI] Extraction Success via ${modelName}!`);
+          break; // Validation passed, break out of retry loop
 
-        const response = await model.generateContent(prompt);
-        let rawContent = response.response.text().trim();
-        // Clear backticks just in case
-        rawContent = rawContent.replace(/^```json/i, '').replace(/```$/i, '').trim();
-        const parsed = JSON.parse(rawContent);
-        
-        console.log('[v0/AI] Gemini LLM parsed structured JSON perfectly!');
+        } catch (aiErr: any) {
+          console.error(`[v0/AI] Attempt ${attempt} failed:`, aiErr.message);
+          aiErrLog = aiErr;
+          if (attempt === 2) parsed = null;
+        }
+      }
+
+      if (parsed) {
         return {
           policy_number: parsed.policy_number || `OCR-${Date.now()}`,
           policy_type: `${parsed.policy_category || 'General'} | ${parsed.policy_sub_category || 'Insurance'}`,
@@ -123,13 +160,13 @@ class PDFParseProvider implements OCRProvider {
           coverage_end: parsed.coverage_end || nextYear.toISOString(),
           premium_amount: Number(parsed.premium_amount) || 0,
           insurer_name: parsed.insurer_name || 'Unknown Insurer',
-          customer_name: parsed.customer_name || 'Unknown Customer',
+          customer_name: parsed.customer_name || 'REVIEW REQUIRED - EXTRACT FAILED',
           customer_email: parsed.customer_email || null,
           customer_mobile: parsed.customer_mobile || null,
           agent_notes: parsed.key_important_details || null,
         };
-      } catch (aiErr) {
-        console.error('[v0/AI] Gemini failed to parse properly. Falling back to Regex.', aiErr);
+      } else {
+        console.error('[v0/AI] Total AI Failure across all attempts. Falling back to robust Regex...');
       }
     }
 

@@ -110,6 +110,7 @@ export async function uploadPolicyDocument(
     return {
       success: true,
       documentId,
+      policyId,
       fileName: file.name,
       fileUrl,
       fileSize: file.size,

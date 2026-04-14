@@ -132,117 +132,105 @@ export default function PoliciesPage() {
   const isPending = (p: Policy) => p.policy_number.startsWith('PENDING_OCR');
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 p-4 md:p-8 h-full">
-      {/* Mobile Filter Toggle */}
-      <div className="md:hidden flex justify-between items-center mb-2">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-800">Policies</h1>
-        <Button variant="outline" size="sm" onClick={() => setShowMobileFilters(!showMobileFilters)}>
-          <Filter className="w-4 h-4 mr-2" /> Filters
-        </Button>
-      </div>
-
-      {/* --- LEFT SIDEBAR: FILTERS --- */}
-      <aside className={`md:w-72 flex-shrink-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col ${showMobileFilters ? 'block' : 'hidden md:flex'}`}>
-        <div className="p-4 border-b bg-slate-50 flex justify-between items-center">
-          <h2 className="font-semibold text-slate-700 flex items-center gap-2">
-            <Filter className="w-4 h-4" /> Filters
-          </h2>
-          {showMobileFilters && (
-            <Button variant="ghost" size="icon" onClick={() => setShowMobileFilters(false)}>
-              <X className="w-4 h-4" />
-            </Button>
-          )}
+    <div className="flex flex-col p-4 md:p-8 min-h-full max-w-[1600px] mx-auto w-full">
+      {/* Header & Controls */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 mb-1">Policies Directory</h1>
+          <p className="text-slate-500 font-medium">Manage and explore {filteredPolicies.length} extracted policies</p>
         </div>
         
-        <div className="p-4 space-y-5 overflow-y-auto">
-          {/* Search */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Search</label>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              <Input 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Policy No, Insured..." 
-                className="pl-9 bg-slate-50/50"
-              />
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <Button 
+             variant={showMobileFilters ? "default" : "outline"}
+             className={showMobileFilters ? "bg-indigo-600 text-white" : "text-slate-600 border-slate-300 bg-white shadow-sm"}
+             onClick={() => setShowMobileFilters(!showMobileFilters)}
+          >
+            <Filter className="w-4 h-4 mr-2" /> 
+            {showMobileFilters ? 'Hide Filters' : 'Show Filters'}
+          </Button>
+
+          {selected.size > 0 && (
+             <Button variant="secondary" onClick={handleReExtract} disabled={reExtracting} className="bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200">
+               <RefreshCw className={`w-4 h-4 mr-2 ${reExtracting ? 'animate-spin' : ''}`} />
+               Re-extract ({selected.size})
+             </Button>
+          )}
+
+          <Link href="/app/policies/new" className="ml-auto md:ml-0">
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
+              <Plus className="w-4 h-4 mr-2 hidden sm:inline" /> Upload Policies
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* --- TOP COLLAPSIBLE FILTERS --- */}
+      {showMobileFilters && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6 animate-in slide-in-from-top-2 fade-in duration-200 flex flex-col gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Search */}
+            <div className="space-y-1.5 lg:col-span-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Search Query</label>
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <Input 
+                  value={searchTerm} 
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Policy No, Client..." 
+                  className="pl-9 h-9 text-sm bg-slate-50 border-slate-200"
+                />
+              </div>
+            </div>
+
+            {/* Product Dropdown */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Category</label>
+              <select 
+                className="flex h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                value={filterProduct} 
+                onChange={e => setFilterProduct(e.target.value)}
+              >
+                <option value="">All Categories ({uniqueProducts.length})</option>
+                {uniqueProducts.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+
+            {/* Company Dropdown */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Insurer</label>
+              <select 
+                className="flex h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                value={filterCompany} 
+                onChange={e => setFilterCompany(e.target.value)}
+              >
+                <option value="">All Companies ({uniqueCompanies.length})</option>
+                {uniqueCompanies.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            {/* Dates */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">From</label>
+              <Input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} className="h-9 text-sm bg-slate-50 border-slate-200" />
+            </div>
+            
+            <div className="space-y-1.5 relative">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">To</label>
+              <div className="flex gap-2">
+                 <Input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} className="h-9 text-sm bg-slate-50 border-slate-200" />
+                 <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-slate-400 hover:text-slate-800 bg-slate-100" onClick={clearFilters} title="Clear Filters">
+                   <X className="w-4 h-4" />
+                 </Button>
+              </div>
             </div>
           </div>
-
-          {/* Product Dropdown */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Products</label>
-            <select 
-              className="flex h-10 w-full rounded-md border border-input bg-slate-50/50 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              value={filterProduct} 
-              onChange={e => setFilterProduct(e.target.value)}
-            >
-              <option value="">All Products ({uniqueProducts.length})</option>
-              {uniqueProducts.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-
-          {/* Company Dropdown */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Companies</label>
-            <select 
-              className="flex h-10 w-full rounded-md border border-input bg-slate-50/50 px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
-              value={filterCompany} 
-              onChange={e => setFilterCompany(e.target.value)}
-            >
-              <option value="">All Companies ({uniqueCompanies.length})</option>
-              {uniqueCompanies.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-
-          {/* Issue Date (Start) */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Policy Start (From)</label>
-            <Input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} className="bg-slate-50/50" />
-          </div>
-
-          {/* Policy End */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Policy Start (Up To)</label>
-            <Input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} className="bg-slate-50/50" />
-          </div>
         </div>
+      )}
 
-        <div className="p-4 border-t bg-slate-50 mt-auto">
-          <Button variant="outline" className="w-full" onClick={clearFilters}>
-            Clear Filters
-          </Button>
-        </div>
-      </aside>
-
-      {/* --- RIGHT PANEL: TABLE --- */}
+      {/* --- FULL WIDTH TABLE --- */}
       <main className="flex-1 flex flex-col min-w-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        {/* Toolbar */}
-        <div className="p-4 border-b flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50/50">
-          <div className="hidden md:block">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-800">Policies Directory</h1>
-            <p className="text-sm text-slate-500">{filteredPolicies.length} entries found</p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {selected.size > 0 && (
-               <Button size="sm" variant="secondary" onClick={handleReExtract} disabled={reExtracting} className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-none shadow-none">
-                 <RefreshCw className={`w-4 h-4 mr-2 ${reExtracting ? 'animate-spin' : ''}`} />
-                 Re-extract ({selected.size})
-               </Button>
-            )}
-            
-            <Button size="sm" variant="outline" className="text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hidden md:flex">
-              <Download className="w-4 h-4 mr-2" /> Export Excel
-            </Button>
-
-            <Link href="/app/policies/new" className="ml-auto flex-shrink-0">
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
-                <Plus className="w-4 h-4 mr-2 md:inline hidden" /> Add Policy
-              </Button>
-            </Link>
-          </div>
-        </div>
+        {/* Table Area Extends Full Flow downwards */}
 
         {/* Table Area */}
         <div className="flex-1 overflow-auto bg-white">

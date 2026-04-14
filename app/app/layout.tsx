@@ -40,12 +40,10 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-background md:pb-0 font-sans">
+    <div className="flex flex-col min-h-screen bg-slate-50/50 font-sans">
       <AppNav user={user} />
-      <main className="flex-1 overflow-y-auto w-full pb-20 md:pb-0 bg-slate-50/50">
-        <div className="max-w-7xl mx-auto w-full">
+      <main className="flex-1 w-full flex flex-col">
           {children}
-        </div>
       </main>
     </div>
   );

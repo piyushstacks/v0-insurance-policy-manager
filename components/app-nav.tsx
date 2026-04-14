@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { FileText, Home, Users, Settings, LogOut, Navigation2, FileSpreadsheet, Fingerprint, CalendarDays } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { FileText, Home, Users, Settings, LogOut } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 
@@ -14,60 +16,74 @@ interface AppNavProps {
 export default function AppNav({ user }: AppNavProps) {
   const router = useRouter();
 
+  const pathname = usePathname();
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push('/auth/login');
   }
 
   const navItems = [
-    { name: 'Dashboard', href: '/app', icon: Home },
-    { name: 'Policies', href: '/app/policies', icon: FileText },
-    { name: 'Customers', href: '/app/customers', icon: Users },
-    { name: 'Reminders', href: '/app/reminders', icon: FileText },
-    { name: 'Settings', href: '/app/settings', icon: Settings },
+    { name: 'Dashboard', href: '/app', icon: Home, exact: true },
+    { name: 'Policies', href: '/app/policies', icon: FileSpreadsheet, exact: false },
+    { name: 'Customers', href: '/app/customers', icon: Users, exact: false },
+    { name: 'Reminders', href: '/app/reminders', icon: CalendarDays, exact: false },
+    { name: 'Settings', href: '/app/settings', icon: Settings, exact: false },
   ];
 
   return (
-    <nav className="fixed md:static bottom-0 w-full md:w-64 bg-slate-900 border-t md:border-t-0 md:border-r border-slate-800 text-slate-300 flex flex-row md:flex-col z-50 transition-all shadow-xl md:shadow-none">
-      {/* Desktop Logo */}
-      <div className="hidden md:block p-6 border-b border-slate-800 tracking-tight">
-        <h1 className="text-2xl font-bold text-white tracking-tighter">PolicyVault</h1>
-        <p className="text-xs text-slate-400 mt-1 font-medium">Insurance Management</p>
-      </div>
+    <nav className="sticky top-0 z-50 w-full bg-white/70 backdrop-blur-xl border-b border-slate-200 shadow-sm transition-all">
+      <div className="mx-auto max-w-[1600px] px-4 md:px-8">
+        <div className="flex h-16 items-center justify-between gap-6">
+          {/* Logo */}
+          <div className="flex shrink-0 items-center gap-2 mr-4">
+             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+               <Fingerprint className="w-5 h-5" />
+             </div>
+             <div className="hidden md:flex flex-col tracking-tight">
+                <h1 className="text-xl font-extrabold text-slate-900 leading-none">PolicyVault</h1>
+                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest leading-none mt-0.5">Manager</span>
+             </div>
+          </div>
 
-      {/* Navigation Links */}
-      <div className="flex-1 flex flex-row md:flex-col items-center justify-around md:justify-start md:p-4 px-2 py-2 overflow-x-auto no-scrollbar md:gap-2">
-        {navItems.map((item) => {
-          const isActive = false; // Add robust route checking if desired
-          return (
-            <Link key={item.name} href={item.href} className="w-full md:w-auto flex-1 md:flex-none">
-              <Button
-                variant="ghost"
-                className="w-full flex-col md:flex-row justify-center md:justify-start gap-1 md:gap-3 py-6 md:py-3 h-auto md:h-10 text-slate-400 hover:text-white hover:bg-white/5 data-[active=true]:bg-blue-600 data-[active=true]:text-white rounded-xl md:rounded-lg transition-all"
-              >
-                <item.icon className="w-5 h-5 md:w-4 md:h-4 stroke-[2.5]" />
-                <span className="text-[10px] md:text-sm font-medium">{item.name}</span>
-              </Button>
-            </Link>
-          );
-        })}
-      </div>
+          {/* Center Links */}
+          <div className="flex-1 flex items-center justify-center gap-1 overflow-x-auto no-scrollbar mask-edges">
+            {navItems.map((item) => {
+              const isActive = item.exact ? pathname === item.href : pathname?.startsWith(item.href);
+              return (
+                <Link key={item.name} href={item.href} className="shrink-0">
+                  <span
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                      isActive 
+                        ? 'bg-indigo-50/80 text-indigo-700 shadow-sm ring-1 ring-indigo-100' 
+                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    <item.icon className={`w-4 h-4 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
+                    <span className="hidden sm:inline-block">{item.name}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
 
-      {/* User Section (Hidden on Mobile) */}
-      <div className="hidden md:block p-4 border-t border-slate-800 space-y-4">
-        <div className="px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
-          <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Account</p>
-          <p className="text-sm font-medium text-slate-200 truncate">{user.email}</p>
+          {/* Right Profile Controls */}
+          <div className="flex shrink-0 items-center justify-end gap-4 ml-4">
+            <div className="hidden lg:flex flex-col items-end">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Signed In</span>
+              <span className="text-sm font-semibold text-slate-700">{user.email}</span>
+            </div>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 rounded-full border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-100 transition-colors shadow-sm"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-        <Button
-          onClick={handleLogout}
-          variant="destructive"
-          className="w-full justify-start rounded-lg shadow-sm font-medium relative group overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors" />
-          <LogOut className="w-4 h-4 mr-2 relative z-10" />
-          <span className="relative z-10">Sign out</span>
-        </Button>
       </div>
     </nav>
   );

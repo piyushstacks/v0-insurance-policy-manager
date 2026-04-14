@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, File, AlertCircle, CheckCircle, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 interface UploadFile {
   id: string;
   file: File;
-  status: 'pending' | 'uploading' | 'extracting' | 'completed' | 'error';
+  status: 'pending' | 'uploading' | 'queued' | 'error';
   progress: number;
   message: string;
   error?: string;
@@ -18,161 +18,98 @@ interface UploadFile {
 }
 
 interface BulkFileUploadProps {
-  onAllComplete?: (results: any[]) => void;
+  onUploadComplete?: (results: any[]) => void;
   onError?: (error: string) => void;
   customerId?: string;
-  onPolicyCreated?: (policyId: string, fileName: string) => void;
 }
 
-export default function BulkFileUpload({ onAllComplete, onError, customerId, onPolicyCreated }: BulkFileUploadProps) {
+export default function BulkFileUpload({ onUploadComplete, onError, customerId }: BulkFileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<UploadFile[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [results, setResults] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const processingRef = useRef(false);
 
-  // Process queue sequentially
-  useEffect(() => {
-    if (processingRef.current || uploadQueue.length === 0) return;
+  async function uploadAllFiles() {
+    if (uploadQueue.length === 0) return;
 
-    const pendingFile = uploadQueue.find(f => f.status === 'pending');
-    if (!pendingFile) {
-      // Check if all files are done
-      if (uploadQueue.every(f => ['completed', 'error'].includes(f.status))) {
-        setIsProcessing(false);
-        processingRef.current = false;
-        const completedResults = uploadQueue
-          .filter(f => f.status === 'completed' && f.policyId)
-          .map(f => ({ policyId: f.policyId, fileName: f.file.name }));
-        
-        if (completedResults.length > 0) {
-          toast.success(`${completedResults.length} policies created and extracting!`);
-          if (onAllComplete) {
-            onAllComplete(completedResults);
-          }
-        }
-      }
-      return;
-    }
+    setIsUploading(true);
+    const uploadResults: Array<{ fileName: string; policyId: string; documentId: string; status: string }> = [];
+    let successCount = 0;
 
-    processingRef.current = true;
-    setIsProcessing(true);
-    uploadFile(pendingFile.id);
-  }, [uploadQueue]);
-
-  async function uploadFile(fileId: string) {
-    const fileData = uploadQueue.find(f => f.id === fileId);
-    if (!fileData) return;
-
-    try {
-      setUploadQueue(prev =>
-        prev.map(f =>
-          f.id === fileId ? { ...f, status: 'uploading', message: 'Uploading...', progress: 10 } : f
-        )
-      );
-
-      const formData = new FormData();
-      formData.append('file', fileData.file);
-      formData.append('customerId', customerId || '');
-      formData.append('autoExtract', 'true');
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Upload failed');
-      }
-
-      const result = await response.json();
-      const policyId = result.policyId || result.policy_id;
-
-      setUploadQueue(prev =>
-        prev.map(f =>
-          f.id === fileId
-            ? {
-                ...f,
-                status: 'extracting',
-                message: 'Extracting data (this may take a minute)...',
-                progress: 50,
-                policyId,
-                documentId: result.documentId,
-              }
-            : f
-        )
-      );
-
-      // Notify parent that policy was created
-      if (policyId && onPolicyCreated) {
-        onPolicyCreated(policyId, fileData.file.name);
-      }
-
-      // Poll for extraction completion
-      await pollExtractionStatus(fileId, policyId);
-
-      setUploadQueue(prev =>
-        prev.map(f =>
-          f.id === fileId
-            ? { ...f, status: 'completed', message: 'Completed', progress: 100, policyId }
-            : f
-        )
-      );
-
-      setResults(prev => [...prev, { policyId, fileName: fileData.file.name, status: 'success' }]);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Upload failed';
-      setUploadQueue(prev =>
-        prev.map(f =>
-          f.id === fileId
-            ? { ...f, status: 'error', message: errorMsg, error: errorMsg, progress: 0 }
-            : f
-        )
-      );
-      toast.error('Upload failed', { description: errorMsg });
-    }
-  }
-
-  async function pollExtractionStatus(fileId: string, policyId: string, maxAttempts = 120) {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Upload ALL files at once (in parallel)
+    const uploadPromises = uploadQueue.map(async (file) => {
       try {
-        const response = await fetch(`/api/policies/${policyId}`);
-        if (response.ok) {
-          const data = await response.json();
-          // Check if extraction is done by looking for extracted_data
-          if (data.extractedData && Object.keys(data.extractedData).length > 0) {
-            // Extraction complete!
-            setUploadQueue(prev =>
-              prev.map(f =>
-                f.id === fileId
-                  ? { ...f, message: 'Data extracted successfully!', progress: 100 }
-                  : f
-              )
-            );
-            return data;
-          }
+        setUploadQueue(prev =>
+          prev.map(f =>
+            f.id === file.id ? { ...f, status: 'uploading', message: 'Uploading...', progress: 30 } : f
+          )
+        );
+
+        const formData = new FormData();
+        formData.append('file', file.file);
+        formData.append('customerId', customerId || '');
+        formData.append('autoExtract', 'false'); // Don't extract on upload, queue it instead
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Upload failed');
         }
-      } catch (err) {
-        // Silently continue polling
+
+        const result = await response.json();
+        const policyId = result.policyId || result.policy_id;
+
+        setUploadQueue(prev =>
+          prev.map(f =>
+            f.id === file.id
+              ? {
+                  ...f,
+                  status: 'queued',
+                  message: 'Queued for extraction (processing in background)',
+                  progress: 100,
+                  policyId,
+                  documentId: result.documentId,
+                }
+              : f
+          )
+        );
+
+        uploadResults.push({
+          fileName: file.file.name,
+          policyId,
+          documentId: result.documentId,
+          status: 'success',
+        });
+        successCount++;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Upload failed';
+        setUploadQueue(prev =>
+          prev.map(f =>
+            f.id === file.id
+              ? { ...f, status: 'error', message: errorMsg, error: errorMsg, progress: 0 }
+              : f
+          )
+        );
       }
+    });
 
-      // Wait 1 second before retrying
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for all uploads to complete
+    await Promise.all(uploadPromises);
 
-      // Update progress
-      const progress = 50 + (attempt / maxAttempts) * 48;
-      setUploadQueue(prev =>
-        prev.map(f =>
-          f.id === fileId ? { ...f, progress: Math.min(progress, 97) } : f
-        )
-      );
+    setIsUploading(false);
+
+    if (successCount > 0) {
+      toast.success(`${successCount} file(s) uploaded!`, {
+        description: `Extraction processing started. Check back soon for updated data.`
+      });
+      if (onUploadComplete) {
+        onUploadComplete(uploadResults);
+      }
     }
-
-    // If we've polled for 2 minutes and still no extraction, consider it done anyway
-    // (extraction might be happening in background)
-    return true;
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -212,7 +149,7 @@ export default function BulkFileUpload({ onAllComplete, onError, customerId, onP
         file,
         status: 'pending' as const,
         progress: 0,
-        message: 'Waiting to upload...',
+        message: 'Ready to upload',
       }));
 
     setUploadQueue(prev => [...prev, ...newFiles]);
@@ -226,7 +163,7 @@ export default function BulkFileUpload({ onAllComplete, onError, customerId, onP
     setUploadQueue(prev =>
       prev.map(f =>
         f.id === fileId
-          ? { ...f, status: 'pending', message: 'Waiting to upload...', progress: 0, error: undefined }
+          ? { ...f, status: 'pending', message: 'Ready to upload', progress: 0, error: undefined }
           : f
       )
     );
@@ -249,7 +186,7 @@ export default function BulkFileUpload({ onAllComplete, onError, customerId, onP
           type="file"
           accept=".pdf,.jpg,.jpeg,.png"
           onChange={(e) => handleFileSelect(e.target.files)}
-          disabled={isProcessing && uploadQueue.some(f => ['uploading', 'extracting'].includes(f.status))}
+          disabled={isUploading}
           className="hidden"
           id="bulk-file-input"
           multiple
@@ -262,7 +199,7 @@ export default function BulkFileUpload({ onAllComplete, onError, customerId, onP
         </p>
         <Button
           onClick={() => fileInputRef.current?.click()}
-          disabled={isProcessing && uploadQueue.some(f => ['uploading', 'extracting'].includes(f.status))}
+          disabled={isUploading}
           variant="outline"
         >
           Select Files
@@ -278,13 +215,12 @@ export default function BulkFileUpload({ onAllComplete, onError, customerId, onP
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <h4 className="font-semibold">
-                Upload Queue ({uploadQueue.filter(f => f.status === 'completed').length}/{uploadQueue.length})
+                Files to Upload ({uploadQueue.filter(f => f.status === 'queued').length}/{uploadQueue.length})
               </h4>
-              {uploadQueue.length > 0 && uploadQueue.every(f => ['completed', 'error'].includes(f.status)) && (
+              {uploadQueue.length > 0 && uploadQueue.every(f => ['queued', 'error'].includes(f.status)) && (
                 <Button
                   onClick={() => {
                     setUploadQueue([]);
-                    setResults([]);
                   }}
                   variant="ghost"
                   size="sm"
@@ -306,9 +242,9 @@ export default function BulkFileUpload({ onAllComplete, onError, customerId, onP
                   </div>
 
                   <div className="flex items-center gap-2 ml-2">
-                    {file.status === 'uploading' || file.status === 'extracting' ? (
+                    {file.status === 'uploading' ? (
                       <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                    ) : file.status === 'completed' ? (
+                    ) : file.status === 'queued' ? (
                       <CheckCircle className="w-4 h-4 text-green-500" />
                     ) : file.status === 'error' ? (
                       <AlertCircle className="w-4 h-4 text-red-500" />
@@ -323,7 +259,7 @@ export default function BulkFileUpload({ onAllComplete, onError, customerId, onP
                       className={`h-2 rounded-full transition-all duration-300 ${
                         file.status === 'error'
                           ? 'bg-red-500'
-                          : file.status === 'completed'
+                          : file.status === 'queued'
                             ? 'bg-green-500'
                             : 'bg-blue-500'
                       }`}
@@ -337,7 +273,7 @@ export default function BulkFileUpload({ onAllComplete, onError, customerId, onP
                   <p className={`text-xs font-medium ${
                     file.status === 'error'
                       ? 'text-red-600'
-                      : file.status === 'completed'
+                      : file.status === 'queued'
                         ? 'text-green-600'
                         : 'text-muted-foreground'
                   }`}>
@@ -371,6 +307,26 @@ export default function BulkFileUpload({ onAllComplete, onError, customerId, onP
                 )}
               </div>
             ))}
+
+            {uploadQueue.some(f => f.status === 'pending') && (
+              <Button
+                onClick={uploadAllFiles}
+                disabled={isUploading}
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload {uploadQueue.filter(f => f.status === 'pending').length} File(s)
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </Card>
       )}

@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
 import BulkFileUpload from '@/components/bulk-file-upload';
 
 interface UploadedPolicy {
@@ -17,53 +16,10 @@ interface UploadedPolicy {
 export default function NewPolicyPage() {
   const router = useRouter();
   const [uploadedPolicies, setUploadedPolicies] = useState<UploadedPolicy[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Subscribe to real-time policy updates
-  useEffect(() => {
-    if (!supabase || uploadedPolicies.length === 0) return;
-
-    console.log('[v0/Bulk] Setting up realtime listeners for uploaded policies');
-    
-    const channels = uploadedPolicies.map(policy => {
-      const channel = supabase
-        .channel(`policy-update-${policy.policyId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'policies',
-            filter: `id=eq.${policy.policyId}`,
-          },
-          (payload) => {
-            console.log(`[v0/Bulk] Policy ${policy.policyId} updated:`, payload.new);
-            // Refresh to show new extracted data
-            setIsRefreshing(true);
-            setTimeout(() => setIsRefreshing(false), 500);
-          }
-        )
-        .subscribe();
-
-      return channel;
-    });
-
-    return () => {
-      console.log('[v0/Bulk] Cleaning up realtime listeners');
-      channels.forEach(channel => supabase.removeChannel(channel));
-    };
-  }, [uploadedPolicies]);
-
-  const handleAllComplete = useCallback((results: UploadedPolicy[]) => {
-    setUploadedPolicies(prev => [...prev, ...results]);
-    toast.info('Policies queued for extraction', {
-      description: `${results.length} policies are being processed in the background.`,
-    });
-  }, []);
-
-  const handlePolicyCreated = useCallback((policyId: string, fileName: string) => {
-    // This is called immediately when a policy is created
-    console.log(`[v0/Bulk] Policy created: ${policyId} from ${fileName}`);
+  const handleUploadComplete = useCallback((results: Array<{ fileName: string; policyId: string; documentId: string; status: string }>) => {
+    const policies = results.map(r => ({ policyId: r.policyId, fileName: r.fileName }));
+    setUploadedPolicies(prev => [...prev, ...policies]);
   }, []);
 
   return (
@@ -75,8 +31,8 @@ export default function NewPolicyPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">Bulk Upload & Extract</h1>
           <p className="text-slate-500 mt-2 text-sm max-w-2xl">
-            Upload multiple policy documents at once. Each file will be processed sequentially to ensure proper data extraction. 
-            Extracted policies will automatically appear in your Policies list without requiring a page refresh.
+            Upload multiple policy documents at once. All files are uploaded simultaneously, then extracted one-by-one in the background.
+            Check back in a few moments to see extracted data automatically appear in your Policies list via real-time updates.
           </p>
         </div>
       </div>
@@ -84,8 +40,7 @@ export default function NewPolicyPage() {
       {/* Main Upload Component */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
         <BulkFileUpload 
-          onAllComplete={handleAllComplete}
-          onPolicyCreated={handlePolicyCreated}
+          onUploadComplete={handleUploadComplete}
         />
       </div>
 
@@ -95,7 +50,7 @@ export default function NewPolicyPage() {
           <div>
             <h2 className="text-lg font-semibold text-slate-900 mb-3">Recently Created Policies ({uploadedPolicies.length})</h2>
             <p className="text-sm text-slate-600 mb-4">
-              Click on a policy to view details and extracted data in real-time.
+              These policies are now queued for extraction. Extraction status updates automatically via real-time sync.
             </p>
           </div>
           

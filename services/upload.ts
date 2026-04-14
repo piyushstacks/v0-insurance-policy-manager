@@ -4,7 +4,7 @@
  */
 
 import { supabaseAdmin, storageBucket } from '@/lib/supabase';
-import { extractDocumentInline } from './extraction';
+import { extractDocumentInline, queueDocumentExtraction } from './extraction';
 
 /**
  * Upload a policy document
@@ -100,10 +100,10 @@ export async function uploadPolicyDocument(
     const documentId = docData.id;
     console.log(`[v0] Document created: ${documentId}`);
 
-    // Run extraction inline (immediately, no cron needed)
+    // Queue for extraction (background processing, one-by-one)
     if (autoExtract) {
-      extractDocumentInline(documentId, policyId, fileUrl).catch((e) =>
-        console.error('[v0] Background inline extraction error:', e)
+      queueDocumentExtraction(userId, documentId, policyId, fileUrl).catch((e) =>
+        console.error('[v0] Failed to queue extraction:', e)
       );
     }
 

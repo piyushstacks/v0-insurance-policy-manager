@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Bell, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageLoader } from '@/components/ui/loader';
 
 interface Reminder {
   id: string;
@@ -59,9 +60,7 @@ export default function RemindersPage() {
       )}
 
       {isLoading ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Loading reminders...</p>
-        </div>
+        <PageLoader words={['reminders', 'renewals', 'alerts', 'deadlines', 'reminders']} label="loading" />
       ) : reminders.length === 0 ? (
         <div className="text-center py-12 rounded-lg border border-dashed bg-muted/50 mt-8">
           <Bell className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />

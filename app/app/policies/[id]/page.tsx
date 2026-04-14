@@ -19,6 +19,7 @@ import {
   Trash2,
   RefreshCw,
 } from 'lucide-react';
+import { PageLoader } from '@/components/ui/loader';
 
 interface Policy {
   id: string;
@@ -115,11 +116,7 @@ export default function PolicyDetailPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PageLoader words={['policy', 'coverage', 'premium', 'details', 'policy']} label="loading" />;
   }
 
   if (!policy) {
@@ -142,10 +139,10 @@ export default function PolicyDetailPage() {
   };
 
   const extractionColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    extracted: 'bg-green-100 text-green-800',
-    reviewed: 'bg-blue-100 text-blue-800',
-    failed: 'bg-red-100 text-red-800',
+    pending: 'bg-amber-100 text-amber-800 border-amber-200',
+    extracted: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    reviewed: 'bg-blue-100 text-blue-800 border-blue-200',
+    failed: 'bg-red-100 text-red-800 border-red-200',
   };
 
   return (

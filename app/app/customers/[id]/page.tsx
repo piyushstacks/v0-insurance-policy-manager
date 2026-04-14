@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
+import { PageLoader } from '@/components/ui/loader';
 
 interface Insurer { name: string }
 interface CustomerPolicy {
@@ -63,7 +64,7 @@ export default function CustomerProfilePage() {
     load();
   }, [id]);
 
-  if (isLoading) return <div className="p-8 text-slate-500 animate-pulse text-center pt-24 font-medium">Loading Client Profile...</div>;
+  if (isLoading) return <PageLoader words={['profile', 'policies', 'history', 'data', 'profile']} label="loading" />;
   if (!customer) return <div className="p-8 text-center pt-24">Customer strictly not found.</div>;
 
   const totalPremium = customer.policies?.reduce((sum, p) => sum + (p.premium_amount || 0), 0) || 0;

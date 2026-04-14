@@ -73,112 +73,183 @@ class PDFParseProvider implements OCRProvider {
       };
     }
 
-    // ── GEN AI INJECTION (Super Intelligent LLM Parsing) ─────────────
-    if (process.env.GEMINI_API_KEY) {
-      console.log('[v0/AI] Gemini API Key found. Routing raw text through LLM Intelligence...');
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    // ── GEN AI INJECTION — OpenRouter API with free model fallback chain ──
+    const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY; // fallback if user only provided one
+    if (openRouterKey) {
+      console.log('[v0/AI] OpenRouter API Key found. Routing raw text through LLM Intelligence...');
       
       let parsed: any = null;
+      let finalCat = 'General';
+      let finalSubCat = 'Standard Policy';
       let aiErrLog = null;
       
-      for (let attempt = 1; attempt <= 2; attempt++) {
+      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+      
+      // Fallback model list requested by user
+      const models = [
+         "openai/gpt-oss-120b:free",
+         "nvidia/nemotron-3-super-120b-a12b:free",
+         "minimax/minimax-m2.5:free"
+      ];
+      
+      for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          // Utilize advanced reasoning capable models for messy Indian formats
-          const modelName = attempt === 1 ? "gemini-1.5-flash" : "gemini-1.5-pro";
-          console.log(`[v0/AI] Attempt ${attempt} using ${modelName}...`);
-          const model = genAI.getGenerativeModel({ model: modelName });
+          const modelName = models[attempt];
+          console.log(`[v0/AI] Attempt ${attempt + 1} using openrouter model ${modelName}...`);
 
           const prompt = `
-            You are an expert insurance document analyst. I am providing you with messy, raw OCR text from a complex insurance policy document (e.g., Star Health, HDFC Ergo, etc).
-            Read carefully and extract the following exact fields natively. Fix capitalization and spelling.
-            Output EXCLUSIVELY a pure JSON object. NO markdown formatting, NO backticks.
+            You are an expert insurance document analyst specializing in Indian insurance policies (Star Health, HDFC Ergo, LIC, ICICI Lombard, Bajaj Allianz, New India Assurance, etc.).
+            I am providing you with raw OCR text from a scanned policy schedule document.
+            Extract all required fields carefully. Output EXCLUSIVELY a single pure JSON object — NO markdown, NO backticks, NO explanation.
 
-            CRITICAL ENTITY RESOLUTION:
-            - Existing Insurers in Database: [${existingInsurers.join(', ')}]
-            - Existing Customers in Database: [${existingCustomers.join(', ')}]
-            If the extracted insurer or customer name is a typo, substring, or capitalization variant of ANY of the existing entities above, YOU MUST map it to the EXACT string from the arrays above to prevent database duplication.
+            ENTITY RESOLUTION (prevent duplicates):
+            - Existing Insurers in DB: [${existingInsurers.join(', ')}]
+            - Existing Customers in DB: [${existingCustomers.join(', ')}]
+            Map extracted names to the EXACT existing string if it is a variant/typo/substring of one above.
 
-            CRITICAL VALIDATION RULE FOR CUSTOMER:
-            For 'customer_name', you MUST extract the ACTUAL human or business name of the primary insured policyholder/proposer. 
-            ABSOLUTELY DO NOT extract generic table headers like "Person Details", "GenderDOBNominee Name", "Insured Name", "Name", "Code", "Client ID", or "UIN". 
-            If the text mixes labels like "Insured Name: Code: 1A2B Name: Piyush Bhagchandani", extract ONLY "Piyush Bhagchandani".
-            If you cannot strictly find the actual real human/company name, output null. Do NOT guess.
+            CUSTOMER NAME RULES (CRITICAL):
+            - Extract the ACTUAL human name of the policyholder / proposer.
+            - In Star Health documents, look for the pattern: "Proposer Name : FULL NAME" (may span multiple lines).
+            - The address block starts with "To,\nFULL NAME," — this is also a valid source.
+            - "Dear Customer" or "Dear Mr." greetings contain the name.
+            - NEVER output labels: "Code", "Client ID", "UIN", "Insured Name", "Person Details", "Name", "Nominee", "Gender".
+            - If absolutely not found, output null.
 
-            CRITICAL VALIDATION RULE FOR CATEGORY & PRODUCT:
-            - "policy_category" MUST STRICTLY be one of the following words: "Health", "Motor", "Life", "Travel", "Property", "General", or "Business". Do not use any other words.
-            - "policy_sub_category" MUST be a VERY short noun phrase identifying the product (e.g. "Family Floater", "Comprehensive", "Third Party", "Term Plan"). 
-            - NEVER use the insurance company's name (e.g. "Star Health and Allied Insurance", "HDFC Ergo") as the policy sub-category. It must be the actual plan name like "MediClassic" or "Optima Restore".
-            - ABSOLUTELY DO NOT put full sentences, marketing messages, or phrases like "Thank you for choosing...". If you cannot find a clear product name, put "Standard Cover".
+            CATEGORY RULES:
+            - "policy_category": MUST be exactly one of: "Health", "Motor", "Life", "Travel", "Property", "General", "Business".
+            - "policy_sub_category": Short plan name ONLY (e.g. "Assure", "MediClassic", "Family Floater", "Comprehensive"). NOT the company name. Max 30 chars.
 
-            CRITICAL VALIDATION RULE FOR CONTACT DATA:
-            - NEVER GENERATE FAKE placeholders like 'auto@ocr.local', 'test@test.com', or 'none@email.com'. If exactly missing organically on the document, output null.
+            PREMIUM RULES:
+            - Extract the total amount paid. Look for patterns like "Rs. 28,955/-", "Net Premium 25000", "Total Premium 18500".
+            - Return as a plain number (no currency symbol, no commas).
 
-            Fields Required:
+            CONTACT DATA RULES:
+            - NEVER invent emails/phones. Only extract if explicitly written in the document. Output null if missing.
+
+            Return JSON:
             {
-              "policy_number": "exact alphanumeric string (e.g. 141300/48/2026)",
-              "policy_category": "Strictly choose one: 'Health', 'Motor', 'Life', 'Travel', 'Property', 'General', or 'Business'",
-              "policy_sub_category": "Short product name (e.g. 'Family Floater', 'Comprehensive'. NO SENTENCES!)",
-              "coverage_start": "ISO8601 date string for when policy begins (e.g. 2024-05-14T00:00:00Z)",
-              "coverage_end": "ISO8601 date string for when policy expires",
-              "premium_amount": Total Gross Premium or Net Premium paid as a pure Number (e.g. 20527),
-              "insurer_name": "Name of insurance company (e.g. HDFC ERGO General Insurance)",
-              "customer_name": "Name of the insured person or proposer (Null if not found)",
-              "customer_email": "The exact valid email address of the customer if present, otherwise null",
-              "customer_mobile": "The exact mobile/phone number of the customer if present, otherwise null",
-              "key_important_details": "A clean HTML string formatting ALL other highly-specific information found. Use <li> tags for lists. If none, pass empty string."
+              "policy_number": "exact alphanumeric (e.g. P/141100/01/2025/001234 or 4504111511572315)",
+              "policy_category": "Health|Motor|Life|Travel|Property|General|Business",
+              "policy_sub_category": "short plan name, max 30 chars",
+              "coverage_start": "ISO8601 date (e.g. 2025-04-14T00:00:00Z)",
+              "coverage_end": "ISO8601 date",
+              "premium_amount": 28955,
+              "insurer_name": "insurance company full name",
+              "customer_name": "full name of proposer/policyholder or null",
+              "customer_email": "email or null",
+              "customer_mobile": "phone number or null",
+              "key_important_details": "HTML <li> list of other key info, or empty string"
             }
 
-            Raw Document Text:
+            RAW DOCUMENT TEXT:
             ${text.substring(0, 15000)}
           `;
 
-          const response = await model.generateContent(prompt);
-          let rawContent = response.response.text().trim();
-          rawContent = rawContent.replace(/^```json/i, '').replace(/```$/i, '').trim();
+          // API call to OpenRouter with reasoning enabled
+          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${openRouterKey}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              "model": modelName,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": prompt
+                }
+              ],
+              "reasoning": {"enabled": true}
+            })
+          });
+          
+          if (!res.ok) {
+              const errBody = await res.text();
+              throw new Error(`OpenRouter API error ${res.status}: ${errBody}`);
+          }
+
+          const result = await res.json();
+          const assistantMessage = result.choices[0].message;
+          let rawContent = assistantMessage.content.trim();
+          
+          // Fallback second reasoning loop if requested
+          if (!rawContent.includes("{")) {
+              console.log("[v0/AI] JSON not found, extending reasoning loop...");
+              const res2 = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${openRouterKey}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  "model": modelName,
+                  "messages": [
+                    { "role": "user", "content": prompt },
+                    { 
+                        "role": "assistant", 
+                        "content": assistantMessage.content,
+                        "reasoning_details": assistantMessage.reasoning_details
+                    },
+                    { "role": "user", "content": "You did not output the final JSON requested. Are you sure? Think carefully and output strictly the final JSON."}
+                  ]
+                })
+              });
+              if (res2.ok) {
+                  const r2 = await res2.json();
+                  rawContent = r2.choices[0].message.content.trim();
+              }
+          }
+          
+          // Safely extract JSON object even if LLM adds preamble text
+          const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) throw new Error('No JSON object found in AI response');
+          rawContent = jsonMatch[0];
+          
           parsed = JSON.parse(rawContent);
           
-          // Validation Layer
-          const cName = (parsed.customer_name || '').toLowerCase();
-          const invalidPhrases = ['details', 'gender', 'nominee', 'unknown', 'name', 'insured', 'code', 'client id'];
-          
+          // --- Validation ---
+          const cName = (parsed.customer_name || '').trim();
+          const cNameLower = cName.toLowerCase();
+          const invalidTerms = ['details', 'gender', 'nominee', 'unknown', 'insured name', 'code', 'client id', 'uin', 'person', 'name'];
+          const isInvalidName = !cName || cName.length < 3 || invalidTerms.some(t => cNameLower === t);
+
           if (parsed.customer_email) {
              const lowerE = parsed.customer_email.toLowerCase();
-             if (lowerE.includes('ocr.local') || lowerE.includes('auto@') || lowerE.includes('none') || !lowerE.includes('@')) {
+             if (lowerE.includes('.local') || lowerE.includes('auto@') || lowerE.includes('none') || lowerE.includes('test@') || !lowerE.includes('@')) {
                  parsed.customer_email = null;
              }
           }
-          if (parsed.customer_mobile && String(parsed.customer_mobile).length < 7) {
+          if (parsed.customer_mobile && String(parsed.customer_mobile).replace(/\D/g, '').length < 7) {
              parsed.customer_mobile = null;
           }
           
-          // Category Validation Array (Hard constraint)
           const validCats = ['Health', 'Motor', 'Life', 'Travel', 'Property', 'General', 'Business'];
-          let finalCat = parsed.policy_category || 'General';
-          if (!validCats.includes(finalCat)) finalCat = 'General';
-          
-          let finalSubCat = parsed.policy_sub_category || 'Insurance';
-          if (finalSubCat.length > 35) finalSubCat = 'Standard Policy'; // Ban long sentences
-          
-          if (!cName || invalidPhrases.some(p => cName === p || (cName.includes(p) && cName.length < 15)) || cName.length < 3) {
-             console.warn(`[v0/AI] Extraction Validation Failed on Attempt ${attempt} (Extracted: ${parsed.customer_name}). Retrying...`);
-             if (attempt === 1) {
-                 // Push aggressively to Gemini-1.5-Pro on Failure 2
-                 continue;
-             }
-             else parsed.customer_name = 'REVIEW REQUIRED - EXTRACT FAILED';
+          finalCat = validCats.includes(parsed.policy_category) ? parsed.policy_category : 'General';
+          finalSubCat = (parsed.policy_sub_category || 'Standard Policy').substring(0, 35);
+          // Reject if sub_category is just the company name
+          if (existingInsurers.some(i => finalSubCat.toLowerCase().includes(i.toLowerCase().substring(0, 8)))) {
+            finalSubCat = 'Standard Policy';
           }
           
-          if (!parsed.policy_number || parsed.policy_number.length < 4 || parsed.policy_number.toLowerCase() === 'code') {
-             console.warn(`[v0/AI] Policy Number Validation Failed. Retrying...`);
-             if (attempt === 1) continue;
-             else parsed.policy_number = `REVIEW-${Date.now()}`;
+          if (isInvalidName) {
+             console.warn(`[v0/AI] Customer name '${parsed.customer_name}' is invalid on attempt ${attempt + 1}.`);
+             parsed.customer_name = null; // Will trigger regex supplementation below
+          }
+          
+          if (!parsed.policy_number || parsed.policy_number.length < 4) {
+             parsed.policy_number = `REVIEW-${Date.now()}`;
           }
 
-          console.log(`[v0/AI] Extraction Success via ${modelName}!`);
-          break; // Validation passed, break out of retry loop
+          console.log(`[v0/AI] ✅ Extraction Success! Customer: ${parsed.customer_name}, Policy: ${parsed.policy_number}`);
+          break;
 
         } catch (aiErr: any) {
-          console.error(`[v0/AI] Attempt ${attempt} failed:`, aiErr.message);
+          const msg = aiErr.message || '';
+          console.error(`[v0/AI] Attempt ${attempt + 1} failed:`, msg.substring(0, 300));
+          
+          // Wait briefly before falling back to the next model in the OpenRouter chain
+          await sleep(2000);
           aiErrLog = aiErr;
           if (attempt === 2) parsed = null;
         }
@@ -192,13 +263,13 @@ class PDFParseProvider implements OCRProvider {
           coverage_end: parsed.coverage_end || nextYear.toISOString(),
           premium_amount: Number(parsed.premium_amount) || 0,
           insurer_name: parsed.insurer_name || 'Unknown Insurer',
-          customer_name: parsed.customer_name || 'REVIEW REQUIRED - EXTRACT FAILED',
+          customer_name: parsed.customer_name || null,
           customer_email: parsed.customer_email || null,
           customer_mobile: parsed.customer_mobile || null,
           agent_notes: parsed.key_important_details || null,
         };
       } else {
-        console.error('[v0/AI] Total AI Failure across all attempts. Falling back to robust Regex...');
+        console.error('[v0/AI] Total AI Failure. Falling back to Regex engine...');
       }
     }
 
@@ -222,27 +293,37 @@ class PDFParseProvider implements OCRProvider {
     };
 
     // ── Policy Number ──────────────────────────────────────────────────────
+    // Star Health uses 'Renewal Endorsement No:' label
     const policyNumber =
-      (grab(/[Pp]olicy\s*[Nn]o\.?\s*[:\-]?\s*([A-Z0-9][A-Z0-9 \/\-]{5,40})/i) ??
-       grab(/[Pp]olicy\s*[Nn]umber\s*[:\-]?\s*([A-Z0-9][A-Z0-9 \/\-]{5,40})/i))
-      ?.replace(/\s+/g, ' ').trim() ?? `OCR-${Date.now()}`;
+      grab(/[Rr]enewal\s+[Ee]ndorsement\s+[Nn]o\s*[:\-]?\s*([A-Z0-9][A-Z0-9\/\-]{5,50})/i) ??
+      grab(/[Pp]olicy\s*(?:[Nn]o|[Nn]umber)\.?\s*[:\-]?\s*([A-Z0-9][A-Z0-9 \/\-]{5,40})/i) ??
+      grab(/[Pp]olicy\s*[Nn]o\.?\s*[:\-]?\s*([A-Z0-9][A-Z0-9 \/\-]{5,40})/i) ??
+      `OCR-${Date.now()}`;
 
-    // ── Policy Type ────────────────────────────────────────────────────────
-    let policyType = 'General Insurance';
-    for (const line of lines.slice(0, 50)) {
-      const m = line.match(/([A-Za-z][A-Za-z ]{5,80}?(?:Insurance|Health|Motor|Life|Travel|Fire|Marine|Policy|Plan|Cover))(?:\s|,|$)/i);
-      if (m && !m[1].toLowerCase().includes('welcome') && !m[1].toLowerCase().includes('please') && !m[1].toLowerCase().includes('renewal of your')) {
-        policyType = m[1].trim();
-        break;
+    // ── Policy Type: extract actual plan name (e.g. "Star Health Assure") ─
+    let policyType = 'General | Standard Cover';
+    // Default to Health if insurer name contains Health keywords
+    if (/\b(?:health|med|optima|assure|medicare)\b/i.test(insurer)) policyType = 'Health | Standard Cover';
+    // Detect from plan name line e.g. "Star Health Assure Insurance Policy"
+    const planNameMatch =
+      grab(/Star\s+Health\s+(.+?)\s+Insurance\s+Policy/i) ??
+      grab(/([A-Za-z][a-zA-Z ]{3,40}?)\s+Insurance\s+Policy/i);
+    if (planNameMatch) {
+      const words = planNameMatch.trim().split(/\s+/);
+      const subCat = words.slice(-Math.min(words.length, 3)).join(' ');
+      if (!subCat.toLowerCase().includes('health insurance') && subCat.length < 30) {
+        policyType = `Health | ${subCat}`;
       }
     }
-    const typeFromRenewal = grab(/[Rr]enewal of [Yy]our\s+([A-Za-z][A-Za-z ]{3,60}?)\s+(?:[Ii]nsurance\s+)?[Pp]olicy/i);
-    if (typeFromRenewal) policyType = typeFromRenewal + ' Insurance Policy';
-    
-    const typeFromLabel = grab(/[Pp]olicy\s+[Ss]chedule\s*[-–]\s*([A-Za-z][A-Za-z ]{3,60}?)(?:\n|$)/i);
-    if (typeFromLabel) policyType = typeFromLabel.trim();
+    // Override with specific product category keywords (only if insurer is not health)
+    if (!/\bhealth\b/i.test(insurer)) {
+      if (/\b(?:motor|vehicle|car|two.?wheeler|commercial vehicle)\b/i.test(text)) policyType = 'Motor | Comprehensive';
+      if (/\b(?:term|endowment|ulip|annuity)\b/i.test(text)) policyType = 'Life | Standard Cover';
+      if (/\b(?:travel)\b/i.test(text)) policyType = 'Travel | Standard Cover';
+      if (/\b(?:fire|home|property|building|burglary)\b/i.test(text)) policyType = 'Property | Standard Cover';
+    }
 
-    // ── Dates: Target 'Policy Period From X To Y' (most reliable) ──────────
+    // ── Dates: 'Policy Period From X To Y' ─────────────────────────────────
     let coverageStart = now.toISOString();
     let coverageEnd   = nextYear.toISOString();
 
@@ -255,26 +336,27 @@ class PDFParseProvider implements OCRProvider {
       if (s) coverageStart = s.toISOString();
       if (e) coverageEnd   = e.toISOString();
     } else {
-      const periodFallback = t.match(
-        /for\s+period\s+of\s+(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})\s*to\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/i
-      );
-      if (periodFallback) {
-        const s = parseDMY(periodFallback[1]);
-        const e = parseDMY(periodFallback[2]);
+      // Try 'renewed for a further period of DD-MM-YYYY to DD-MM-YYYY'
+      const m2 = t.match(/(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})\s*(?:to|To)\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/i);
+      if (m2) {
+        const s = parseDMY(m2[1]);
+        const e = parseDMY(m2[2]);
         if (s) coverageStart = s.toISOString();
         if (e) coverageEnd   = e.toISOString();
       }
     }
 
-    // ── Premium: Target 'Net Premium  XXXXX' or 'Gross Premium  XXXXX' ─────
+    // ── Premium: handles 'Rs. 28,955/-', 'Net Premium 25000', '28955.00' ──
     let premium = 0;
-    const netPrem  = grab(/[Nn]et\s+[Pp]remium\s+([\d,]+(?:\.\d{1,2})?)/i);
-    const grossPrem = grab(/[Gg]ross\s+[Pp]remium\s+([\d,]+(?:\.\d{1,2})?)/i);
-    const rsPrem   = grab(/paid\s*Rs\.\s*([\d,]+)/i);
-    const raw = netPrem ?? rsPrem ?? grossPrem;
-    if (raw) premium = parseFloat(raw.replace(/,/g, ''));
+    const rsPremSlash = grab(/[Rr]s\.\s*([\d,]+(?:\.\d{1,2})?)\/[-–]?/i);    // Rs. 28,955/-
+    const rsPrem      = grab(/paid\s*Rs\.?\s*([\d,]+(?:\.\d{1,2})?)/i);
+    const netPrem     = grab(/[Nn]et\s+[Pp]remium\s*[:\s]+([\d,]+(?:\.\d{1,2})?)/i);
+    const grossPrem   = grab(/[Gg]ross\s+[Pp]remium\s*[:\s]+([\d,]+(?:\.\d{1,2})?)/i);
+    const totalPrem   = grab(/[Tt]otal\s+[Pp]remium\s*[:\s]+([\d,]+(?:\.\d{1,2})?)/i);
+    const rawPrem = rsPremSlash ?? netPrem ?? totalPrem ?? rsPrem ?? grossPrem;
+    if (rawPrem) premium = parseFloat(rawPrem.replace(/,/g, ''));
 
-    // ── Insurer: HDFC ERGO / Company name ─────────────────────────────────
+    // ── Insurer ────────────────────────────────────────────────────────────
     const insurer =
       grab(/(?:issued by|underwriter|administrator)[:\-\s]+([A-Za-z][A-Za-z ]{3,80}?(?:Insurance|Assurance)\s+(?:Company|Co\.?|Ltd\.?|Limited))/i) ??
       (() => {
@@ -286,11 +368,35 @@ class PDFParseProvider implements OCRProvider {
       })() ??
       'Unknown Insurer';
 
-    // ── Customer: From 'Dear Mr/Ms X' or policy holder label ──────────────
-    const customer =
-      grab(/[Dd]ear\s+(?:Mr\.?|Ms\.?|Mrs\.?|Dr\.?)\s*([A-Z][a-zA-Z ]{2,60}?)(?:\s*,|\s*\n|$)/i) ??
-      grab(/(?:[Pp]olicy\s*[Hh]older|[Ii]nsured\s*(?:[Nn]ame)?|[Pp]roposer)\s*[:\-]?\s*(?:Mr\.?|Ms\.?|Mrs\.?|Dr\.?)?\s*([A-Z][a-zA-Z ]{2,60}?)(?:\n|,|$)/i) ??
-      'Unknown Customer';
+    // ── Customer: Multi-pattern extraction optimized for Star Health ────────
+    // Pattern 1: Address block 'To,\nFULL NAME,' - captures up to 2 lines for multi-line names
+    const toBlockMatch = text.match(/\bTo,?\s*\n([A-Z][A-Z ]{3,60}(?:\n[A-Z][A-Z ]{2,60})?),/m);
+    const toName = toBlockMatch?.[1]?.replace(/\n/g, ' ').trim();
+    // Pattern 2: 'Proposer Name : NAME' - capture spanning 2 lines (e.g. MUKESH NEWANDRAM\nCHANDWANI)
+    const proposerMatch = text.match(/[Pp]roposer\s+[Nn]ame\s*[:\s]+([A-Z][A-Z\s]{3,70})(?=\n[A-Z]|\n[a-z]|$)/m);
+    const proposerName = proposerMatch?.[1]?.trim().replace(/\s+/g, ' ');
+    // Pattern 3: Dear 'Mr. / Ms.' greeting
+    const dearMatch = grab(/[Dd]ear\s+(?:Mr\.?|Ms\.?|Mrs\.?|Dr\.?)\s+([A-Za-z][A-Za-z ]{2,60}?)(?:\s*,|\n)/i);
+    // Pattern 4: Insured Name label
+    const insuredMatch = grab(/[Ii]nsured\s+[Nn]ame\s*[:\-]?\s*([A-Z][a-zA-Z ]{2,60}?)(?:\n|,|$)/i);
+    // Pattern 5: Policy Holder label
+    const holderMatch = grab(/[Pp]olicy\s+[Hh]older\s*[:\-]?\s*([A-Z][a-zA-Z ]{2,60}?)(?:\n|,|$)/i);
+
+    const sanitizeName = (raw: string | null | undefined): string | null => {
+      if (!raw) return null;
+      const n = raw.trim().replace(/\s+/g, ' ');
+      const bad = ['code', 'name', 'insured', 'details', 'nominee', 'gender', 'unknown', 'dear customer', 'customer'];
+      if (n.length < 3 || bad.some(b => n.toLowerCase() === b)) return null;
+      return n;
+    };
+    
+    const customer = 
+      sanitizeName(toName) ??
+      sanitizeName(proposerName) ??
+      sanitizeName(dearMatch) ??
+      sanitizeName(insuredMatch) ??
+      sanitizeName(holderMatch) ??
+      null;
 
     const result: ExtractionResult = {
       policy_number:  policyNumber,

@@ -3,10 +3,12 @@
  */
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PageLoader } from '@/components/ui/loader';
 import {
   Download,
   Filter,
@@ -56,22 +58,47 @@ export default function PoliciesPage() {
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
 
-  // Fetch logic
-  useEffect(() => {
-    async function fetchPolicies() {
-      try {
-        const response = await fetch('/api/policies');
-        if (!response.ok) throw new Error('Failed to fetch');
-        const data = await response.json();
-        setPolicies(data.data || []);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Error loading policies');
-      } finally {
-        setIsLoading(false);
-      }
+  // Fetch logic wrapped in useCallback so it's stable for realtime effects
+  const fetchPolicies = useCallback(async () => {
+    try {
+      const response = await fetch('/api/policies');
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      setPolicies(data.data || []);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error loading policies');
+    } finally {
+      setIsLoading(false);
     }
-    fetchPolicies();
   }, []);
+
+  useEffect(() => {
+    fetchPolicies();
+  }, [fetchPolicies]);
+
+  // --- REALTIME SUBSCRIPTION ---
+  useEffect(() => {
+    if (!supabase) return;
+
+    console.log('[v0/Realtime] Subscribing to policy updates...');
+    const channel = supabase
+      .channel('public:policies')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'policies' },
+        (payload) => {
+          console.log('[v0/Realtime] Policy change detected:', payload.eventType);
+          // Refresh the whole list to catch updated joins (customer/insurer names)
+          fetchPolicies();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[v0/Realtime] Unsubscribing...');
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, fetchPolicies]);
 
   // Unique values for dropdowns
   const uniqueProducts = useMemo(() => Array.from(new Set(policies.map(p => p.policy_type).filter(Boolean))), [policies]);
@@ -325,7 +352,7 @@ export default function PoliciesPage() {
         {/* Table Area */}
         <div className="flex-1 overflow-auto bg-white">
           {isLoading ? (
-            <div className="p-12 text-center text-slate-500">Loading directory...</div>
+            <PageLoader words={['policies', 'documents', 'schedules', 'records', 'policies']} label="loading" />
           ) : filteredPolicies.length === 0 ? (
             <div className="p-12 text-center">
               <div className="w-12 h-12 rounded-full bg-slate-100 items-center justify-center flex mx-auto mb-3">

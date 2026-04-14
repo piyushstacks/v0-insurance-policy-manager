@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import AppNav from '@/components/app-nav';
+import Sidebar from '@/components/sidebar';
 
 export default async function AppLayout({
   children,
@@ -40,10 +40,12 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50/50 font-sans">
-      <AppNav user={user} />
-      <main className="flex-1 w-full flex flex-col">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50/50 font-sans">
+      <Sidebar user={user} />
+      <main className="flex-1 w-full flex flex-col min-w-0 h-screen overflow-hidden">
+        <div className="flex-1 overflow-y-auto w-full">
           {children}
+        </div>
       </main>
     </div>
   );

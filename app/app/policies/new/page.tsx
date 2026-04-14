@@ -1,145 +1,254 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { UploadCloud, FileType, CheckCircle2 } from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, X, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
+
+interface UploadedFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  progress: number;
+  failed?: boolean;
+  fileObject?: File;
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
 
 export default function NewPolicyPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>();
-  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  async function handleUpload() {
-    if (uploadFiles.length === 0) return;
-    setError(undefined);
-    setLoading(true);
+  const uploadFile = async (file: File, id: string) => {
+    const updateProgress = (progress: number) => {
+      setUploadedFiles(prev => prev.map(f => f.id === id ? { ...f, progress } : f));
+    };
 
     try {
-      let successCount = 0;
-      for (const uploadFile of uploadFiles) {
-          const fileData = new FormData();
-          fileData.append('file', uploadFile);
-          fileData.append('autoExtract', 'true');
+      // Simulate progress during upload
+      updateProgress(10);
+      const fileData = new FormData();
+      fileData.append('file', file);
+      fileData.append('autoExtract', 'true');
 
-          const uploadRes = await fetch('/api/upload', {
-            method: 'POST',
-            body: fileData
-          });
+      updateProgress(30);
+      const res = await fetch('/api/upload', { method: 'POST', body: fileData });
+      updateProgress(80);
 
-          if (uploadRes.ok) {
-              successCount++;
-          }
-      }
+      if (!res.ok) throw new Error('Upload failed');
 
-      if (successCount === 0) throw new Error('All file uploads failed. Verify format.');
-
-      toast.success(`${successCount} Document(s) Uploaded!`, {
-         description: `AI is structurally sorting and extracting all data natively.`
-      });
-
-      router.refresh();
-      router.push('/app/policies');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while uploading');
-      toast.error("Upload Error", {
-         description: err.message || 'An error occurred while uploading'
-      });
-    } finally {
-      setLoading(false);
+      updateProgress(100);
+      return true;
+    } catch (err) {
+      setUploadedFiles(prev => prev.map(f => f.id === id ? { ...f, failed: true, progress: 0 } : f));
+      return false;
     }
-  }
+  };
+
+  const handleDropFiles = useCallback(async (files: FileList | File[]) => {
+    const newFiles = Array.from(files).filter(f => 
+      f.type === 'application/pdf' || f.type.startsWith('image/')
+    );
+    
+    if (newFiles.length === 0) {
+      toast.error('Only PDF, JPG, PNG files are accepted');
+      return;
+    }
+
+    const newEntries: UploadedFile[] = newFiles.map(file => ({
+      id: Math.random().toString(36).substring(7),
+      name: file.name,
+      size: file.size,
+      type: file.name.split('.').pop() || 'pdf',
+      progress: 0,
+      fileObject: file,
+    }));
+
+    setUploadedFiles(prev => [...newEntries, ...prev]);
+    setUploading(true);
+
+    let successCount = 0;
+    for (const entry of newEntries) {
+      const success = await uploadFile(entry.fileObject!, entry.id);
+      if (success) successCount++;
+    }
+
+    setUploading(false);
+
+    if (successCount > 0) {
+      toast.success(`${successCount} document(s) uploaded!`, {
+        description: 'AI extraction is processing in the background.'
+      });
+    }
+  }, []);
+
+  const handleDeleteFile = (id: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleRetryFile = async (id: string) => {
+    const file = uploadedFiles.find(f => f.id === id);
+    if (!file || !file.fileObject) return;
+    
+    setUploadedFiles(prev => prev.map(f => f.id === id ? { ...f, failed: false, progress: 0 } : f));
+    await uploadFile(file.fileObject, id);
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+    else if (e.type === "dragleave") setDragActive(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setUploadFiles(Array.from(e.dataTransfer.files));
-    }
+    if (e.dataTransfer.files?.length > 0) handleDropFiles(e.dataTransfer.files);
   };
 
+  const allDone = uploadedFiles.length > 0 && uploadedFiles.every(f => f.progress === 100 || f.failed);
+
   return (
-    <div className="p-8 max-w-3xl mx-auto h-[80vh] flex flex-col justify-center">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-bold mb-3 tracking-tight">Bulk Policy Upload</h1>
-        <p className="text-muted-foreground text-lg">Upload policy documents (PDF, JPG, PNG). Our background AI worker will process the document, extract customer information, dates, and premiums, and structure the data automatically.</p>
+    <div className="flex-1 flex flex-col p-4 md:p-8 max-w-3xl mx-auto w-full">
+      <div className="mb-6">
+        <Link href="/app/policies" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Back to Policies
+        </Link>
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">Upload Policy Documents</h1>
+        <p className="text-slate-500 mt-1 text-sm">Drag & drop PDFs, JPGs, or PNGs. AI will extract policy data automatically.</p>
       </div>
 
-      <div 
-        className={`relative flex flex-col items-center justify-center w-full min-h-[320px] rounded-xl border-2 border-dashed transition-all duration-200 p-8 ${
-          dragActive ? 'border-primary bg-primary/5 scale-[1.02]' : 'border-border bg-card hover:bg-accent/50 hover:border-muted-foreground/50'
-        } ${uploadFiles.length > 0 ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : ''}`}
+      {/* Dropzone */}
+      <div
+        className={`relative flex flex-col items-center justify-center w-full min-h-[200px] rounded-xl border-2 border-dashed transition-all duration-200 p-8 cursor-pointer ${
+          dragActive
+            ? 'border-blue-400 bg-blue-50/50 scale-[1.01]'
+            : 'border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400'
+        }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
       >
-        <input 
-          type="file" 
+        <input
+          type="file"
           multiple
           accept="application/pdf,image/jpeg,image/png"
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-          onChange={(e) => setUploadFiles(e.target.files ? Array.from(e.target.files) : [])}
+          onChange={(e) => e.target.files && handleDropFiles(e.target.files)}
         />
-        
-        {uploadFiles.length === 0 ? (
-          <>
-            <div className="p-4 rounded-full bg-primary/10 mb-4">
-              <UploadCloud className="w-10 h-10 text-primary" />
-            </div>
-            <p className="text-xl font-medium mb-1">Drag and drop your file here</p>
-            <p className="text-sm text-muted-foreground mb-4">or click anywhere to browse</p>
-            <div className="flex gap-4 text-xs font-medium text-muted-foreground">
-              <span className="flex items-center"><FileType className="w-4 h-4 mr-1" /> PDF</span>
-              <span className="flex items-center"><FileType className="w-4 h-4 mr-1" /> JPG</span>
-              <span className="flex items-center"><FileType className="w-4 h-4 mr-1" /> PNG</span>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center z-20 pointer-events-none text-center">
-            <div className="p-3 rounded-full bg-green-100 dark:bg-green-900 mb-3 text-green-600 dark:text-green-400">
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
-            <p className="text-lg font-semibold text-foreground mb-1">{uploadFiles.length} file(s) selected</p>
-            <div className="text-sm text-muted-foreground mb-6 max-h-32 overflow-y-auto space-y-1 mt-2">
-               {uploadFiles.map((f, i) => (
-                  <p key={i}>{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</p>
-               ))}
-            </div>
-            
-            <p className="text-xs font-medium text-primary mb-2 mt-auto">Click to replace files array</p>
-          </div>
-        )}
+        <div className="p-3 rounded-full bg-blue-50 mb-3">
+          <UploadCloud className="w-8 h-8 text-blue-500" />
+        </div>
+        <p className="text-base font-semibold text-slate-700 mb-1">Click to upload or drag & drop</p>
+        <p className="text-xs text-slate-500">PDF, JPG or PNG (max 20MB)</p>
       </div>
 
-      {error && (
-        <div className="mt-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium text-center shadow-sm">
-          {error}
+      {/* File List */}
+      {uploadedFiles.length > 0 && (
+        <div className="mt-6 space-y-2">
+          {uploadedFiles.map(file => (
+            <div
+              key={file.id}
+              className={`relative flex items-center gap-3 p-3 rounded-lg border transition-all overflow-hidden ${
+                file.failed ? 'border-red-200 bg-red-50/30' :
+                file.progress === 100 ? 'border-emerald-200 bg-emerald-50/30' :
+                'border-slate-200 bg-white'
+              }`}
+            >
+              {/* Progress fill background */}
+              {!file.failed && file.progress < 100 && (
+                <div
+                  className="absolute inset-y-0 left-0 bg-blue-50 transition-all duration-500 ease-out"
+                  style={{ width: `${file.progress}%` }}
+                />
+              )}
+
+              {/* File icon */}
+              <div className={`relative z-10 w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                file.failed ? 'bg-red-100' :
+                file.progress === 100 ? 'bg-emerald-100' :
+                'bg-blue-100'
+              }`}>
+                {file.failed ? (
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                ) : file.progress === 100 ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                ) : (
+                  <FileText className="w-5 h-5 text-blue-500" />
+                )}
+              </div>
+
+              {/* File info */}
+              <div className="relative z-10 flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-800 truncate">{file.name}</p>
+                <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                  <span className="uppercase font-semibold text-[10px]">{file.type}</span>
+                  <span>·</span>
+                  <span>{formatSize(file.size)}</span>
+                  {!file.failed && file.progress < 100 && (
+                    <>
+                      <span>·</span>
+                      <span className="text-blue-600 font-semibold">{file.progress}%</span>
+                    </>
+                  )}
+                  {file.failed && (
+                    <>
+                      <span>·</span>
+                      <span className="text-red-600 font-semibold">Upload Failed</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="relative z-10 flex items-center gap-1 shrink-0">
+                {file.failed && (
+                  <button
+                    onClick={() => handleRetryFile(file.id)}
+                    className="p-1.5 rounded-md hover:bg-red-100 text-red-500 transition-colors"
+                    title="Retry upload"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDeleteFile(file.id)}
+                  className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                  title="Remove"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-        <Button variant="outline" size="lg" onClick={() => router.back()} disabled={loading} className="w-full sm:w-auto min-w-[140px]">
+      {/* Bottom Actions */}
+      <div className="mt-8 flex flex-col sm:flex-row justify-end gap-3">
+        <Button variant="outline" onClick={() => router.back()} disabled={uploading} className="w-full sm:w-auto">
           Cancel
         </Button>
-        <Button size="lg" onClick={handleUpload} disabled={loading || uploadFiles.length === 0} className="w-full sm:w-auto min-w-[200px] shadow-md">
-          {loading ? 'Processing Upload Batch...' : 'Upload & Start Extraction'}
-        </Button>
+        {allDone && (
+          <Link href="/app/policies" className="w-full sm:w-auto">
+            <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white shadow-md">
+              Go to Policies →
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );

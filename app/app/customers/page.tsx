@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Users, Search, IndianRupee, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { PageLoader } from '@/components/ui/loader';
 
 interface CustomerSummary {
   id: string;
@@ -133,9 +134,7 @@ export default function CustomersPage() {
 
       <div className="flex-1 overflow-auto p-4 md:p-8">
         {isLoading ? (
-          <div className="flex items-center justify-center p-12 text-slate-500">
-             <div className="animate-pulse">Loading Customers Library...</div>
-          </div>
+          <PageLoader words={['customers', 'profiles', 'contacts', 'clients', 'customers']} label="loading" />
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 rounded-xl border border-dashed border-slate-300 bg-slate-50">
             <Users className="w-12 h-12 mx-auto mb-4 text-slate-300" />

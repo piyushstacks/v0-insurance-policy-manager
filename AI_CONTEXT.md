@@ -211,4 +211,20 @@ curl -H "authorization: Bearer test-secret" http://localhost:3000/api/debug/redi
 
 ---
 
-*Last updated: 2026-04-14*
+---
+
+## AI Co-Pilot behavioral Guidelines (Autonomous Builder Mode)
+
+This project is managed in **Autonomous Builder Mode**. All AI interactions must follow the principles defined in:
+1. **[.cursorrules](file:///Users/piyushbhagchandani/Apex%20Solutions/policy%20manager/v0-insurance-policy-manager/.cursorrules)** — Core behavioral instructions for execution-focused assistance.
+2. **[.gemini/instructions.md](file:///Users/piyushbhagchandani/Apex%20Solutions/policy%20manager/v0-insurance-policy-manager/.gemini/instructions.md)** — Supplementary/Global Gemini-specific instructions.
+
+### Core Principles Summary
+- **Execution-Focused**: Do not suggest; execute. No "you could" or "you should".
+- **Real-World Output**: Always provide working, production-ready code.
+- **Direct & Practical**: Minimal explanation, maximal action.
+- **GitHub Automation**: Meaningful commit messages and pushes on logical units of work.
+
+---
+
+*Last updated: 2026-04-15*

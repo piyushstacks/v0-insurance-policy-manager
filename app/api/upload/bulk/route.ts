@@ -3,7 +3,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { uploadPolicyDocument } from '@/services/upload';
 import { supabaseAdmin } from '@/lib/supabase';
-import { queueDocumentExtraction } from '@/services/extraction';
+import { extractDocumentInline } from '@/services/extraction';
 
 export const runtime = 'nodejs';
 
@@ -133,11 +133,14 @@ export async function POST(request: NextRequest) {
 
         const policyId = polData.id;
 
-        // Upload the file — pass autoExtract=false so upload is fast (no inline OCR)
+        // Upload the file
         const result = await uploadPolicyDocument(user.id, policyId, file, false);
 
-        // Explicitly queue for background extraction via Redis
-        await queueDocumentExtraction(user.id, result.documentId, policyId, result.fileUrl);
+        // ✅ Fire inline extraction immediately — non-blocking, best-effort
+        // This bypasses Redis queue for guaranteed execution in all environments (local + Vercel)
+        extractDocumentInline(result.documentId, policyId, result.fileUrl).catch((err) =>
+          console.error(`[BulkUpload] Inline extraction failed for ${file.name}:`, err.message)
+        );
 
         uploadResults.push({
           fileName: file.name,

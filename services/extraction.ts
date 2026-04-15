@@ -942,26 +942,70 @@ export async function processExtractionJob(retryAttempt = 0): Promise<any> {
 
 /**
  * Batch process multiple extraction jobs with parallel limit
+ * Reads queued jobs directly from DB and calls extractDocumentInline per job.
  */
 export async function processBulkExtractions(
   maxConcurrent = BATCH_PROCESSING_LIMIT
 ): Promise<PolicyExtractionMetrics[]> {
-  console.log(`[Bulk] Starting bulk extraction processing (max ${maxConcurrent} concurrent)...`);
+  console.log(`[Bulk] Starting bulk extraction (max ${maxConcurrent} concurrent)...`);
 
   const limiter = pLimit(maxConcurrent);
   const results: PolicyExtractionMetrics[] = [];
-  const jobs: Promise<any>[] = [];
 
   try {
-    // Fetch all pending jobs
+    // Fetch queued jobs with their document details
     const { data: pendingJobs, error: fetchError } = await supabaseAdmin!
       .from('extraction_jobs')
-      .select('id')
+      .select(`
+        id,
+        document_id,
+        policy_documents!extraction_jobs_document_id_fkey (
+          id,
+          file_path,
+          policy_id
+        )
+      `)
       .eq('status', 'queued')
-      .limit(50); // Limit to 50 jobs per batch
+      .limit(50);
 
     if (fetchError) {
       console.error('[Bulk] Failed to fetch pending jobs:', fetchError);
+      // Fallback: try without join
+      const { data: simpleJobs } = await supabaseAdmin!
+        .from('extraction_jobs')
+        .select('id, document_id')
+        .eq('status', 'queued')
+        .limit(50);
+
+      if (!simpleJobs || simpleJobs.length === 0) return results;
+
+      // For each job, look up the document separately
+      const jobPromises = simpleJobs.map(job =>
+        limiter(async () => {
+          const { data: doc } = await supabaseAdmin!
+            .from('policy_documents')
+            .select('id, file_path, policy_id')
+            .eq('id', job.document_id)
+            .maybeSingle();
+
+          if (!doc?.file_path) {
+            await supabaseAdmin!.from('extraction_jobs')
+              .update({ status: 'failed', error_message: 'Document not found' })
+              .eq('id', job.id);
+            return null;
+          }
+
+          const { data: urlData } = supabaseAdmin!.storage
+            .from('policy-documents')
+            .getPublicUrl(doc.file_path);
+
+          const result = await extractDocumentInline(doc.id, doc.policy_id, urlData.publicUrl);
+          if (result.metrics) results.push(result.metrics);
+          return result;
+        })
+      );
+
+      await Promise.allSettled(jobPromises);
       return results;
     }
 
@@ -970,40 +1014,41 @@ export async function processBulkExtractions(
       return results;
     }
 
-    console.log(`[Bulk] Found ${pendingJobs.length} pending jobs`);
+    console.log(`[Bulk] Found ${pendingJobs.length} pending jobs to process`);
 
-    // Process jobs with concurrency limit
-    for (let i = 0; i < pendingJobs.length; i++) {
-      const job = limiter(() =>
-        processExtractionJob()
-          .then(result => {
-            if (result?.metrics) {
-              results.push(result.metrics);
-            }
-            return result;
-          })
-          .catch(error => {
-            console.error(`[Bulk] Job processing error:`, error);
-            return null;
-          })
-      );
+    const jobPromises = pendingJobs.map(job =>
+      limiter(async () => {
+        const doc = (job as any).policy_documents;
+        if (!doc?.file_path) {
+          console.warn(`[Bulk] No document found for job ${job.id}`);
+          await supabaseAdmin!.from('extraction_jobs')
+            .update({ status: 'failed', error_message: 'Document not found' })
+            .eq('id', job.id);
+          return null;
+        }
 
-      jobs.push(job);
-    }
+        const { data: urlData } = supabaseAdmin!.storage
+          .from('policy-documents')
+          .getPublicUrl(doc.file_path);
 
-    // Wait for all jobs to complete
-    await Promise.allSettled(jobs);
+        const result = await extractDocumentInline(
+          doc.id,
+          doc.policy_id,
+          urlData.publicUrl
+        );
 
-    // Calculate statistics
+        if (result.metrics) results.push(result.metrics);
+        return result;
+      })
+    );
+
+    await Promise.allSettled(jobPromises);
+
     const stats = {
       total: results.length,
       successful: results.filter(r => r.success).length,
       failed: results.filter(r => !r.success).length,
-      avgDuration: results.length > 0 ? results.reduce((sum, r) => sum + r.duration, 0) / results.length : 0,
-      customersDeduped: results.filter(r => r.customerDeduped).length,
-      insurersResolved: results.filter(r => r.insurerResolved).length,
     };
-
     console.log('[Bulk] Batch processing complete:', stats);
     return results;
   } catch (error) {
@@ -1011,6 +1056,7 @@ export async function processBulkExtractions(
     return results;
   }
 }
+
 
 /**
  * Get extraction job status

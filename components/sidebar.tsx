@@ -68,6 +68,7 @@ export default function Sidebar({ user }: SidebarProps) {
     { name: 'Reminders', href: '/app/reminders', icon: CalendarDays, exact: false },
     { name: 'Reporting', href: '/app/reporting', icon: PieChart, exact: false },
     { divider: true },
+    { name: 'Approvals', href: '/app/approvals', icon: Bell, exact: false },
     { name: 'Settings', href: '/app/settings', icon: Settings, exact: false },
     { 
       name: 'Support', 
@@ -76,6 +77,7 @@ export default function Sidebar({ user }: SidebarProps) {
       badge: <BadgeWithDot color="success">Online</BadgeWithDot> 
     },
   ];
+
 
   async function handleLogout() {
     await supabase.auth.signOut();

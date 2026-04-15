@@ -21,6 +21,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { PageLoader } from '@/components/ui/loader';
+import { RoleActionButton } from '@/components/role-action-button';
+import { useTeam } from '@/hooks/use-team';
 
 interface Policy {
   id: string;
@@ -61,6 +63,7 @@ export default function PolicyDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [reExtractingDoc, setReExtractingDoc] = useState<string | null>(null);
+  const { isAdmin } = useTeam();
 
   useEffect(() => {
     async function fetchPolicy() {
@@ -178,15 +181,20 @@ export default function PolicyDetailPage() {
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[policy.status] ?? 'bg-gray-100 text-gray-700'}`}>
             {policy.status}
           </span>
-          <ActionButton
-            color="primary-destructive"
+          <RoleActionButton
+            isAdmin={isAdmin}
+            requestType="DELETE_POLICY"
+            entityId={policyId}
+            entityType="policy"
+            directAction={handleDelete}
+            label="Delete"
+            icon={Trash2}
+            variant="outline"
             size="sm"
-            onClick={handleDelete}
-            isLoading={isDeleting}
-            iconLeading={Trash2}
-          >
-            Delete
-          </ActionButton>
+            className="text-red-600 border-red-200 hover:bg-red-50"
+            reasonPrompt="Why do you want to delete this policy?"
+            metadata={{ policy_number: policy.policy_number }}
+          />
         </div>
       </div>
 

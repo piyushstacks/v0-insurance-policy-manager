@@ -40,6 +40,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // /join page — always accessible (invite acceptance)
+  if (request.nextUrl.pathname.startsWith('/join')) {
+    return response;
+  }
+
   // Redirect to app if already logged in trying to access auth pages
   if (request.nextUrl.pathname.startsWith('/auth')) {
     if (user) {

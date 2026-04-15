@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { 
   Settings, 
   User, 
@@ -11,7 +12,10 @@ import {
   Cpu,
   Globe,
   Key,
-  CreditCard
+  CreditCard,
+  Users,
+  ChevronRight,
+  Crown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -108,6 +112,42 @@ export default function SettingsPage() {
               ) : section.content}
             </div>
           ))}
+
+          {/* Team Management Card */}
+          <div className="bg-white rounded-[32px] p-6 md:p-8 border border-blue-200 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Users className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h2 className="text-lg font-black text-slate-800 leading-none">Team Management</h2>
+                  <p className="text-xs text-slate-500 mt-1">Create your team, invite members, manage roles.</p>
+                </div>
+              </div>
+              <Link href="/app/settings/team">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl gap-2">
+                  <Crown className="w-4 h-4" /> Manage Team
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Approval Center Card */}
+          <div className="bg-white rounded-[32px] p-6 md:p-8 border border-amber-200 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Bell className="w-5 h-5 text-amber-600" />
+                <div>
+                  <h2 className="text-lg font-black text-slate-800 leading-none">Approval Center</h2>
+                  <p className="text-xs text-slate-500 mt-1">Review and approve member action requests.</p>
+                </div>
+              </div>
+              <Link href="/app/approvals">
+                <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl gap-2">
+                  <Bell className="w-4 h-4" /> View Requests
+                </Button>
+              </Link>
+            </div>
+          </div>
 
           <div className="bg-emerald-900 rounded-[32px] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">

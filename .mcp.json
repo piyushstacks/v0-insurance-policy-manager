@@ -7,6 +7,13 @@
         "@modelcontextprotocol/server-filesystem",
         "/Users/piyushbhagchandani/Apex Solutions/policy manager/v0-insurance-policy-manager"
       ]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
     }
   }
 }

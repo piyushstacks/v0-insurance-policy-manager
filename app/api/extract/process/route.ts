@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processPendingExtractions } from '@/services/extraction';
+import { processBulkExtractions } from '@/services/extraction';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     console.log('[v0] Starting extraction batch processing');
 
     // Process all pending jobs
-    const results = await processPendingExtractions();
+    const results = await processBulkExtractions();
 
     console.log(`[v0] Processed ${results.length} extraction jobs`);
 

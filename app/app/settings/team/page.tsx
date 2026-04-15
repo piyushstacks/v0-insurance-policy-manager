@@ -390,17 +390,25 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
 export default function TeamPage() {
   const [data, setData] = useState<TeamData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const fetchTeam = useCallback(async () => {
     setLoading(true);
+    setApiError(null);
     try {
       const res = await fetch('/api/team');
-      if (!res.ok) throw new Error('API error');
       const json = await res.json();
+
+      if (!res.ok) {
+        // Real API error — don't fall to create page
+        console.error('[TeamPage] API error:', json);
+        setApiError(json.error || `Server error ${res.status}`);
+        return;
+      }
+
       setData(json);
-    } catch {
-      // On first load or if tables don't exist yet, show create page
-      setData({ team: null, role: null, members: [], invitations: [] });
+    } catch (err: any) {
+      setApiError('Network error — could not reach the server.');
     } finally {
       setLoading(false);
     }
@@ -414,6 +422,24 @@ export default function TeamPage() {
         <div className="text-center space-y-4">
           <Loader2 className="w-10 h-10 animate-spin text-blue-500 mx-auto" />
           <p className="text-slate-500 text-sm font-medium">Loading team...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Real API error (not just empty team)
+  if (apiError) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] p-6">
+        <div className="text-center max-w-md space-y-4">
+          <div className="w-16 h-16 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-center mx-auto">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">Failed to load team</h2>
+          <p className="text-slate-500 text-sm bg-slate-100 px-4 py-2 rounded-xl font-mono">{apiError}</p>
+          <Button onClick={fetchTeam} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
+            <RefreshCw className="w-4 h-4" /> Retry
+          </Button>
         </div>
       </div>
     );

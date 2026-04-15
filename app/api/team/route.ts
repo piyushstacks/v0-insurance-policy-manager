@@ -31,23 +31,41 @@ async function getUser(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const user = await getUser(request);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const user = await getUser(request);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const membership = await getUserTeam(user.id);
-  if (!membership) return NextResponse.json({ team: null, role: null, members: [], invitations: [] });
+    const membership = await getUserTeam(user.id);
+    console.log('[GET /api/team] membership:', JSON.stringify(membership));
 
-  const [members, invitations] = await Promise.all([
-    getTeamMembers(membership.team_id),
-    membership.role === 'ADMIN' ? getTeamInvitations(membership.team_id) : [],
-  ]);
+    if (!membership) {
+      return NextResponse.json({ team: null, role: null, members: [], invitations: [] });
+    }
 
-  return NextResponse.json({
-    team: membership.teams,
-    role: membership.role,
-    members,
-    invitations,
-  });
+    // team_id comes from team_members.team_id column
+    const teamId = membership.team_id;
+    const role = membership.role;
+
+    if (!teamId) {
+      console.warn('[GET /api/team] membership found but team_id is null:', membership);
+      return NextResponse.json({ team: null, role: null, members: [], invitations: [] });
+    }
+
+    const [members, invitations] = await Promise.all([
+      getTeamMembers(teamId),
+      role === 'ADMIN' ? getTeamInvitations(teamId) : Promise.resolve([]),
+    ]);
+
+    // membership.teams is the joined teams row
+    const team = (membership as any).teams ?? null;
+
+    console.log('[GET /api/team] team:', team?.id, 'role:', role, 'members:', members?.length);
+
+    return NextResponse.json({ team, role, members, invitations });
+  } catch (err: any) {
+    console.error('[GET /api/team] error:', err);
+    return NextResponse.json({ error: err.message || 'Failed to load team', team: null, role: null, members: [], invitations: [] }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {

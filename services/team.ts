@@ -88,19 +88,33 @@ export async function getUserRole(userId: string, teamId: string): Promise<TeamR
 export async function getTeamMembers(teamId: string): Promise<TeamMemberWithProfile[]> {
   const { data, error } = await supabaseAdmin!
     .from('team_members')
-    .select('*, user_profiles(full_name, status)')
+    .select('id, team_id, user_id, role, status, joined_at')
     .eq('team_id', teamId)
     .order('joined_at', { ascending: true });
 
   if (error) throw error;
+  if (!data || data.length === 0) return [];
 
-  // Enrich with emails from auth.users via admin API
-  const enriched = await Promise.all((data || []).map(async (m) => {
+  // Fetch user_profiles for all members in one query
+  const userIds = data.map(m => m.user_id);
+  const { data: profiles } = await supabaseAdmin!
+    .from('user_profiles')
+    .select('id, full_name, status')
+    .in('id', userIds);
+
+  const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
+
+  // Enrich with emails from auth
+  const enriched = await Promise.all(data.map(async (m) => {
     try {
       const { data: authUser } = await supabaseAdmin!.auth.admin.getUserById(m.user_id);
-      return { ...m, email: authUser?.user?.email };
+      return {
+        ...m,
+        email: authUser?.user?.email,
+        user_profiles: profileMap[m.user_id] ?? null,
+      };
     } catch {
-      return m;
+      return { ...m, user_profiles: profileMap[m.user_id] ?? null };
     }
   }));
 

@@ -17,20 +17,35 @@ export async function generateExpiryReminders(maxLookaheadDays: number = 45) {
 
     const { data: policies, error: fetchError } = await supabaseAdmin!
       .from('policies')
-      .select('id, expiry_date, reminder_preferences')
+      .select('id, user_id, expiry_date')
       .eq('status', 'active')
       .gte('expiry_date', new Date().toISOString().split('T')[0])
       .lte('expiry_date', futureDate.toISOString().split('T')[0]);
 
     if (fetchError) throw fetchError;
 
+    // Fetch user profiles for preferences
+    const { data: profiles, error: profileError } = await supabaseAdmin!
+      .from('user_profiles')
+      .select('id, reminder_preferences');
+
+    if (profileError) console.warn("[v0] Failed to fetch user_profiles for reminders:", profileError);
+
+    // Build lookup map
+    const prefLookup: Record<string, any> = {};
+    if (profiles) {
+      profiles.forEach(p => {
+        prefLookup[p.id] = p.reminder_preferences || { enabled: true, timing_days: [7, 15, 30], types: ['renewal'] };
+      });
+    }
+
     const reminders: any[] = [];
     const todayStr = new Date().toISOString().split('T')[0];
 
     for (const policy of policies) {
-      if (!policy.expiry_date) continue;
+      if (!policy.expiry_date || !policy.user_id) continue;
       
-      const prefs = policy.reminder_preferences || { enabled: true, timing_days: [7, 15, 30], types: ['renewal'] };
+      const prefs = prefLookup[policy.user_id] || { enabled: true, timing_days: [7, 15, 30], types: ['renewal'] };
       if (!prefs.enabled || prefs.timing_days?.length === 0) continue;
 
       for (const daysBefore of prefs.timing_days) {
@@ -75,7 +90,7 @@ export async function generateExpiryReminders(maxLookaheadDays: number = 45) {
 
     if (insertError) throw insertError;
 
-    console.log(`[v0] Generated ${reminders.length} custom expiry reminders`);
+    console.log(`[v0] Generated ${reminders.length} centralized expiry reminders`);
     return { created: reminders.length };
   } catch (error) {
     console.error('[v0] Failed to generate custom reminders:', error);

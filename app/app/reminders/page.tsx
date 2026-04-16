@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Bell, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageLoader } from '@/components/ui/loader';
+import { ReminderSettingsCard } from '@/components/settings/reminder-settings-card';
 
 interface Reminder {
   id: string;
@@ -58,6 +59,10 @@ export default function RemindersPage() {
           {error}
         </div>
       )}
+
+      <div className="mt-8 mb-8">
+        <ReminderSettingsCard />
+      </div>
 
       {isLoading ? (
         <PageLoader words={['reminders', 'renewals', 'alerts', 'deadlines', 'reminders']} label="loading" />

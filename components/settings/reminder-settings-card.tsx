@@ -13,7 +13,7 @@ interface ReminderPreferences {
   types: string[];
 }
 
-export function ReminderSettingsCard({ policyId, initialData }: { policyId: string, initialData?: ReminderPreferences }) {
+export function ReminderSettingsCard() {
   const defaultPrefs: ReminderPreferences = {
     enabled: true,
     email: true,
@@ -21,9 +21,27 @@ export function ReminderSettingsCard({ policyId, initialData }: { policyId: stri
     types: ['renewal', 'premium'],
   };
 
-  const [prefs, setPrefs] = useState<ReminderPreferences>(initialData || defaultPrefs);
+  const [prefs, setPrefs] = useState<ReminderPreferences>(defaultPrefs);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [customDays, setCustomDays] = useState('');
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/user/reminders');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.preferences) setPrefs(data.preferences);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   const handleTimingToggle = (days: number) => {
     setPrefs(p => ({
@@ -59,19 +77,21 @@ export function ReminderSettingsCard({ policyId, initialData }: { policyId: stri
   const saveSettings = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/policies/${policyId}/reminders`, {
+      const res = await fetch(`/api/user/reminders`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(prefs)
       });
       if (!res.ok) throw new Error('Failed to save settings');
-      toast.success('Reminder settings saved successfully');
+      toast.success('Centralized reminder settings saved successfully');
     } catch (e: any) {
       toast.error(e.message || 'Error saving settings');
     } finally {
       setSaving(false);
     }
   };
+
+  if (loading) return <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-500" /></div>;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
@@ -81,8 +101,8 @@ export function ReminderSettingsCard({ policyId, initialData }: { policyId: stri
             <Bell className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900">Communication & Reminders</h3>
-            <p className="text-sm text-slate-500">Configure automated alerts for this policy</p>
+            <h3 className="font-bold text-slate-900">Central Database Reminders</h3>
+            <p className="text-sm text-slate-500">Configure global automated alerts for all policies</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

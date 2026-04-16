@@ -23,7 +23,6 @@ import {
 import { PageLoader } from '@/components/ui/loader';
 import { RoleActionButton } from '@/components/role-action-button';
 import { useTeam } from '@/hooks/use-team';
-import { ReminderSettingsCard } from '@/components/settings/reminder-settings-card';
 
 interface Policy {
   id: string;
@@ -268,9 +267,6 @@ export default function PolicyDetailPage() {
           </div>
         )}
       </div>
-
-      {/* Reminder Configuration */}
-      <ReminderSettingsCard policyId={policy.id} initialData={policy.reminder_preferences} />
 
       {/* Comprehensive Extracted Data from All AI Services */}
       {Object.keys(extractedData).length > 0 && (

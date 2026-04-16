@@ -81,9 +81,11 @@ function ExtractionConfidenceWidget() {
       <p className={`text-[22px] font-black leading-tight mb-0.5 ${color}`}>
         {score !== null ? `${score.toFixed(1)}%` : '—'}
       </p>
-      <p className="text-[10px] text-slate-500 font-semibold tracking-wide">
-        {total > 0 ? `${total} document${total !== 1 ? 's' : ''} processed` : 'No documents yet'}
-      </p>
+      {total > 0 && (
+        <p className="text-[10px] text-slate-500 font-semibold tracking-wide">
+          {total} document{total !== 1 ? 's' : ''} processed
+        </p>
+      )}
     </div>
   );
 }

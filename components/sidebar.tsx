@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -46,6 +47,46 @@ const BadgeWithDot = ({ children, color = 'success' }: { children: React.ReactNo
     </span>
   );
 };
+
+// ─── Real-time Extraction Confidence ─────────────────────────────
+function ExtractionConfidenceWidget() {
+  const [confidence, setConfidence] = useState<number | null>(null);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/extract/confidence');
+        if (!res.ok) return;
+        const data = await res.json();
+        setConfidence(data.confidence ?? null);
+        setTotal(data.total ?? 0);
+      } catch {}
+    }
+    load();
+    const id = setInterval(load, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const score = confidence;
+  const color = score === null ? 'text-slate-400' : score >= 90 ? 'text-emerald-400' : score >= 70 ? 'text-amber-400' : 'text-red-400';
+
+  return (
+    <div className="bg-slate-900 rounded-2xl p-4 text-white relative overflow-hidden group">
+      <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-full -mr-8 -mt-8 group-hover:scale-150 transition-transform duration-700" />
+      <div className="flex items-center gap-2 mb-2">
+        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Extraction Confidence</span>
+      </div>
+      <p className={`text-[22px] font-black leading-tight mb-0.5 ${color}`}>
+        {score !== null ? `${score.toFixed(1)}%` : '—'}
+      </p>
+      <p className="text-[10px] text-slate-500 font-semibold tracking-wide">
+        {total > 0 ? `${total} document${total !== 1 ? 's' : ''} processed` : 'No documents yet'}
+      </p>
+    </div>
+  );
+}
 
 export default function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
@@ -186,17 +227,9 @@ export default function Sidebar({ user }: SidebarProps) {
           </div>
         </div>
 
-        {/* Bottom Banner - Mimicking Reference UI "Performance" label */}
+        {/* Extraction Confidence Widget */}
         <div className="mt-auto p-4">
-          <div className="bg-slate-900 rounded-2xl p-4 text-white relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/20 rounded-full -mr-8 -mt-8 group-hover:scale-150 transition-transform duration-700" />
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Live Status</span>
-            </div>
-            <p className="text-[22px] font-black leading-tight text-white mb-0.5">99.1<span className="text-sm font-medium text-slate-400 ml-0.5">%</span></p>
-            <p className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase">Extraction Efficiency</p>
-          </div>
+          <ExtractionConfidenceWidget />
         </div>
 
         {/* Footer / User Profile */}
@@ -206,8 +239,8 @@ export default function Sidebar({ user }: SidebarProps) {
               <img src={`https://ui-avatars.com/api/?name=${user.email}&background=0D8ABC&color=fff`} alt="user" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-900 truncate leading-none mb-1">{user.email?.split('@')[0]}</p>
-              <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">Admin Account</p>
+              <p className="text-sm font-bold text-slate-900 truncate leading-none mb-1">{user.user_metadata?.full_name || user.email?.split('@')[0]}</p>
+              <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">{user.email}</p>
             </div>
             <button 
               onClick={handleLogout}

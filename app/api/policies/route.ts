@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { policySchema } from '@/lib/schemas';
 import { createPolicy, getPolicies } from '@/services/policies';
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
           getAll() {
             return cookieStore.getAll();
           },
-          setAll(cookiesToSet) {
+          setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
             try {
               cookiesToSet.forEach(({ name, value, options }) =>
                 cookieStore.set(name, value, options)
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
           getAll() {
             return cookieStore.getAll();
           },
-          setAll(cookiesToSet) {
+          setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
             try {
               cookiesToSet.forEach(({ name, value, options }) =>
                 cookieStore.set(name, value, options)

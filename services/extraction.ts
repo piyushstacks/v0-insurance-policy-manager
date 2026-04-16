@@ -38,7 +38,7 @@ interface CustomerDedupeResult {
   };
 }
 
-interface PolicyExtractionMetrics {
+export interface PolicyExtractionMetrics {
   jobId: string;
   success: boolean;
   duration: number;

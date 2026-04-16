@@ -2,164 +2,122 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { 
-  Settings, 
-  User, 
-  Shield, 
-  Zap, 
-  Database, 
-  Bell, 
-  Cpu,
-  Globe,
-  Key,
-  CreditCard,
-  Users,
-  ChevronRight,
-  Crown,
+import {
+  Users, Bell, Shield, Cpu, User, Zap, Key, Database,
+  CreditCard, Crown, ChevronRight, Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+
+const SETTING_CARDS = [
+  {
+    id: 'team',
+    title: 'Team Management',
+    description: 'Create team, invite members, manage roles & permissions.',
+    href: '/app/settings/team',
+    icon: Users,
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-600',
+    border: 'border-blue-200',
+    badge: <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">RBAC</span>,
+    cta: 'Manage Team',
+    ctaClass: 'bg-blue-600 hover:bg-blue-700 text-white',
+  },
+  {
+    id: 'security',
+    title: 'Security & Access',
+    description: 'Change password, configure 2FA, manage active sessions.',
+    href: '/app/settings/security',
+    icon: Shield,
+    iconBg: 'bg-emerald-100',
+    iconColor: 'text-emerald-600',
+    border: 'border-emerald-200',
+    cta: 'Security Settings',
+    ctaClass: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+  },
+  {
+    id: 'ai',
+    title: 'AI Extraction Engine',
+    description: 'Multi-model consensus extraction with OCR cross-verification.',
+    href: '/app/settings/ai',
+    icon: Cpu,
+    iconBg: 'bg-violet-100',
+    iconColor: 'text-violet-600',
+    border: 'border-violet-200',
+    badge: <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">● LIVE</span>,
+    cta: 'Configure',
+    ctaClass: 'bg-violet-600 hover:bg-violet-700 text-white',
+  },
+  {
+    id: 'profile',
+    title: 'Profile Information',
+    description: 'Edit your display name and email address with OTP verification.',
+    href: '/app/settings/profile',
+    icon: User,
+    iconBg: 'bg-slate-100',
+    iconColor: 'text-slate-600',
+    border: 'border-slate-200',
+    cta: 'Edit Profile',
+    ctaClass: 'bg-slate-800 hover:bg-slate-900 text-white',
+  },
+];
 
 export default function SettingsPage() {
-  const sections = [
-    {
-      id: 'profile',
-      title: 'Profile Information',
-      icon: User,
-      fields: [
-        { label: 'Display Name', value: 'Piyush Stacks', type: 'text' },
-        { label: 'Email Address', value: 'admin@policyvault.ai', type: 'email' },
-      ]
-    },
-    {
-      id: 'ai',
-      title: 'AI Extraction Engine',
-      icon: Cpu,
-      content: (
-        <div className="space-y-4">
-          <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-bold text-blue-900">Live Consensus Engine Active</span>
-            </div>
-            <p className="text-xs text-blue-700 font-medium">Multiple models (GPT-OSS, Nemotron) are currently cross-verifying your documents for maximum accuracy.</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-3 bg-white border border-slate-200 rounded-xl">
-              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">OCR Provider</p>
-              <p className="text-sm font-bold text-slate-800">Google Document AI</p>
-            </div>
-            <div className="p-3 bg-white border border-slate-200 rounded-xl">
-              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Extraction Confidence</p>
-              <p className="text-sm font-bold text-emerald-600">High (98.4%)</p>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'security',
-      title: 'Security & Access',
-      icon: Shield,
-      content: (
-        <div className="space-y-3">
-          <Button variant="outline" className="w-full justify-start rounded-xl border-slate-200 h-11 text-sm font-bold">
-            <Key className="w-4 h-4 mr-3 text-slate-400" /> Change Password
-          </Button>
-          <Button variant="outline" className="w-full justify-start rounded-xl border-slate-200 h-11 text-sm font-bold">
-            <Database className="w-4 h-4 mr-3 text-slate-400" /> Backup My Data
-          </Button>
-        </div>
-      )
-    }
-  ];
-
   return (
     <div className="flex-1 p-6 md:p-10 bg-slate-50/50 pb-32">
       <div className="max-w-3xl mx-auto">
+        {/* Header */}
         <div className="flex items-center gap-4 mb-10">
           <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-slate-200">
             <Settings className="w-7 h-7" />
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">System Settings</h1>
-            <p className="font-medium text-slate-500">Global preferences and engine configuration.</p>
+            <p className="font-medium text-slate-500">Global preferences and configuration.</p>
           </div>
         </div>
 
-        <div className="space-y-8">
-          {sections.map((section) => (
-            <div key={section.id} className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <section.icon className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg font-black text-slate-800 leading-none">{section.title}</h2>
-              </div>
-
-              {section.fields ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {section.fields.map((field) => (
-                    <div key={field.label}>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">
-                        {field.label}
-                      </label>
-                      <Input 
-                        defaultValue={field.value} 
-                        className="h-12 rounded-xl bg-slate-50 border-slate-200 font-bold focus:ring-blue-500/10 focus:border-blue-500 transition-all" 
-                      />
+        <div className="space-y-4">
+          {/* Settings Cards */}
+          {SETTING_CARDS.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div key={card.id} className={`bg-white rounded-[28px] p-6 border ${card.border} shadow-sm hover:shadow-md transition-shadow`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 ${card.iconBg} rounded-2xl flex items-center justify-center shrink-0`}>
+                      <Icon className={`w-6 h-6 ${card.iconColor}`} />
                     </div>
-                  ))}
-                </div>
-              ) : section.content}
-            </div>
-          ))}
-
-          {/* Team Management Card */}
-          <div className="bg-white rounded-[32px] p-6 md:p-8 border border-blue-200 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-blue-600" />
-                <div>
-                  <h2 className="text-lg font-black text-slate-800 leading-none">Team Management</h2>
-                  <p className="text-xs text-slate-500 mt-1">Create your team, invite members, manage roles.</p>
-                </div>
-              </div>
-              <Link href="/app/settings/team">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl gap-2">
-                  <Crown className="w-4 h-4" /> Manage Team
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Approval Center Card */}
-          <div className="bg-white rounded-[32px] p-6 md:p-8 border border-amber-200 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Bell className="w-5 h-5 text-amber-600" />
-                <div>
-                  <h2 className="text-lg font-black text-slate-800 leading-none">Approval Center</h2>
-                  <p className="text-xs text-slate-500 mt-1">Review and approve member action requests.</p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-bold text-slate-900">{card.title}</h2>
+                        {card.badge}
+                      </div>
+                      <p className="text-sm text-slate-500 mt-0.5">{card.description}</p>
+                    </div>
+                  </div>
+                  <Link href={card.href} className="shrink-0">
+                    <Button className={`${card.ctaClass} rounded-xl gap-2 text-sm h-10 px-4 whitespace-nowrap`}>
+                      {card.cta}
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </Link>
                 </div>
               </div>
-              <Link href="/app/approvals">
-                <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl gap-2">
-                  <Bell className="w-4 h-4" /> View Requests
-                </Button>
-              </Link>
-            </div>
-          </div>
+            );
+          })}
 
-          <div className="bg-emerald-900 rounded-[32px] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6">
+          {/* Billing Card */}
+          <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 rounded-[28px] p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg shadow-emerald-900/20">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg">
-                <CreditCard className="w-6 h-6" />
+              <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <CreditCard className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="font-black text-xl leading-none mb-1">Standard Pro Plan</p>
-                <p className="text-emerald-300 text-xs font-bold uppercase tracking-wider">Renewing on May 14, 2026</p>
+                <p className="font-black text-lg leading-none mb-1">Standard Pro Plan</p>
+                <p className="text-emerald-300 text-xs font-bold uppercase tracking-wider">Renewing May 14, 2026</p>
               </div>
             </div>
-            <Button className="bg-white text-emerald-900 hover:bg-emerald-50 font-bold rounded-xl px-8 h-12 shrink-0">
+            <Button className="bg-white text-emerald-900 hover:bg-emerald-50 font-bold rounded-xl px-6 h-10 shrink-0">
               Manage Billing
             </Button>
           </div>

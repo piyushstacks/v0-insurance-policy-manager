@@ -67,7 +67,24 @@ export default function CustomerProfilePage() {
   if (isLoading) return <PageLoader words={['profile', 'policies', 'history', 'data', 'profile']} label="loading" />;
   if (!customer) return <div className="p-8 text-center pt-24">Customer strictly not found.</div>;
 
-  const totalPremium = customer.policies?.reduce((sum, p) => sum + (p.premium_amount || 0), 0) || 0;
+  const today = new Date();
+  let currentFY = today.getFullYear();
+  if (today.getMonth() < 3) {
+    currentFY -= 1;
+  }
+
+  const currentYearPremium = customer.policies?.reduce((sum, p) => {
+    if (!p.start_date) return sum;
+    const pDate = new Date(p.start_date);
+    let pFY = pDate.getFullYear();
+    if (pDate.getMonth() < 3) pFY -= 1;
+    
+    // Only sum premiums for the current financial year
+    if (pFY === currentFY) {
+      return sum + (p.premium_amount || 0);
+    }
+    return sum;
+  }, 0) || 0;
 
   return (
     <div className="flex flex-col h-full bg-slate-50 relative">
@@ -179,8 +196,8 @@ export default function CustomerProfilePage() {
            <div className="bg-linear-to-br from-slate-800 to-slate-900 rounded-2xl shadow-sm p-6 text-white flex justify-between items-center relative overflow-hidden">
              <IndianRupee className="absolute -right-4 -bottom-4 w-24 h-24 opacity-10" />
              <div>
-                <p className="text-sm text-slate-400 font-medium mb-1">Total Net Premiums</p>
-                <h3 className="text-3xl font-black flex items-center gap-1">₹{totalPremium.toLocaleString('en-IN')}</h3>
+                <p className="text-sm text-slate-400 font-medium mb-1">Net Premiums <span className="text-[10px] text-slate-500 bg-slate-800 px-1 py-0.5 rounded ml-1">Current FY</span></p>
+                <h3 className="text-3xl font-black flex items-center gap-1">₹{currentYearPremium.toLocaleString('en-IN')}</h3>
              </div>
            </div>
         </div>

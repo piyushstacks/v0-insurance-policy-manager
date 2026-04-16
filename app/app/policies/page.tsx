@@ -438,18 +438,18 @@ export default function PoliciesPage() {
             </div>
           ) : (
             <div className="w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed', minWidth: '900px' }}>
+              <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-slate-100 border-b text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    <th className="w-12 px-4 py-3"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} onChange={toggleAll} /></th>
-                    <th className="px-4 py-3 border-r border-slate-200" style={{ width: '160px', resize: 'horizontal', overflow: 'hidden' }}>Policy No</th>
-                    <th className="px-4 py-3 border-r border-slate-200" style={{ width: '180px', resize: 'horizontal', overflow: 'hidden' }}>Insured</th>
-                    <th className="px-4 py-3 border-r border-slate-200" style={{ width: '250px', resize: 'horizontal', overflow: 'hidden' }}>Company</th>
-                    <th className="px-4 py-3 border-r border-slate-200" style={{ width: '200px', resize: 'horizontal', overflow: 'hidden' }}>Product</th>
-                    <th className="px-4 py-3 border-r border-slate-200" style={{ width: '140px', resize: 'horizontal', overflow: 'hidden' }}>Dates</th>
-                    <th className="px-4 py-3 text-right border-r border-slate-200" style={{ width: '120px', resize: 'horizontal', overflow: 'hidden' }}>Gross Prem</th>
-                    <th className="px-4 py-3 text-center" style={{ width: '70px', resize: 'horizontal', overflow: 'hidden' }}>View Details</th>
-                    <th className="px-4 py-3 text-center" style={{ width: '50px' }}>Delete</th>
+                    <th className="w-10 px-4 py-3"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} onChange={toggleAll} /></th>
+                    <th className="px-4 py-3 border-r border-slate-200">Policy No</th>
+                    <th className="px-4 py-3 border-r border-slate-200">Insured</th>
+                    <th className="px-4 py-3 border-r border-slate-200">Company</th>
+                    <th className="px-4 py-3 border-r border-slate-200">Product</th>
+                    <th className="px-4 py-3 border-r border-slate-200">Dates</th>
+                    <th className="px-4 py-3 text-right border-r border-slate-200">Gross Prem</th>
+                    <th className="px-4 py-3 text-center w-24">View Details</th>
+                    <th className="px-4 py-3 text-center w-20">Delete</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

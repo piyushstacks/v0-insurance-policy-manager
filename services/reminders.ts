@@ -10,15 +10,14 @@ import type { Reminder } from '@/lib/types';
  * Generate reminders for policies expiring soon
  * Call this daily via cron job
  */
-export async function generateExpiryReminders(daysAhead: number = 30) {
+export async function generateExpiryReminders(maxLookaheadDays: number = 45) {
   try {
-    // Find active policies expiring within the timeframe
     const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + daysAhead);
+    futureDate.setDate(futureDate.getDate() + maxLookaheadDays);
 
-    const { data: expiringPolicies, error: fetchError } = await supabaseAdmin!
+    const { data: policies, error: fetchError } = await supabaseAdmin!
       .from('policies')
-      .select('id, expiry_date')
+      .select('id, expiry_date, reminder_preferences')
       .eq('status', 'active')
       .gte('expiry_date', new Date().toISOString().split('T')[0])
       .lte('expiry_date', futureDate.toISOString().split('T')[0]);
@@ -26,47 +25,60 @@ export async function generateExpiryReminders(daysAhead: number = 30) {
     if (fetchError) throw fetchError;
 
     const reminders: any[] = [];
+    const todayStr = new Date().toISOString().split('T')[0];
 
-    // Create reminder for each expiring policy (if not already created)
-    for (const policy of expiringPolicies) {
-      const reminderDate = new Date(policy.expiry_date);
-      reminderDate.setDate(reminderDate.getDate() - 7); // 7 days before expiry
+    for (const policy of policies) {
+      if (!policy.expiry_date) continue;
+      
+      const prefs = policy.reminder_preferences || { enabled: true, timing_days: [7, 15, 30], types: ['renewal'] };
+      if (!prefs.enabled || prefs.timing_days?.length === 0) continue;
 
-      // Check if reminder already exists
-      const { data: existing } = await supabaseAdmin!
-        .from('reminders')
-        .select('id')
-        .eq('policy_id', policy.id)
-        .eq('reminder_type', 'renewal_7days')
-        .eq('status', 'pending')
-        .single();
+      for (const daysBefore of prefs.timing_days) {
+        if (daysBefore > maxLookaheadDays) continue;
 
-      if (existing) continue; // Reminder already exists
+        const reminderDate = new Date(policy.expiry_date);
+        reminderDate.setDate(reminderDate.getDate() - daysBefore);
+        const scheduledStr = reminderDate.toISOString().split('T')[0];
 
-      reminders.push({
-        policy_id: policy.id,
-        scheduled_date: reminderDate.toISOString().split('T')[0],
-        reminder_type: 'renewal_7days',
-        status: 'pending',
-      });
+        // Skip if this specific reminder date is already in the past
+        if (scheduledStr < todayStr) continue;
+
+        const reminderType = prefs.types?.includes('renewal') ? `renewal_${daysBefore}days` : `premium_${daysBefore}days`;
+
+        // Check if reminder exists
+        const { data: existing } = await supabaseAdmin!
+          .from('reminders')
+          .select('id')
+          .eq('policy_id', policy.id)
+          .eq('reminder_type', reminderType)
+          .single();
+
+        if (existing) continue;
+
+        reminders.push({
+          policy_id: policy.id,
+          scheduled_date: scheduledStr,
+          reminder_type: reminderType,
+          status: 'pending',
+        });
+      }
     }
 
     if (reminders.length === 0) {
-      console.log('[v0] No new reminders to generate');
+      console.log('[v0] No new custom reminders to generate');
       return { created: 0 };
     }
 
-    // Batch insert reminders
     const { error: insertError } = await supabaseAdmin!
       .from('reminders')
       .insert(reminders);
 
     if (insertError) throw insertError;
 
-    console.log(`[v0] Generated ${reminders.length} expiry reminders`);
+    console.log(`[v0] Generated ${reminders.length} custom expiry reminders`);
     return { created: reminders.length };
   } catch (error) {
-    console.error('[v0] Failed to generate reminders:', error);
+    console.error('[v0] Failed to generate custom reminders:', error);
     throw error;
   }
 }

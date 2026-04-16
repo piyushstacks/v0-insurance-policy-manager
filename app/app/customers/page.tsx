@@ -180,117 +180,117 @@ export default function CustomersPage() {
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
             {/* Table header */}
-            <div className="grid grid-cols-[auto,2fr,1.5fr,1fr,1fr,1fr,auto] gap-4 px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
-              <div>
-                <input
-                  type="checkbox"
-                  checked={selected.size === filtered.length && filtered.length > 0}
-                  onChange={() => {
-                    if (selected.size === filtered.length) setSelected(new Set());
-                    else setSelected(new Set(filtered.map(c => c.id)));
-                  }}
-                  className="rounded accent-blue-600 w-4 h-4"
-                />
-              </div>
-              <SortBtn col="name" label="Name" />
-              <div>Contact</div>
-              <SortBtn col="policiesCount" label="Policies" />
-              <SortBtn col="totalPremium" label="Premium" />
-              <SortBtn col="nextRenewal" label="Next Renewal" />
-              <div>Actions</div>
-            </div>
-
-            {/* Rows */}
-            <div className="divide-y divide-slate-100">
-              {filtered.map(c => (
-                <div
-                  key={c.id}
-                  className={`grid grid-cols-[auto,2fr,1.5fr,1fr,1fr,1fr,auto] gap-4 px-4 py-3.5 items-center hover:bg-slate-50/50 transition-colors ${
-                    selected.has(c.id) ? 'bg-blue-50/30' : ''
-                  }`}
-                >
-                  {/* Checkbox */}
-                  <div onClick={e => toggleSelect(c.id, e)}>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(c.id)}
-                      readOnly
-                      className="rounded accent-blue-600 w-4 h-4 cursor-pointer pointer-events-none"
-                    />
-                  </div>
-
-                  {/* Name */}
-                  <Link href={`/app/customers/${c.id}`} className="flex items-center gap-3 min-w-0 group">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                      {c.name?.charAt(0).toUpperCase() || '?'}
-                    </div>
-                    <span className="font-semibold text-slate-900 text-sm truncate group-hover:text-blue-600 transition-colors">
-                      {c.name}
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 shrink-0" />
-                  </Link>
-
-                  {/* Contact */}
-                  <div className="min-w-0 space-y-0.5">
-                    {c.email && (
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
-                        <Mail className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{c.email}</span>
-                      </div>
-                    )}
-                    {c.mobile && (
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                        <Phone className="w-3 h-3 shrink-0" />
-                        {c.mobile}
-                      </div>
-                    )}
-                    {!c.email && !c.mobile && <span className="text-xs text-slate-300">—</span>}
-                  </div>
-
-                  {/* Policies */}
-                  <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
-                    <FileText className="w-4 h-4 text-slate-300" />
-                    {c.policiesCount}
-                  </div>
-
-                  {/* Premium */}
-                  <div className="flex items-center gap-0.5 text-sm font-semibold text-slate-700">
-                    <IndianRupee className="w-3.5 h-3.5 text-slate-400" />
-                    {c.totalPremium.toLocaleString('en-IN')}
-                  </div>
-
-                  {/* Next Renewal */}
-                  <div className="text-sm text-slate-500">
-                    {c.nextRenewal
-                      ? new Date(c.nextRenewal).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                      : <span className="text-slate-300">—</span>
-                    }
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1">
-                    <Link href={`/app/customers/${c.id}`}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-blue-50 hover:text-blue-600">
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </Link>
-                    <RoleActionButton
-                      isAdmin={isAdmin}
-                      requestType="DELETE_CUSTOMER"
-                      entityId={c.id}
-                      entityType="customer"
-                      directAction={() => deleteSingle(c.id)}
-                      label="Delete"
-                      icon={Trash2}
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600"
-                      reasonPrompt="Why do you want to delete this customer?"
-                      metadata={{ customer_name: c.name }}
-                    />
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={selected.size === filtered.length && filtered.length > 0}
+                        onChange={() => {
+                          if (selected.size === filtered.length) setSelected(new Set());
+                          else setSelected(new Set(filtered.map(c => c.id)));
+                        }}
+                        className="rounded accent-blue-600 w-4 h-4 cursor-pointer"
+                      />
+                    </th>
+                    <th className="px-4 py-3"><SortBtn col="name" label="Name" /></th>
+                    <th className="px-4 py-3">Contact</th>
+                    <th className="px-4 py-3"><SortBtn col="policiesCount" label="Policies" /></th>
+                    <th className="px-4 py-3"><SortBtn col="totalPremium" label="Premium" /></th>
+                    <th className="px-4 py-3"><SortBtn col="nextRenewal" label="Next Renewal" /></th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filtered.map(c => (
+                    <tr
+                      key={c.id}
+                      className={`hover:bg-slate-50/50 transition-colors ${selected.has(c.id) ? 'bg-blue-50/30' : ''}`}
+                    >
+                      <td className="px-4 py-3.5" onClick={e => toggleSelect(c.id, e)}>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(c.id)}
+                          readOnly
+                          className="rounded accent-blue-600 w-4 h-4 cursor-pointer pointer-events-none"
+                        />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <Link href={`/app/customers/${c.id}`} className="flex items-center gap-3 min-w-0 group">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                            {c.name?.charAt(0).toUpperCase() || '?'}
+                          </div>
+                          <span className="font-semibold text-slate-900 text-sm truncate group-hover:text-blue-600 transition-colors">
+                            {c.name}
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="min-w-0 space-y-0.5">
+                          {c.email && (
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
+                              <Mail className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{c.email}</span>
+                            </div>
+                          )}
+                          {c.mobile && (
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                              <Phone className="w-3 h-3 shrink-0" />
+                              {c.mobile}
+                            </div>
+                          )}
+                          {!c.email && !c.mobile && <span className="text-xs text-slate-300">—</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                          <FileText className="w-4 h-4 text-slate-300" />
+                          {c.policiesCount}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-0.5 text-sm font-semibold text-slate-700">
+                          <IndianRupee className="w-3.5 h-3.5 text-slate-400" />
+                          {c.totalPremium.toLocaleString('en-IN')}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="text-sm text-slate-500">
+                          {c.nextRenewal
+                            ? new Date(c.nextRenewal).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : <span className="text-slate-300">—</span>
+                          }
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Link href={`/app/customers/${c.id}`}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-blue-50 hover:text-blue-600">
+                              <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </Link>
+                          <RoleActionButton
+                            isAdmin={isAdmin}
+                            requestType="DELETE_CUSTOMER"
+                            entityId={c.id}
+                            entityType="customer"
+                            directAction={() => deleteSingle(c.id)}
+                            label="Delete"
+                            icon={Trash2}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600"
+                            reasonPrompt="Why do you want to delete this customer?"
+                            metadata={{ customer_name: c.name }}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             {/* Footer */}

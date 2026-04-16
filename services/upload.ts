@@ -5,6 +5,7 @@
 
 import { supabaseAdmin, storageBucket } from '@/lib/supabase';
 import { extractDocumentInline, queueDocumentExtraction } from './extraction';
+import { compressPdf } from './pdf-compression';
 
 /**
  * Upload a policy document
@@ -22,9 +23,9 @@ export async function uploadPolicyDocument(
       throw new Error('No file provided');
     }
 
-    const maxFileSize = 10 * 1024 * 1024; // 10MB
+    const maxFileSize = 50 * 1024 * 1024; // 50MB limits natively
     if (file.size > maxFileSize) {
-      throw new Error('File size exceeds 10MB limit');
+      throw new Error('File size exceeds 50MB limit');
     }
 
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -38,14 +39,21 @@ export async function uploadPolicyDocument(
     const fileExtension = file.name.split('.').pop();
     const fileName = `${userId}/${policyId}/${timestamp}-${randomId}.${fileExtension}`;
 
-    console.log(`[v0] Uploading file: ${fileName}`);
+    console.log(`[v0] Processing file: ${fileName}`);
+
+    let uploadBody: File | Buffer = file;
+    if (file.type === 'application/pdf') {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      uploadBody = await compressPdf(buffer);
+    }
 
     // Upload to Supabase Storage using Admin client to bypass RLS policies
     const { data: uploadData, error: uploadError } = await supabaseAdmin!.storage
       .from(storageBucket)
-      .upload(fileName, file, {
+      .upload(fileName, uploadBody, {
         cacheControl: '3600',
         upsert: false,
+        contentType: file.type,
       });
 
     if (uploadError) {
@@ -58,9 +66,10 @@ export async function uploadPolicyDocument(
         }
         
         // Retry upload after successful bucket creation natively bypassing RLS
-        const retry = await supabaseAdmin!.storage.from(storageBucket).upload(fileName, file, {
+        const retry = await supabaseAdmin!.storage.from(storageBucket).upload(fileName, uploadBody, {
            cacheControl: '3600',
            upsert: false,
+           contentType: file.type,
         });
         
         if (retry.error) {

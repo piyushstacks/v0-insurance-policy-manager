@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Plus, Users, Search, IndianRupee, FileText,
-  Phone, Mail, Trash2, ChevronRight, ArrowUpDown,
+  Phone, Mail, Trash2, ArrowUpDown,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';

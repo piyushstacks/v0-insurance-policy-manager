@@ -33,6 +33,8 @@ export default function CustomersPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { isAdmin } = useTeam();
 
   useEffect(() => {
@@ -73,6 +75,12 @@ export default function CustomersPage() {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('asc'); }
   }
+
+  const paginatedCustomers = useMemo(() => {
+    return filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [filtered, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
 
   const toggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault();
@@ -141,7 +149,10 @@ export default function CustomersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={e => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset page on query
+              }}
               placeholder="Search name, email, phone..."
               className="pl-9 h-10 rounded-xl bg-slate-50 border-slate-200"
             />
@@ -179,6 +190,33 @@ export default function CustomersPage() {
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            {/* Pagination Size Selector Bar */}
+            <div className="p-3 border-b bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-slate-500 z-20">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-medium">Rows per page:</span>
+                  <select 
+                    value={pageSize} 
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }} 
+                    className="border border-slate-200 rounded px-2 py-1 bg-white font-medium text-slate-700 outline-none hover:border-blue-300 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+                  >
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </div>
+                <div className="hidden sm:block ml-2 px-3 py-1 border-l border-slate-200">
+                  Showing <span className="font-bold text-slate-700">
+                    {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filtered.length)}
+                  </span> of <span className="font-bold text-slate-700">{filtered.length}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Table header */}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[800px]">
@@ -204,7 +242,7 @@ export default function CustomersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtered.map(c => (
+                  {paginatedCustomers.map(c => (
                     <tr
                       key={c.id}
                       className={`hover:bg-slate-50/50 transition-colors ${selected.has(c.id) ? 'bg-blue-50/30' : ''}`}
@@ -266,11 +304,6 @@ export default function CustomersPage() {
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Link href={`/app/customers/${c.id}`}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-blue-50 hover:text-blue-600">
-                              <ChevronRight className="w-4 h-4" />
-                            </Button>
-                          </Link>
                           <RoleActionButton
                             isAdmin={isAdmin}
                             requestType="DELETE_CUSTOMER"
@@ -293,10 +326,34 @@ export default function CustomersPage() {
               </table>
             </div>
 
-            {/* Footer */}
-            <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 text-xs text-slate-400 font-medium">
-              Showing {filtered.length} of {customers.length} customers
-            </div>
+            {/* Footer Pagination Navigation */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t bg-slate-50 flex items-center justify-between">
+                <div className="text-xs text-slate-500 font-medium">
+                  Page <span className="font-bold text-slate-700">{currentPage}</span> of <span className="font-bold text-slate-700">{totalPages}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

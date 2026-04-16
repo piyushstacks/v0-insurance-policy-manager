@@ -97,3 +97,30 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ invitations: invitations || [] });
 }
+
+export async function DELETE(request: NextRequest) {
+  const user = await getUser(request);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const membership = await getUserTeam(user.id);
+  if (!membership || membership.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  try {
+    const { inviteId } = await request.json();
+    if (!inviteId) return NextResponse.json({ error: 'Invite ID required' }, { status: 400 });
+
+    const { error } = await supabaseAdmin!
+      .from('team_invitations')
+      .delete()
+      .eq('id', inviteId)
+      .eq('team_id', membership.team_id);
+
+    if (error) throw error;
+    
+    return NextResponse.json({ success: true, message: 'Invitation deleted permanently' });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}

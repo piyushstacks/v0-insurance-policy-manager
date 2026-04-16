@@ -179,6 +179,23 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
     }
   }
 
+  async function handleDeleteInvitation(inviteId: string) {
+    if (!confirm('Delete this pending invitation permanently?')) return;
+    try {
+      const res = await fetch('/api/team/invite', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inviteId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      toast.success('Invitation securely deleted.');
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
   async function handleLeave() {
     if (!confirm('Leave this team? You will lose all access.')) return;
     try {
@@ -350,7 +367,18 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
                   <p className="font-semibold text-sm text-slate-900">{inv.email}</p>
                   <p className="text-xs text-slate-400">Expires {new Date(inv.expires_at).toLocaleString()}</p>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">PENDING</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">PENDING</span>
+                  <Button
+                    onClick={() => handleDeleteInvitation(inv.id)}
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg h-8 w-8"
+                    title="Delete Invitation"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

@@ -62,7 +62,7 @@ export async function getPolicies(
   try {
     let query = supabaseAdmin!
       .from('policies')
-      .select('*, customer:customers(name, email), insurer:insurers(name)')
+      .select('*, customer:customers(name, email), insurer:insurers(name), documents:policy_documents(file_path, file_name)')
       .order('created_at', { ascending: false });
 
     if (filters?.status) {

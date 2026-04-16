@@ -18,9 +18,9 @@ import {
   Search,
   Trash2,
   X,
-  FilePenLine,
+  Eye,
   IndianRupee,
-  MoreVertical
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,6 +36,7 @@ interface Policy {
   status: 'active' | 'expired' | 'cancelled' | 'renewed';
   customer?: Customer;
   insurer?: Insurer;
+  documents?: { file_path: string, file_name: string }[];
 }
 
 export default function PoliciesPage() {
@@ -105,9 +106,21 @@ export default function PoliciesPage() {
   const uniqueProducts = useMemo(() => Array.from(new Set(policies.map(p => p.policy_type).filter(Boolean))), [policies]);
   const uniqueCompanies = useMemo(() => Array.from(new Set(policies.map(p => p.insurer?.name).filter(Boolean))), [policies]);
 
+  const isPending = useCallback((p: Policy) => 
+    p.policy_number?.startsWith('PENDING_OCR') || 
+    p.policy_number?.startsWith('BULK_OCR') || 
+    p.policy_number?.startsWith('IMG-') ||
+    p.policy_number?.startsWith('doc_')
+  , []);
+
+  // Split Data
+  const pendingPolicies = useMemo(() => policies.filter(isPending), [policies, isPending]);
+
   // Derived Filtered Data
   const filteredPolicies = useMemo(() => {
     return policies.filter(p => {
+      if (isPending(p)) return false; // Hide pending from main list
+
       // Search
       const searchStr = `${p.policy_number} ${p.customer?.name} ${p.insurer?.name}`.toLowerCase();
       if (searchTerm && !searchStr.includes(searchTerm.toLowerCase())) return false;
@@ -122,7 +135,7 @@ export default function PoliciesPage() {
       
       return true;
     });
-  }, [policies, searchTerm, filterProduct, filterCompany, dateStart, dateEnd]);
+  }, [policies, searchTerm, filterProduct, filterCompany, dateStart, dateEnd, isPending]);
 
   // Derive Paginated Context
   const totalPages = Math.ceil(filteredPolicies.length / pageSize);
@@ -193,7 +206,22 @@ export default function PoliciesPage() {
     }
   };
 
-  const isPending = (p: Policy) => p.policy_number.startsWith('PENDING_OCR');
+  const deleteSingle = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (!window.confirm("Delete this policy permanently?")) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/policies/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      toast.success('Successfully deleted');
+      setPolicies(prev => prev.filter(p => p.id !== id));
+      setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col p-4 md:p-8 min-h-full max-w-7xl mx-auto w-full">
@@ -201,7 +229,7 @@ export default function PoliciesPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 mb-1">Policies Directory</h1>
-          <p className="text-slate-500 font-medium">Manage and explore {filteredPolicies.length} extracted policies</p>
+          <p className="text-slate-500 font-medium">Manage and explore {filteredPolicies.length} parsed policies</p>
         </div>
         
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -302,6 +330,48 @@ export default function PoliciesPage() {
         </div>
       )}
 
+      {/* --- EXTRACTING QUEUE SECTION --- */}
+      {pendingPolicies.length > 0 && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="bg-amber-100/50 px-4 py-3 border-b border-amber-200">
+            <h2 className="font-bold text-amber-900 text-sm flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin opacity-70" /> 
+              Pending Extractions ({pendingPolicies.length})
+            </h2>
+          </div>
+          <div className="p-0">
+            <table className="w-full text-left text-sm">
+              <tbody className="divide-y divide-amber-100">
+                {pendingPolicies.map(p => {
+                  const docName = p.documents?.[0]?.file_name || 'Policy Document';
+                  return (
+                    <tr key={p.id} className="hover:bg-amber-100/30 transition-colors">
+                      <td className="w-12 px-4 py-3">
+                        <input type="checkbox" className="rounded border-amber-300 accent-amber-600 w-4 h-4 cursor-pointer" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} />
+                      </td>
+                      <td className="px-4 py-3 font-medium text-amber-900 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span className="truncate max-w-xs">{docName}</span>
+                      </td>
+                      <td className="px-4 py-3 text-amber-700 text-xs">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold bg-amber-200/50 uppercase tracking-widest">
+                          Processing OCR...
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:text-amber-800 hover:bg-amber-100 inline-flex" onClick={(e) => deleteSingle(p.id, e)} title="Cancel upload">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* --- FULL WIDTH TABLE --- */}
       <main className="flex-1 flex flex-col min-w-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         
@@ -378,18 +448,19 @@ export default function PoliciesPage() {
                     <th className="px-4 py-3 border-r border-slate-200" style={{ width: '200px', resize: 'horizontal', overflow: 'hidden' }}>Product</th>
                     <th className="px-4 py-3 border-r border-slate-200" style={{ width: '140px', resize: 'horizontal', overflow: 'hidden' }}>Dates</th>
                     <th className="px-4 py-3 text-right border-r border-slate-200" style={{ width: '120px', resize: 'horizontal', overflow: 'hidden' }}>Gross Prem</th>
-                    <th className="px-4 py-3 text-center" style={{ width: '80px' }}>Action</th>
+                    <th className="px-4 py-3 text-center" style={{ width: '70px', resize: 'horizontal', overflow: 'hidden' }}>View Details</th>
+                    <th className="px-4 py-3 text-center" style={{ width: '50px' }}>Delete</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedPolicies.map((p) => {
-                    const pending = isPending(p);
+                    const fileUrl = p.documents?.[0]?.file_path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/policy-documents/${p.documents[0].file_path}` : `/app/policies/${p.id}`;
                     return (
-                      <tr key={p.id} className={`hover:bg-slate-50/80 transition-colors text-sm ${pending ? 'bg-amber-50/30' : ''}`}>
+                      <tr key={p.id} className="hover:bg-slate-50/80 transition-colors text-sm">
                         <td className="px-4 py-3 align-middle"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
                         <td className="px-4 py-3 font-medium text-slate-900 truncate">
-                          {pending ? (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 uppercase tracking-widest">Pending</span>
+                          {p.documents?.[0]?.file_path ? (
+                            <a href={fileUrl} target="_blank" rel="noreferrer" className="hover:text-blue-600 hover:underline">{p.policy_number}</a>
                           ) : (
                             <Link href={`/app/policies/${p.id}`} className="hover:text-blue-600 hover:underline">{p.policy_number}</Link>
                           )}
@@ -409,14 +480,19 @@ export default function PoliciesPage() {
                           <div className="opacity-70 text-[10px] uppercase">to {p.expiry_date ? new Date(p.expiry_date).toLocaleDateString('en-GB') : '—'}</div>
                         </td>
                         <td className="px-4 py-3 text-right text-slate-700 font-medium whitespace-nowrap">
-                          {!pending && p.premium_amount ? <span>₹{p.premium_amount.toLocaleString('en-IN')}</span> : '—'}
+                          {p.premium_amount ? <span>₹{p.premium_amount.toLocaleString('en-IN')}</span> : '—'}
                         </td>
                         <td className="px-4 py-3 text-center">
                            <Link href={`/app/policies/${p.id}`}>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 inline-flex">
-                                <FilePenLine className="w-4 h-4" />
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 inline-flex" title="View Details">
+                                <Eye className="w-4 h-4" />
                               </Button>
                            </Link>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                           <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 inline-flex" onClick={(e) => deleteSingle(p.id, e)} title="Delete Policy">
+                             <Trash2 className="w-4 h-4" />
+                           </Button>
                         </td>
                       </tr>
                     );

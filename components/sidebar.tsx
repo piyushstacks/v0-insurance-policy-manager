@@ -198,34 +198,37 @@ export default function Sidebar({ user }: SidebarProps) {
         lg:left-0 lg:right-auto lg:border-r lg:border-l-0 lg:translate-x-0 lg:static lg:h-screen
         ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
       `}>
-        {/* Header / Logo */}
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-100 ring-4 ring-white">
-              <Fingerprint className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-900 leading-none tracking-tight">PolicyVault</h1>
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Engine</span>
+        {/* Main Content Area (Scrollable) */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {/* Header / Logo */}
+          <div className="p-6 pb-2">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-100 ring-4 ring-white">
+                <Fingerprint className="w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="text-xl font-black text-slate-900 leading-none tracking-tight">PolicyVault</h1>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Engine</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Search Bar - Mimicking reference UI */}
-          <div className="relative group mb-6">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Quick search... (⌘K)"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-600 placeholder:text-slate-400"
-            />
-          </div>
+            {/* Search Bar - Mimicking reference UI */}
+            <div className="relative group mb-6">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Quick search... (⌘K)"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-600 placeholder:text-slate-400"
+              />
+            </div>
 
-          {/* Nav Items */}
-          <div className="space-y-1">
-            {navItems.map((item, i) => <NavLink key={i} item={item} />)}
+            {/* Nav Items */}
+            <div className="space-y-1">
+              {navItems.map((item, i) => <NavLink key={i} item={item} />)}
+            </div>
           </div>
         </div>
 

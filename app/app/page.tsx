@@ -79,7 +79,7 @@ export default function DashboardPage() {
   const pendingExtraction = Math.max(0, Math.floor(data.totalPolicies * 0.03));
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50">
+    <div className="flex flex-col min-h-full bg-slate-50/50">
       
       {/* Hero Section */}
       <div className="px-4 md:px-8 pt-6 pb-4">
@@ -107,8 +107,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 pb-8">
+      {/* Dashboard content */}
+      <div className="px-4 md:px-8 pb-8">
 
         {/* KPI Cards — 4 columns on desktop, 2x2 mobile grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">

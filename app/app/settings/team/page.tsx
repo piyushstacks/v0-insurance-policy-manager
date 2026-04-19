@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Users, Plus, Mail, UserX, Copy, CheckCircle,
   Loader2, Shield, AlertCircle, Clock, LogOut, RefreshCw,
-  Crown, Trash2, ChevronRight, ArrowRight,
+  Crown, Trash2, SendHorizonal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -136,6 +136,7 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
   const [inviting, setInviting] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const { team, role, members, invitations } = data;
   const isAdmin = role === 'ADMIN';
@@ -193,6 +194,29 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
       onRefresh();
     } catch (e: any) {
       toast.error(e.message);
+    }
+  }
+
+  async function handleResendInvitation(inviteId: string, email: string) {
+    setResendingId(inviteId);
+    try {
+      const res = await fetch('/api/team/invite', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inviteId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      if (json.emailSent) {
+        toast.success(`Invitation resent to ${email}`);
+      } else {
+        toast.warning(`New link created but email failed. Copy: ${json.inviteUrl}`);
+      }
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setResendingId(null);
     }
   }
 
@@ -360,15 +384,27 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
           <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-amber-500" /> Pending Invitations ({pendingInvites.length})
           </h2>
-          <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100">
             {pendingInvites.map((inv) => (
               <div key={inv.id} className="flex items-center justify-between py-3">
                 <div>
                   <p className="font-semibold text-sm text-slate-900">{inv.email}</p>
                   <p className="text-xs text-slate-400">Expires {new Date(inv.expires_at).toLocaleString()}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">PENDING</span>
+                  <Button
+                    onClick={() => handleResendInvitation(inv.id, inv.email)}
+                    disabled={resendingId === inv.id}
+                    variant="ghost"
+                    size="icon"
+                    className="text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg h-8 w-8"
+                    title="Resend Invitation"
+                  >
+                    {resendingId === inv.id
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <SendHorizonal className="w-3.5 h-3.5" />}
+                  </Button>
                   <Button
                     onClick={() => handleDeleteInvitation(inv.id)}
                     variant="ghost"

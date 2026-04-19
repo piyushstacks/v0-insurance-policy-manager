@@ -1,6 +1,8 @@
 /**
- * POST /api/team/invite — Send invitation + email
- * GET  /api/team/invite — List invitations for team (admin only)
+ * POST   /api/team/invite — Send invitation + email
+ * GET    /api/team/invite — List invitations (admin only)
+ * PATCH  /api/team/invite — Resend invitation (admin only)
+ * DELETE /api/team/invite — Delete invitation (admin only)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -29,6 +31,7 @@ async function getUser(request: NextRequest) {
   return user;
 }
 
+// ── POST: Create & send new invitation ───────────────────────────────────────
 export async function POST(request: NextRequest) {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -39,38 +42,32 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-
-  // Validate email first
   const parsed = teamInviteSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
   }
   const { email } = parsed.data;
 
-
   try {
     const invite = await inviteMember(membership.team_id, email, user.id);
-    const teamData = (membership as any).teams;
-    const teamName = teamData?.name || 'Your Team';
+    const teamName = (membership as any).teams?.name || 'Your Team';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const inviteUrl = `${appUrl}/join?token=${invite.token}`;
 
-    console.log(`[Invite] Created invite for ${email} → ${invite.inviteUrl}`);
+    console.log(`[Invite] Created for ${email} → ${inviteUrl}`);
 
-    // Send email
     const emailResult = await sendEmail(
       teamInviteEmail({
         teamName,
         inviterEmail: user.email || 'your admin',
-        inviteUrl: invite.inviteUrl,
+        inviteUrl,
         expiresAt: invite.expires_at,
         recipientEmail: email,
       })
     );
 
-    if (!emailResult.success) {
-      console.error(`[Invite] Email failed for ${email}:`, emailResult.error);
-    } else {
-      console.log(`[Invite] ✅ Email sent to ${email}`);
-    }
+    if (!emailResult.success) console.error(`[Invite] Email failed for ${email}:`, emailResult.error);
+    else console.log(`[Invite] ✅ Email sent to ${email}`);
 
     return NextResponse.json({
       success: true,
@@ -79,7 +76,7 @@ export async function POST(request: NextRequest) {
         : `Invitation created but email delivery failed — share the link manually`,
       emailSent: emailResult.success,
       emailError: emailResult.success ? undefined : emailResult.error,
-      inviteUrl: invite.inviteUrl,
+      inviteUrl,
       expiresAt: invite.expires_at,
     });
   } catch (err: any) {
@@ -88,6 +85,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// ── GET: List invitations ────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -106,6 +104,73 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ invitations: invitations || [] });
 }
 
+// ── PATCH: Resend an existing invitation ────────────────────────────────────
+export async function PATCH(request: NextRequest) {
+  const user = await getUser(request);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const membership = await getUserTeam(user.id);
+  if (!membership || membership.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Only team admins can resend invitations.' }, { status: 403 });
+  }
+
+  try {
+    const { inviteId } = await request.json();
+    if (!inviteId) return NextResponse.json({ error: 'inviteId required' }, { status: 400 });
+
+    // Must belong to this team
+    const { data: existing, error: fetchErr } = await supabaseAdmin!
+      .from('team_invitations')
+      .select('*')
+      .eq('id', inviteId)
+      .eq('team_id', membership.team_id)
+      .maybeSingle();
+
+    if (fetchErr || !existing) {
+      return NextResponse.json({ error: 'Invitation not found.' }, { status: 404 });
+    }
+    if (existing.status === 'ACCEPTED') {
+      return NextResponse.json({ error: 'This invitation has already been accepted.' }, { status: 400 });
+    }
+
+    // inviteMember expires old token + creates fresh one with new 24h expiry
+    const invite = await inviteMember(membership.team_id, existing.email, user.id);
+    const teamName = (membership as any).teams?.name || 'Your Team';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const inviteUrl = `${appUrl}/join?token=${invite.token}`;
+
+    console.log(`[Resend] Fresh invite for ${existing.email} → ${inviteUrl}`);
+
+    const emailResult = await sendEmail(
+      teamInviteEmail({
+        teamName,
+        inviterEmail: user.email || 'your admin',
+        inviteUrl,
+        expiresAt: invite.expires_at,
+        recipientEmail: existing.email,
+      })
+    );
+
+    if (!emailResult.success) console.error(`[Resend] Email failed:`, emailResult.error);
+    else console.log(`[Resend] ✅ Resent to ${existing.email}`);
+
+    return NextResponse.json({
+      success: true,
+      message: emailResult.success
+        ? `Invitation resent to ${existing.email}`
+        : `New link created but email delivery failed — share manually`,
+      emailSent: emailResult.success,
+      emailError: emailResult.success ? undefined : emailResult.error,
+      inviteUrl,
+      expiresAt: invite.expires_at,
+    });
+  } catch (err: any) {
+    console.error('[Resend] Error:', err);
+    return NextResponse.json({ error: err.message }, { status: 400 });
+  }
+}
+
+// ── DELETE: Remove an invitation ─────────────────────────────────────────────
 export async function DELETE(request: NextRequest) {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -126,7 +191,7 @@ export async function DELETE(request: NextRequest) {
       .eq('team_id', membership.team_id);
 
     if (error) throw error;
-    
+
     return NextResponse.json({ success: true, message: 'Invitation deleted permanently' });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 400 });

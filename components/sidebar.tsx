@@ -194,7 +194,7 @@ export default function Sidebar({ user }: SidebarProps) {
 
       {/* Sidebar Desktop / Mobile Overlay */}
       <aside className={`
-        fixed inset-y-0 right-0 z-50 w-72 bg-white border-l border-slate-200 flex flex-col transition-transform duration-300 ease-in-out
+        fixed inset-y-0 right-0 z-50 w-72 lg:w-60 xl:w-72 bg-white border-l border-slate-200 flex flex-col transition-all duration-300 ease-in-out
         lg:left-0 lg:right-auto lg:border-r lg:border-l-0 lg:translate-x-0 lg:static lg:h-screen
         ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
       `}>

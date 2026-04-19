@@ -440,16 +440,16 @@ export default function PoliciesPage() {
             <div className="w-full overflow-x-auto custom-scrollbar">
               <table className="w-full text-left border-collapse min-w-full table-auto">
                 <thead>
-                  <tr className="bg-slate-100 border-b text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="w-10 px-3 py-3 text-center"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} onChange={toggleAll} /></th>
-                    <th className="px-3 py-3 border-r border-slate-200 min-w-[120px]">Policy No</th>
-                    <th className="px-3 py-3 border-r border-slate-200 min-w-[120px]">Insured</th>
-                    <th className="px-3 py-3 border-r border-slate-200 min-w-[150px]">Company</th>
-                    <th className="px-3 py-3 border-r border-slate-200 min-w-[100px]">Product</th>
-                    <th className="px-3 py-3 border-r border-slate-200 w-24">Dates</th>
-                    <th className="px-3 py-3 text-right border-r border-slate-200 w-28">Gross Prem</th>
-                    <th className="px-2 py-3 text-center w-16">Details</th>
-                    <th className="px-2 py-3 text-center w-16">Delete</th>
+                  <tr className="bg-slate-100 border-b text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="w-8 px-2 py-3 text-center"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-3.5 h-3.5 cursor-pointer align-middle" checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} onChange={toggleAll} /></th>
+                    <th className="px-3 py-3 border-r border-slate-200 min-w-[100px]">Policy No</th>
+                    <th className="px-3 py-3 border-r border-slate-200 min-w-[100px]">Insured</th>
+                    <th className="px-3 py-3 border-r border-slate-200 min-w-[120px]">Company</th>
+                    <th className="px-2 py-3 border-r border-slate-200 min-w-[80px]">Product</th>
+                    <th className="px-2 py-3 border-r border-slate-200 w-20">Dates</th>
+                    <th className="px-2 py-3 text-right border-r border-slate-200 w-24">Gross Prem</th>
+                    <th className="px-2 py-3 text-center w-14">Details</th>
+                    <th className="px-2 py-3 text-center w-14">Delete</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

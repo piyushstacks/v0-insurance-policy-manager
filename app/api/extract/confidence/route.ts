@@ -10,9 +10,8 @@ export async function GET(request: NextRequest) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const { data: logs, error } = await supabaseAdmin!
-      .from('extraction_jobs')
-      .select('confidence_score, extracted_data')
-      .eq('status', 'completed')
+      .from('policies')
+      .select('extraction_confidence')
       .gte('created_at', thirtyDaysAgo.toISOString());
 
     if (error) throw error;
@@ -23,12 +22,7 @@ export async function GET(request: NextRequest) {
     if (total > 0) {
       // Calculate average
       const sum = logs!.reduce((acc, log) => {
-        let score = log.confidence_score;
-        // Fallback: check if it's inside extracted_data JSONB
-        if (score === null && log.extracted_data && typeof log.extracted_data === 'object') {
-          score = (log.extracted_data as any).confidence;
-        }
-        return acc + (score || 0);
+        return acc + (log.extraction_confidence || 0);
       }, 0);
       
       confidence = sum / total;

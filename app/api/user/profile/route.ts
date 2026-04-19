@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabase';
+import { loginSchema } from '@/lib/schemas';
 
 async function getUser(request: NextRequest) {
   const cookieStore = await cookies();
@@ -80,7 +81,11 @@ export async function PATCH(request: NextRequest) {
 
   // Update email (requires OTP verification)
   if (new_email !== undefined) {
-    if (!new_email.includes('@')) return NextResponse.json({ error: 'Valid email required.' }, { status: 400 });
+    const emailCheck = loginSchema.pick({ email: true }).safeParse({ email: new_email });
+    if (!emailCheck.success) {
+      return NextResponse.json({ error: emailCheck.error.errors[0].message }, { status: 400 });
+    }
+
     if (!otp) return NextResponse.json({ error: 'OTP required to change email. Request a code first.', requiresOTP: true }, { status: 400 });
 
     // Verify OTP

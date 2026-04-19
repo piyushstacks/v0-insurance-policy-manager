@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { sendOTP, verifyOTP, type OTPPurpose } from '@/services/otp';
+import { loginSchema } from '@/lib/schemas';
 
 export async function POST(request: NextRequest) {
   const url = new URL(request.url);
@@ -12,15 +13,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { email, otp, purpose = 'login' } = body as {
-      email: string;
-      otp?: string;
-      purpose?: OTPPurpose;
-    };
+    const { email, otp, purpose = 'login' } = body;
 
-    if (!email?.includes('@')) {
-      return NextResponse.json({ error: 'Valid email required.' }, { status: 400 });
+    // Strict validation
+    const emailResult = loginSchema.pick({ email: true }).safeParse({ email });
+    if (!emailResult.success) {
+      return NextResponse.json({ error: emailResult.error.errors[0].message }, { status: 400 });
     }
+
 
     if (action === 'verify') {
       if (!otp || otp.length !== 6) {

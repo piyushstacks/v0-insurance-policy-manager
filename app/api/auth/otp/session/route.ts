@@ -6,13 +6,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { loginSchema } from '@/lib/schemas';
 
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
-    if (!email?.includes('@')) {
-      return NextResponse.json({ error: 'Valid email required.' }, { status: 400 });
+    
+    const emailResult = loginSchema.pick({ email: true }).safeParse({ email });
+    if (!emailResult.success) {
+      return NextResponse.json({ error: emailResult.error.errors[0].message }, { status: 400 });
     }
+
 
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Server misconfiguration.' }, { status: 500 });

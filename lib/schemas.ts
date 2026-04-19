@@ -1,8 +1,21 @@
 import { z } from 'zod';
 
 // ─── REUSABLE VALIDATORS ───────────────────────────────────────────
-const emailField = z.string().email('Invalid email address').trim();
-const optionalEmail = z.string().email('Invalid email address').trim().optional().or(z.literal(''));
+// Strict email: must have @ and a dot in the domain part
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+const emailField = z
+  .string()
+  .trim()
+  .email('Invalid email format')
+  .refine((val) => emailRegex.test(val), { message: 'Email must have a valid domain (e.g. .com, .in)' });
+
+const optionalEmail = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(''))
+  .refine((val) => !val || emailRegex.test(val), { message: 'Invalid email domain' });
 // Indian phone: 10-digit or with +91 prefix, or blank
 const phoneRegex = /^(?:\+91[\s-]?)?[6-9]\d{9}$|^$/;
 const optionalPhone = z

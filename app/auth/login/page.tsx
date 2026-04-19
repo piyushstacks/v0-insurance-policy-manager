@@ -36,7 +36,8 @@ function LoginContent() {
   // ── Step 1: Send OTP ───────────────────────────────────────────
   async function handleSendOTP(e?: React.FormEvent) {
     e?.preventDefault();
-    if (!email.includes('@')) { setError('Enter a valid email address.'); return; }
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) { setError('Enter a valid email address with a domain (e.g. .com, .in).'); return; }
     setError('');
     setLoading(true);
     try {

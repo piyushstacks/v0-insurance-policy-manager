@@ -37,7 +37,13 @@ function SignupContent() {
     setError('');
 
     if (!formData.fullName.trim()) { setError('Full name is required.'); return; }
-    if (!formData.email.includes('@')) { setError('Valid email is required.'); return; }
+    
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(formData.email)) { 
+      setError('Enter a valid email address with a domain (e.g. .com, .in).'); 
+      return; 
+    }
+
     if (formData.password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     if (formData.password !== formData.confirmPassword) { setError('Passwords do not match.'); return; }
 

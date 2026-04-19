@@ -104,6 +104,7 @@ export const extractionResultSchema = z.object({
   customer_name: z.string().optional(),
   customer_email: z.string().optional().nullable(),
   customer_mobile: z.string().optional().nullable(),
+  confidence: z.number().optional(),
   vehicle_number: z.string().optional().nullable(),
   nominee_name: z.string().optional().nullable(),
   health_ped: z.string().optional().nullable(),

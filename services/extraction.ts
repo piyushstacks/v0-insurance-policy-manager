@@ -710,6 +710,7 @@ export async function extractDocumentInline(
         .update({
           status: 'completed',
           extracted_data: extracted,
+          confidence_score: extracted.confidence || null,
           completed_at: new Date().toISOString(),
         })
         .eq('id', jobDbId);

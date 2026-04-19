@@ -23,8 +23,9 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Please run the migration SQL in your Supabase SQL Editor',
       migrationSQL: `
--- Add extracted_data column to store OCR results
+-- Add columns to store OCR results and confidence
 ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS extracted_data JSONB;
+ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS confidence_score FLOAT;
 
 -- Add index for better query performance
 CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status_completed 

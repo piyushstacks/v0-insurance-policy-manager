@@ -224,7 +224,7 @@ export default function PoliciesPage() {
   };
 
   return (
-    <div className="flex flex-col p-4 md:p-8 min-h-full max-w-7xl mx-auto w-full">
+    <div className="flex flex-col p-4 md:p-8 min-h-full max-w-[1600px] mx-auto w-full">
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
         <div>
@@ -437,19 +437,19 @@ export default function PoliciesPage() {
               <p className="text-sm text-slate-500">Try clearing your filters or adding a new policy.</p>
             </div>
           ) : (
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[900px]">
+            <div className="w-full overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse min-w-full table-auto">
                 <thead>
-                  <tr className="bg-slate-100 border-b text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    <th className="w-10 px-4 py-3"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} onChange={toggleAll} /></th>
-                    <th className="px-4 py-3 border-r border-slate-200">Policy No</th>
-                    <th className="px-4 py-3 border-r border-slate-200">Insured</th>
-                    <th className="px-4 py-3 border-r border-slate-200">Company</th>
-                    <th className="px-4 py-3 border-r border-slate-200">Product</th>
-                    <th className="px-4 py-3 border-r border-slate-200">Dates</th>
-                    <th className="px-4 py-3 text-right border-r border-slate-200">Gross Prem</th>
-                    <th className="px-4 py-3 text-center w-24">View Details</th>
-                    <th className="px-4 py-3 text-center w-20">Delete</th>
+                  <tr className="bg-slate-100 border-b text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="w-10 px-3 py-3 text-center"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} onChange={toggleAll} /></th>
+                    <th className="px-3 py-3 border-r border-slate-200 min-w-[120px]">Policy No</th>
+                    <th className="px-3 py-3 border-r border-slate-200 min-w-[120px]">Insured</th>
+                    <th className="px-3 py-3 border-r border-slate-200 min-w-[150px]">Company</th>
+                    <th className="px-3 py-3 border-r border-slate-200 min-w-[100px]">Product</th>
+                    <th className="px-3 py-3 border-r border-slate-200 w-24">Dates</th>
+                    <th className="px-3 py-3 text-right border-r border-slate-200 w-28">Gross Prem</th>
+                    <th className="px-2 py-3 text-center w-16">Details</th>
+                    <th className="px-2 py-3 text-center w-16">Delete</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -457,17 +457,17 @@ export default function PoliciesPage() {
                     const fileUrl = p.documents?.[0]?.file_path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/policy-documents/${p.documents[0].file_path}` : `/app/policies/${p.id}`;
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/80 transition-colors text-sm">
-                        <td className="px-4 py-3 align-middle"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
-                        <td className="px-4 py-3 font-medium text-slate-900 truncate">
+                        <td className="px-3 py-3 align-middle text-center"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
+                        <td className="px-3 py-3 font-medium text-slate-900 truncate max-w-[140px]">
                           {p.documents?.[0]?.file_path ? (
                             <a href={fileUrl} target="_blank" rel="noreferrer" className="hover:text-blue-600 hover:underline">{p.policy_number}</a>
                           ) : (
                             <Link href={`/app/policies/${p.id}`} className="hover:text-blue-600 hover:underline">{p.policy_number}</Link>
                           )}
                         </td>
-                        <td className="px-4 py-3 truncate text-slate-700">{p.customer?.name || '—'}</td>
-                        <td className="px-4 py-3 truncate text-slate-700">{p.insurer?.name || '—'}</td>
-                        <td className="px-4 py-3 text-slate-600 text-xs truncate">
+                        <td className="px-3 py-3 truncate text-slate-700 max-w-[140px]">{p.customer?.name || '—'}</td>
+                        <td className="px-3 py-3 truncate text-slate-700 max-w-[160px]">{p.insurer?.name || '—'}</td>
+                        <td className="px-3 py-3 text-slate-600 text-xs truncate max-w-[120px]">
                           {p.policy_type ? (
                             <div className="flex flex-col gap-1 min-w-0">
                                <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-sm w-max uppercase text-[9px] tracking-wider border border-indigo-100">{p.policy_type.split(' | ')[0] || 'General'}</span>
@@ -475,21 +475,21 @@ export default function PoliciesPage() {
                             </div>
                           ) : '—'}
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                        <td className="px-3 py-3 text-xs text-slate-500 whitespace-nowrap">
                           <div className="font-medium text-slate-700 mb-0.5">{p.start_date ? new Date(p.start_date).toLocaleDateString('en-GB') : '—'}</div>
                           <div className="opacity-70 text-[10px] uppercase">to {p.expiry_date ? new Date(p.expiry_date).toLocaleDateString('en-GB') : '—'}</div>
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-700 font-medium whitespace-nowrap">
+                        <td className="px-3 py-3 text-right text-slate-700 font-medium whitespace-nowrap">
                           {p.premium_amount ? <span>₹{p.premium_amount.toLocaleString('en-IN')}</span> : '—'}
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-2 py-3 text-center">
                            <Link href={`/app/policies/${p.id}`}>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 inline-flex" title="View Details">
                                 <Eye className="w-4 h-4" />
                               </Button>
                            </Link>
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-2 py-3 text-center">
                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 inline-flex" onClick={(e) => deleteSingle(p.id, e)} title="Delete Policy">
                              <Trash2 className="w-4 h-4" />
                            </Button>

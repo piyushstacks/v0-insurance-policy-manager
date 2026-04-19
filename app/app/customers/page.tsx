@@ -135,7 +135,7 @@ export default function CustomersPage() {
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
+    <div className="flex flex-col h-full bg-slate-50 max-w-[1600px] mx-auto w-full">
       {/* Header */}
       <div className="px-6 py-4 border-b bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -218,8 +218,8 @@ export default function CustomersPage() {
             </div>
 
             {/* Table header */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[800px]">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse min-w-full table-auto">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
                     <th className="px-4 py-3 w-10">

@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { getUserTeam, removeMember, leaveTeam } from '@/services/team';
+import { getUserTeam, removeMember, leaveTeam, updateMemberRole } from '@/services/team';
 
 async function getUser(request: NextRequest) {
   const cookieStore = await cookies();
@@ -47,9 +47,9 @@ export async function DELETE(request: NextRequest) {
     }
   }
 
-  // Admin removing a member
-  if (membership.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Only admins can remove members.' }, { status: 403 });
+  // Admin / Sub-Admin removing a member
+  if (membership.role !== 'ADMIN' && membership.role !== 'SUB_ADMIN') {
+    return NextResponse.json({ error: 'Only admins or sub-admins can remove members.' }, { status: 403 });
   }
 
   if (!targetUserId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
@@ -61,3 +61,34 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  const user = await getUser(request);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = await request.json().catch(() => ({}));
+  const { userId: targetUserId, role: newRole } = body;
+
+  const membership = await getUserTeam(user.id);
+  if (!membership) return NextResponse.json({ error: 'Not in a team' }, { status: 400 });
+
+  if (membership.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Only the main admin can change roles.' }, { status: 403 });
+  }
+
+  if (!targetUserId || !newRole) {
+    return NextResponse.json({ error: 'userId and role required' }, { status: 400 });
+  }
+
+  if (!['ADMIN', 'SUB_ADMIN', 'MEMBER'].includes(newRole)) {
+     return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+  }
+
+  try {
+    await updateMemberRole(membership.team_id, targetUserId, newRole, user.id);
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400 });
+  }
+}
+

@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
   const statusFilter = request.nextUrl.searchParams.get('status') as ActionRequestStatus | null;
   const requests = await getActionRequests(membership.team_id, statusFilter || undefined);
 
-  // Members only see their own requests; admins see all
-  const filtered = membership.role === 'ADMIN'
+  // Members only see their own requests; admins and sub-admins see all
+  const filtered = (membership.role === 'ADMIN' || membership.role === 'SUB_ADMIN')
     ? requests
     : requests?.filter((r: any) => r.requested_by === user.id);
 
@@ -96,8 +96,8 @@ export async function PATCH(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const membership = await getUserTeam(user.id);
-  if (!membership || membership.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Only admins can approve or reject requests.' }, { status: 403 });
+  if (!membership || (membership.role !== 'ADMIN' && membership.role !== 'SUB_ADMIN')) {
+    return NextResponse.json({ error: 'Only admins or sub-admins can approve or reject requests.' }, { status: 403 });
   }
 
   const { requestId, decision, note } = await request.json() as {

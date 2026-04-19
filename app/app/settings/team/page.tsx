@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 interface Member {
   id: string;
   user_id: string;
-  role: 'ADMIN' | 'MEMBER';
+  role: 'ADMIN' | 'SUB_ADMIN' | 'MEMBER';
   status: string;
   joined_at: string;
   email?: string;
@@ -31,7 +31,7 @@ interface Invitation {
 
 interface TeamData {
   team: { id: string; name: string; admin_id: string } | null;
-  role: 'ADMIN' | 'MEMBER' | null;
+  role: 'ADMIN' | 'SUB_ADMIN' | 'MEMBER' | null;
   members: Member[];
   invitations: Invitation[];
 }
@@ -140,6 +140,8 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
 
   const { team, role, members, invitations } = data;
   const isAdmin = role === 'ADMIN';
+  const isSubAdmin = role === 'SUB_ADMIN';
+  const canManageTeam = isAdmin || isSubAdmin;
 
   async function handleInvite() {
     if (!inviteEmail.includes('@')) return;
@@ -174,6 +176,22 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       toast.success('Member removed.');
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
+  async function handleUpdateRole(userId: string, newRole: string) {
+    try {
+      const res = await fetch('/api/team/members', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role: newRole }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      toast.success('Member role updated.');
       onRefresh();
     } catch (e: any) {
       toast.error(e.message);
@@ -260,10 +278,10 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
             <div>
               <h1 className="text-2xl font-black text-slate-900">{team?.name}</h1>
               <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                isAdmin ? 'bg-amber-100 text-amber-700' : isSubAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
               }`}>
                 {isAdmin ? <Crown className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
-                {role}
+                {role === 'SUB_ADMIN' ? 'SUB ADMIN' : role}
               </span>
             </div>
           </div>
@@ -294,8 +312,8 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
         ))}
       </div>
 
-      {/* ── Invite (Admin only) ── */}
-      {isAdmin && (
+      {/* ── Invite (Admin / SubAdmin only) ── */}
+      {canManageTeam && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
           <h2 className="font-bold text-slate-900 flex items-center gap-2">
             <Mail className="w-4 h-4 text-blue-600" /> Invite a Member
@@ -356,17 +374,31 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                    member.role === 'ADMIN' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {member.role}
-                  </span>
-                  {isAdmin && member.role !== 'ADMIN' && (
+                  {isAdmin && member.role !== 'ADMIN' ? (
+                     <select 
+                       value={member.role}
+                       onChange={(e) => handleUpdateRole(member.user_id, e.target.value)}
+                       className="text-xs font-bold px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer outline-none hover:bg-slate-100 focus:ring-2 focus:ring-blue-100"
+                     >
+                       <option value="MEMBER">MEMBER</option>
+                       <option value="SUB_ADMIN">SUB ADMIN</option>
+                     </select>
+                  ) : (
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                      member.role === 'ADMIN' ? 'bg-amber-100 text-amber-700' : 
+                      member.role === 'SUB_ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {member.role === 'SUB_ADMIN' ? 'SUB ADMIN' : member.role}
+                    </span>
+                  )}
+
+                  {canManageTeam && member.role !== 'ADMIN' && (
                     <Button
                       onClick={() => handleRemoveMember(member.user_id)}
                       variant="ghost"
                       size="icon"
-                      className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg h-8 w-8"
+                      className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg h-8 w-8 ml-1"
+                      title="Remove Member"
                     >
                       <UserX className="w-3.5 h-3.5" />
                     </Button>
@@ -378,8 +410,8 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
         </div>
       </div>
 
-      {/* ── Pending Invitations (Admin only) ── */}
-      {isAdmin && pendingInvites.length > 0 && (
+      {/* ── Pending Invitations (Admin / SubAdmin only) ── */}
+      {canManageTeam && pendingInvites.length > 0 && (
         <div className="bg-white border border-amber-200 rounded-3xl p-6 shadow-sm">
           <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-amber-500" /> Pending Invitations ({pendingInvites.length})
@@ -423,18 +455,18 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
 
       {/* ── Member Permissions Info ── */}
       {!isAdmin && (
-        <div className="bg-blue-50 border border-blue-200 rounded-3xl p-6">
-          <h2 className="font-bold text-blue-900 flex items-center gap-2 mb-3">
+        <div className={`border rounded-3xl p-6 ${isSubAdmin ? 'bg-purple-50 border-purple-200' : 'bg-blue-50 border-blue-200'}`}>
+          <h2 className={`font-bold flex items-center gap-2 mb-3 ${isSubAdmin ? 'text-purple-900' : 'text-blue-900'}`}>
             <Shield className="w-4 h-4" /> Your Permissions
           </h2>
           <div className="grid sm:grid-cols-2 gap-2 text-sm">
             {[
               { can: true, text: 'View all policies & customers' },
               { can: true, text: 'Add clients & upload policies' },
-              { can: true, text: 'Request edits or deletes' },
-              { can: false, text: 'Delete records directly' },
-              { can: false, text: 'Manage team or invite members' },
-              { can: false, text: 'Access billing data' },
+              { can: true, text: isSubAdmin ? 'Approve/reject changes' : 'Request edits or deletes' },
+              { can: isSubAdmin, text: 'Delete records directly' },
+              { can: isSubAdmin, text: 'Manage team or invite members' },
+              { can: false, text: 'Access billing or update roles' },
             ].map(({ can, text }) => (
               <div key={text} className="flex items-center gap-2">
                 {can

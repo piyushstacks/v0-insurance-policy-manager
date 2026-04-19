@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const membership = await getUserTeam(user.id);
-  if (!membership || membership.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Only team admins can invite members.' }, { status: 403 });
+  if (!membership || (membership.role !== 'ADMIN' && membership.role !== 'SUB_ADMIN')) {
+    return NextResponse.json({ error: 'Only team admins or sub-admins can invite members.' }, { status: 403 });
   }
 
   const body = await request.json();
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const membership = await getUserTeam(user.id);
-  if (!membership || membership.role !== 'ADMIN') {
+  if (!membership || (membership.role !== 'ADMIN' && membership.role !== 'SUB_ADMIN')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -110,8 +110,8 @@ export async function PATCH(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const membership = await getUserTeam(user.id);
-  if (!membership || membership.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Only team admins can resend invitations.' }, { status: 403 });
+  if (!membership || (membership.role !== 'ADMIN' && membership.role !== 'SUB_ADMIN')) {
+    return NextResponse.json({ error: 'Only team admins or sub-admins can resend invitations.' }, { status: 403 });
   }
 
   try {
@@ -176,7 +176,7 @@ export async function DELETE(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const membership = await getUserTeam(user.id);
-  if (!membership || membership.role !== 'ADMIN') {
+  if (!membership || (membership.role !== 'ADMIN' && membership.role !== 'SUB_ADMIN')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

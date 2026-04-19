@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const [members, invitations] = await Promise.all([
       getTeamMembers(teamId),
-      role === 'ADMIN' ? getTeamInvitations(teamId) : Promise.resolve([]),
+      (role === 'ADMIN' || role === 'SUB_ADMIN') ? getTeamInvitations(teamId) : Promise.resolve([]),
     ]);
 
     // membership.teams is the joined teams row

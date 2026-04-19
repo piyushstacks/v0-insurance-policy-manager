@@ -5,7 +5,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import crypto from 'crypto';
 
-export type TeamRole = 'ADMIN' | 'MEMBER';
+export type TeamRole = 'ADMIN' | 'SUB_ADMIN' | 'MEMBER';
 export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'EXPIRED';
 export type ActionRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type ActionRequestType =
@@ -121,9 +121,38 @@ export async function getTeamMembers(teamId: string): Promise<TeamMemberWithProf
   return enriched as TeamMemberWithProfile[];
 }
 
-export async function removeMember(teamId: string, userId: string, adminUserId: string) {
+export async function updateMemberRole(teamId: string, targetUserId: string, newRole: TeamRole, requesterUserId: string) {
+  const team = await getTeam(teamId);
+  
+  // Only the main admin (team owner) can change roles
+  if (team.admin_id !== requesterUserId) {
+    throw new Error('Only the main team admin can change member roles.');
+  }
+  
+  if (team.admin_id === targetUserId) {
+    throw new Error('Cannot change the role of the main team admin.');
+  }
+
+  // Update in team_members
+  await supabaseAdmin!.from('team_members')
+    .update({ role: newRole })
+    .eq('team_id', teamId)
+    .eq('user_id', targetUserId);
+
+  // Update in user_profiles
+  await supabaseAdmin!.from('user_profiles')
+    .update({ role: newRole })
+    .eq('id', targetUserId);
+}
+
+export async function removeMember(teamId: string, userId: string, requesterUserId: string) {
   const team = await getTeam(teamId);
   if (team.admin_id === userId) throw new Error('Cannot remove the team admin.');
+
+  const requesterRole = await getUserRole(requesterUserId, teamId);
+  if (requesterRole !== 'ADMIN' && requesterRole !== 'SUB_ADMIN') {
+    throw new Error('Only admins or sub-admins can remove members.');
+  }
 
   await supabaseAdmin!.from('team_members')
     .delete()

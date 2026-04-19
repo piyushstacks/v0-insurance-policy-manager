@@ -35,7 +35,7 @@ export default function ApprovalCenterPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
   const [processing, setProcessing] = useState<string | null>(null);
-  const [role, setRole] = useState<'ADMIN' | 'MEMBER' | null>(null);
+  const [role, setRole] = useState<'ADMIN' | 'SUB_ADMIN' | 'MEMBER' | null>(null);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -94,7 +94,7 @@ export default function ApprovalCenterPage() {
             Approval Center
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            {role === 'ADMIN'
+            {role === 'ADMIN' || role === 'SUB_ADMIN'
               ? 'Review and approve member action requests.'
               : 'Track your pending action requests.'}
           </p>
@@ -206,8 +206,8 @@ export default function ApprovalCenterPage() {
                     </div>
                   </div>
 
-                  {/* Admin action buttons */}
-                  {role === 'ADMIN' && isPending && (
+                  {/* Admin/SubAdmin action buttons */}
+                  {(role === 'ADMIN' || role === 'SUB_ADMIN') && isPending && (
                     <div className="flex gap-2 shrink-0">
                       <Button
                         onClick={() => {

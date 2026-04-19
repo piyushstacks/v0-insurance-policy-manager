@@ -9,6 +9,7 @@ import { cookies } from 'next/headers';
 import { getUserTeam, inviteMember } from '@/services/team';
 import { sendEmail, teamInviteEmail } from '@/services/email';
 import { supabaseAdmin } from '@/lib/supabase';
+import { teamInviteSchema } from '@/lib/schemas';
 
 async function getUser(request: NextRequest) {
   const cookieStore = await cookies();
@@ -37,8 +38,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Only team admins can invite members.' }, { status: 403 });
   }
 
-  const { email } = await request.json();
-  if (!email?.includes('@')) return NextResponse.json({ error: 'Valid email required.' }, { status: 400 });
+  const body = await request.json();
+
+  // Validate email first
+  const parsed = teamInviteSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
+  }
+  const { email } = parsed.data;
+
 
   try {
     const invite = await inviteMember(membership.team_id, email, user.id);

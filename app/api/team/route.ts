@@ -64,7 +64,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ team, role, members, invitations });
   } catch (err: any) {
     console.error('[GET /api/team] error:', err);
-    return NextResponse.json({ error: err.message || 'Failed to load team', team: null, role: null, members: [], invitations: [] }, { status: 500 });
+    return NextResponse.json(
+      { 
+        error: String(err.stack || err.message || err) || 'Failed to load team', 
+        team: null, role: null, members: [], invitations: [] 
+      }, 
+      { status: 500 }
+    );
   }
 }
 

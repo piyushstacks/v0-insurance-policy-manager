@@ -1,8 +1,23 @@
 import { z } from 'zod';
 
-// Auth schemas
+// ─── REUSABLE VALIDATORS ───────────────────────────────────────────
+const emailField = z.string().email('Invalid email address').trim();
+const optionalEmail = z.string().email('Invalid email address').trim().optional().or(z.literal(''));
+// Indian phone: 10-digit or with +91 prefix, or blank
+const phoneRegex = /^(?:\+91[\s-]?)?[6-9]\d{9}$|^$/;
+const optionalPhone = z
+  .string()
+  .trim()
+  .refine(
+    (v) => v === '' || phoneRegex.test(v.replace(/\s/g, '')),
+    'Enter a valid 10-digit Indian mobile number'
+  )
+  .optional()
+  .or(z.literal(''));
+
+// ─── AUTH ────────────────────────────────────────────────────────
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: emailField,
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -14,18 +29,20 @@ export const signupSchema = loginSchema.extend({
   path: ['confirmPassword'],
 });
 
-// Customer schemas
+// ─── CUSTOMER ────────────────────────────────────────────────────
 export const customerSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address').optional().or(z.literal('')),
-  phone: z.string().optional().or(z.literal('')),
+  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  email: optionalEmail,
+  phone: optionalPhone,
+  mobile: optionalPhone,
+  address: z.string().trim().optional().or(z.literal('')),
 });
 
-// Insurer schemas
+// ─── INSURER ─────────────────────────────────────────────────────
 export const insurerSchema = z.object({
-  name: z.string().min(2, 'Insurer name is required'),
-  contact_email: z.string().email().optional().or(z.literal('')),
-  contact_phone: z.string().optional().or(z.literal('')),
+  name: z.string().trim().min(2, 'Insurer name is required'),
+  contact_email: optionalEmail,
+  contact_phone: optionalPhone,
 });
 
 // Policy schemas
@@ -82,6 +99,11 @@ export const extractionResultSchema = z.object({
   additional_fields: z.record(z.any()).optional(),
 });
 
+// ─── TEAM ────────────────────────────────────────────────────────
+export const teamInviteSchema = z.object({
+  email: emailField,
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type CustomerInput = z.infer<typeof customerSchema>;
@@ -90,3 +112,4 @@ export type PolicyInput = z.infer<typeof policySchema>;
 export type PolicyUpdateInput = z.infer<typeof policyUpdateSchema>;
 export type DocumentUploadInput = z.infer<typeof documentUploadSchema>;
 export type ExtractionResult = z.infer<typeof extractionResultSchema>;
+export type TeamInviteInput = z.infer<typeof teamInviteSchema>;

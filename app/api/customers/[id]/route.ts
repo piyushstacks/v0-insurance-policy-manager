@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { customerSchema } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
 
@@ -46,13 +47,20 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
     const params = await props.params;
     const body = await request.json();
 
+    // Validate fields before DB write
+    const parsed = customerSchema.partial().safeParse(body);
+    if (!parsed.success) {
+      const errors = parsed.error.errors.map(e => e.message).join(', ');
+      return NextResponse.json({ error: errors }, { status: 400 });
+    }
+
     const { data: updated, error } = await supabaseAdmin!
       .from('customers')
       .update({
-        name: body.name,
-        email: body.email,
-        mobile: body.mobile,
-        address: body.address
+        name: parsed.data.name,
+        email: parsed.data.email || null,
+        mobile: parsed.data.mobile || parsed.data.phone || null,
+        address: parsed.data.address || null,
       })
       .eq('id', params.id)
       .select()
@@ -65,3 +73,4 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+

@@ -5,28 +5,23 @@
 
 import nodemailer from 'nodemailer';
 
-// Create transporter singleton
-let _transporter: nodemailer.Transporter | null = null;
-
+// Create transporter — re-reads env vars every time (no stale singleton cache)
 function getTransporter(): nodemailer.Transporter {
-  if (_transporter) return _transporter;
-
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
   if (!user || !pass) {
-    console.warn('[Email] SMTP_USER or SMTP_PASS not set — emails will not be sent');
-    // Return a preview transport that logs
-    _transporter = nodemailer.createTransport({ jsonTransport: true });
-    return _transporter;
+    console.warn('[Email] ⚠️  SMTP_USER or SMTP_PASS not configured — email will be skipped.');
+    return nodemailer.createTransport({ jsonTransport: true });
   }
 
-  _transporter = nodemailer.createTransport({
-    service: 'gmail',
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
     auth: { user, pass },
+    tls: { rejectUnauthorized: false },
   });
-
-  return _transporter;
 }
 
 export interface SendEmailParams {
@@ -38,17 +33,24 @@ export interface SendEmailParams {
 
 export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; error?: string }> {
   const transporter = getTransporter();
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@policyvault.ai';
+  const smtpUser = process.env.SMTP_USER;
+  const from = process.env.SMTP_FROM || smtpUser || 'noreply@policyvault.ai';
+
+  if (!smtpUser) {
+    console.warn(`[Email] Skipping send to ${params.to} — SMTP not configured.`);
+    return { success: false, error: 'SMTP not configured.' };
+  }
 
   try {
+    // Verify connection before sending
+    await transporter.verify();
     const info = await transporter.sendMail({
-      from: `PolicyVault <${from}>`,
+      from,
       to: params.to,
       subject: params.subject,
       html: params.html,
       text: params.text,
     });
-
     console.log(`[Email] ✅ Sent to ${params.to} — MessageId: ${info.messageId}`);
     return { success: true };
   } catch (err: any) {

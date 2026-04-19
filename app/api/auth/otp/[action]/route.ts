@@ -16,10 +16,14 @@ export async function POST(request: NextRequest) {
     const { email, otp, purpose = 'login' } = body;
 
     // Strict validation
+    console.log(`[OTP] Validating email: "${email}"`);
     const emailResult = loginSchema.pick({ email: true }).safeParse({ email });
     if (!emailResult.success) {
+      console.log(`[OTP] Validation FAILED for "${email}":`, emailResult.error.errors[0].message);
       return NextResponse.json({ error: emailResult.error.errors[0].message }, { status: 400 });
     }
+    console.log(`[OTP] Validation PASSED for "${email}"`);
+
 
 
     if (action === 'verify') {

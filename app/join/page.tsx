@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
+import { emailRegex } from '@/lib/schemas';
 import { Suspense } from 'react';
 
 type State =
@@ -126,7 +127,7 @@ function JoinPageContent() {
   // ── Handle Login: send OTP ──────────────────────────────────────
   async function handleLoginSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.includes('@')) { setFormError('Valid email required.'); return; }
+    if (!emailRegex.test(email)) { setFormError('Enter a valid email with a domain (e.g. .com, .in)'); return; }
     const ok = await sendOTP('login');
     if (ok) {
       setOtp(['', '', '', '', '', '']);
@@ -140,7 +141,7 @@ function JoinPageContent() {
     e.preventDefault();
     setFormError('');
     if (!fullName.trim()) { setFormError('Full name is required.'); return; }
-    if (!email.includes('@')) { setFormError('Valid email required.'); return; }
+    if (!emailRegex.test(email)) { setFormError('Enter a valid email with a domain (e.g. .com, .in)'); return; }
     if (password.length < 8) { setFormError('Password must be at least 8 characters.'); return; }
     if (password !== confirmPwd) { setFormError('Passwords do not match.'); return; }
 
@@ -293,7 +294,7 @@ function JoinPageContent() {
                     onChange={e => setEmail(e.target.value)} disabled={loading}
                     className="pl-10 h-12 rounded-2xl bg-white/5 border-white/20 text-white placeholder:text-slate-500" />
                 </div>
-                <Button type="submit" disabled={loading || !email.includes('@')}
+                <Button type="submit" disabled={loading || !emailRegex.test(email)}
                   className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-semibold gap-2">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Mail className="w-4 h-4" /> Send Code</>}
                 </Button>
@@ -343,7 +344,7 @@ function JoinPageContent() {
                     value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} disabled={loading}
                     className="pl-10 h-11 rounded-2xl bg-white/5 border-white/20 text-white placeholder:text-slate-500" />
                 </div>
-                <Button type="submit" disabled={loading}
+                <Button type="submit" disabled={loading || !emailRegex.test(email)}
                   className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-semibold gap-2 mt-1">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Continue</>}
                 </Button>

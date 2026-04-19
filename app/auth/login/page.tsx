@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Shield, Mail, ArrowRight, RefreshCw, Loader2, CheckCircle } from 'lucide-react';
 import { Suspense } from 'react';
+import { emailRegex } from '@/lib/schemas';
 
 function LoginContent() {
   const router = useRouter();
@@ -191,7 +192,7 @@ function LoginContent() {
                 </div>
                 <Button
                   type="submit"
-                  disabled={loading || !email.includes('@')}
+                  disabled={loading || !emailRegex.test(email)}
                   className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold gap-2 shadow-lg shadow-blue-200"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Mail className="w-4 h-4" /> Send Code</>}

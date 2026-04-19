@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { emailRegex } from '@/lib/schemas';
 
 interface Member {
   id: string;
@@ -144,7 +145,10 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
   const canManageTeam = isAdmin || isSubAdmin;
 
   async function handleInvite() {
-    if (!inviteEmail.includes('@')) return;
+    if (!emailRegex.test(inviteEmail)) {
+      toast.error('Enter a valid email with a domain (e.g. .com, .in)');
+      return;
+    }
     setInviting(true);
     try {
       const res = await fetch('/api/team/invite', {
@@ -329,7 +333,7 @@ function TeamViewPage({ data, onRefresh }: { data: TeamData; onRefresh: () => vo
             />
             <Button
               onClick={handleInvite}
-              disabled={inviting || !inviteEmail.includes('@')}
+              disabled={inviting || !emailRegex.test(inviteEmail)}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl gap-1.5 h-11 shrink-0"
             >
               {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}

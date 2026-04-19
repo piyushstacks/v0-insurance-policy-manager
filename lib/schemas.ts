@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // ─── REUSABLE VALIDATORS ───────────────────────────────────────────
 // Strict email: must have @ and a dot in the domain part
-const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+export const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 const emailField = z
   .string()
@@ -16,6 +16,7 @@ const optionalEmail = z
   .optional()
   .or(z.literal(''))
   .refine((val) => !val || emailRegex.test(val), { message: 'Invalid email domain' });
+
 // Indian phone: 10-digit or with +91 prefix, or blank
 const phoneRegex = /^(?:\+91[\s-]?)?[6-9]\d{9}$|^$/;
 const optionalPhone = z
@@ -125,5 +126,5 @@ export type InsurerInput = z.infer<typeof insurerSchema>;
 export type PolicyInput = z.infer<typeof policySchema>;
 export type PolicyUpdateInput = z.infer<typeof policyUpdateSchema>;
 export type DocumentUploadInput = z.infer<typeof documentUploadSchema>;
-export type ExtractionResult = z.infer<typeof extractionResultSchema>;
+export type ExtractionResultInput = z.infer<typeof extractionResultSchema>;
 export type TeamInviteInput = z.infer<typeof teamInviteSchema>;

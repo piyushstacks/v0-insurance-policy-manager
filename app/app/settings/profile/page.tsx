@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { emailRegex } from '@/lib/schemas';
 
 interface Profile {
   id: string;
@@ -113,7 +114,7 @@ export default function ProfileSectionPage() {
     }
   }
 
-  const emailIsChanged = newEmail !== profile?.email && newEmail.includes('@');
+  const emailIsChanged = newEmail !== profile?.email && emailRegex.test(newEmail);
 
   if (loading) return (
     <div className="flex items-center justify-center h-48">
@@ -174,7 +175,13 @@ export default function ProfileSectionPage() {
 
         {emailIsChanged && !otpSent && (
           <Button
-            onClick={sendOTP}
+            onClick={() => {
+              if (!emailRegex.test(newEmail)) {
+                toast.error('Enter a valid email with a domain (e.g. .com, .in)');
+                return;
+              }
+              sendOTP();
+            }}
             disabled={otpSending || otpCooldown > 0}
             variant="outline"
             className="gap-2 rounded-xl border-blue-300 text-blue-600 hover:bg-blue-50"

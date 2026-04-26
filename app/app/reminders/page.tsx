@@ -13,7 +13,8 @@ import {
   ExternalLink,
   ShieldAlert,
   Clock,
-  History
+  History,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageLoader } from '@/components/ui/loader';

@@ -8,9 +8,10 @@ export const runtime = 'nodejs';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await props.params;
     const reminderId = params.id;
     const cookieStore = await cookies();
     

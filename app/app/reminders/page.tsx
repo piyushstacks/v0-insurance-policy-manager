@@ -87,13 +87,12 @@ export default function RemindersPage() {
     fetchData();
   }, []);
 
-  const handleManualSend = async (reminder: Reminder) => {
-    const customer = reminder.policies?.customers;
+  const handleManualSend = async (policy: Policy) => {
+    const customer = policy?.customers;
     
     // UI-side validation as requested
     const email = customer?.email?.toLowerCase() || '';
     const isDummyEmail = !email || email.includes('xxxx') || email.includes('dummy') || email.includes('example.com') || email.includes('upload.local');
-    const isDummyPhone = !customer?.mobile || customer.mobile.length < 10 || customer.mobile.includes('0000000000');
 
     if (isDummyEmail) {
       toast.error('Cannot send reminder: Invalid Email', {
@@ -102,16 +101,15 @@ export default function RemindersPage() {
       return;
     }
 
-    setSendingId(reminder.id);
+    setSendingId(policy.id);
     try {
-      const res = await fetch(`/api/reminders/${reminder.id}/send`, { method: 'POST' });
+      const res = await fetch(`/api/policies/${policy.id}/send`, { method: 'POST' });
       const data = await res.json();
       
-      if (!res.ok) throw new Error(data.error || 'Failed to send reminder');
+      if (!res.ok) throw new Error(data.error || 'Failed to send notification');
       
-      toast.success('Reminder triggered successfully');
-      // Refresh list to show updated status
-      fetchData();
+      toast.success('Ad-hoc notification sent successfully');
+      // No need to refresh data since it doesn't affect automated journey statuses
     } catch (err: any) {
       toast.error('Send Failed', { description: err.message });
     } finally {
@@ -261,22 +259,30 @@ export default function RemindersPage() {
                               {lifecycleStages.map((stage) => {
                                  const reminder = policyReminders.find(r => r.reminder_type === stage.type);
                                  const isSent = reminder?.status === 'sent';
-                                 const isPending = reminder?.status === 'pending';
+                                 
+                                 // Determine the first pending chronologically for 'Due' vs 'Wait'
+                                 const firstPending = lifecycleStages.find(s => {
+                                    const r = policyReminders.find(pr => pr.reminder_type === s.type);
+                                    return r?.status === 'pending' || !r; 
+                                 });
+                                 const isPending = reminder?.status === 'pending' || !reminder;
+                                 const isDue = isPending && stage.type === firstPending?.type;
+                                 const isWait = isPending && !isDue;
 
                                  return (
                                     <div key={stage.type} className="relative z-10 flex flex-col items-center">
                                        <div 
                                           className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
                                              isSent ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100' :
-                                             isPending ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100 scale-110' :
-                                             'bg-white border-slate-200 text-slate-300'
+                                             isDue ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100 scale-110' :
+                                             'bg-blue-50 border-blue-300 text-blue-600'
                                           }`}
-                                          title={`${stage.label} reminder: ${reminder?.status || 'Not yet generated'}`}
+                                          title={`${stage.label} reminder: ${reminder?.status || 'Active'}`}
                                        >
                                           {isSent ? <CheckCircle className="w-4 h-4" /> : <span className="text-[10px] font-black">{stage.label}</span>}
                                        </div>
-                                       <span className={`text-[9px] font-bold mt-2 uppercase tracking-tighter ${isPending ? 'text-blue-600' : 'text-slate-400'}`}>
-                                          {isPending ? 'Due' : isSent ? 'Sent' : 'Wait'}
+                                       <span className={`text-[9px] font-bold mt-2 uppercase tracking-tighter ${isSent ? 'text-emerald-600' : isDue ? 'text-blue-600' : 'text-slate-400'}`}>
+                                          {isSent ? (reminder?.updated_at ? new Date(reminder.updated_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'Sent') : isDue ? 'Due' : 'Wait'}
                                        </span>
                                     </div>
                                  );
@@ -302,17 +308,15 @@ export default function RemindersPage() {
                         </div>
 
                         <div className="flex flex-col gap-2 w-full">
-                           {nextPending && (
-                              <Button 
-                                 size="sm" 
-                                 className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 w-full font-bold text-xs"
-                                 onClick={() => handleManualSend(nextPending)}
-                                 disabled={sendingId === nextPending.id}
-                              >
-                                 {sendingId === nextPending.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-2" />}
-                                 {sendingId === nextPending.id ? 'Sending...' : 'Send Now'}
-                              </Button>
-                           )}
+                           <Button 
+                              size="sm" 
+                              className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 w-full font-bold text-[11px]"
+                              onClick={() => handleManualSend(policy)}
+                              disabled={sendingId === policy.id}
+                           >
+                              {sendingId === policy.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-2" />}
+                              {sendingId === policy.id ? 'Sending...' : 'Send Notification'}
+                           </Button>
                            <Link href={`/app/policies/${policy.id}`} className="w-full">
                               <Button variant="ghost" size="sm" className="h-10 w-full rounded-xl text-slate-500 hover:bg-slate-50 font-bold text-[11px] gap-2">
                                  View Details

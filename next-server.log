@@ -1,0 +1,10 @@
+
+> my-project@0.1.0 start
+> next start
+
+▲ Next.js 16.2.0
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.5:3000
+✓ Ready in 80ms
+[GET /api/team] membership: {"id":"96fb8a4c-fc29-409d-8a58-2ee7d30853b0","team_id":"4cf843c0-6de7-40bf-b34d-f03a5d1fa40a","user_id":"91f4537d-2e85-4283-98b9-a41fd4d546b5","role":"ADMIN","status":"ACTIVE","joined_at":"2026-04-15T19:58:22.304458+00:00","teams":{"id":"4cf843c0-6de7-40bf-b34d-f03a5d1fa40a","name":"Apex Solutions Team","admin_id":"91f4537d-2e85-4283-98b9-a41fd4d546b5","created_at":"2026-04-15T19:58:21.934145+00:00","updated_at":"2026-04-15T19:58:21.934145+00:00"}}
+[GET /api/team] team: 4cf843c0-6de7-40bf-b34d-f03a5d1fa40a role: ADMIN members: 2

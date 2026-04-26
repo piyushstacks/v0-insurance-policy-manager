@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
            policy_type
          )
       `)
+      .neq('name', 'Bulk Upload Customer')
       .order('name', { ascending: true });
 
     if (error) throw error;

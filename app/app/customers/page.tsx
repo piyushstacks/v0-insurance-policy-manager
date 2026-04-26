@@ -35,7 +35,7 @@ export default function CustomersPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const { isAdmin } = useTeam();
+  const { canDirectlyAct } = useTeam();
 
   useEffect(() => {
     fetchCustomers();
@@ -157,7 +157,7 @@ export default function CustomersPage() {
               className="pl-9 h-10 rounded-xl bg-slate-50 border-slate-200"
             />
           </div>
-          {selected.size > 0 && isAdmin && (
+          {selected.size > 0 && canDirectlyAct && (
             <Button
               onClick={handleBulkDelete}
               disabled={isDeleting}
@@ -305,7 +305,7 @@ export default function CustomersPage() {
                       <td className="px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <RoleActionButton
-                            isAdmin={isAdmin}
+                            canDirectlyAct={canDirectlyAct}
                             requestType="DELETE_CUSTOMER"
                             entityId={c.id}
                             entityType="customer"

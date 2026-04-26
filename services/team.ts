@@ -25,14 +25,19 @@ export interface TeamMemberWithProfile {
 
 // ─── TEAM CRUD ────────────────────────────────────────────────────
 
-export async function createTeam(adminUserId: string, teamName: string) {
+export async function createTeam(adminUserId: string, teamName: string, email?: string, phone?: string) {
   // One team per user
   const existing = await getUserTeam(adminUserId);
   if (existing) throw new Error('You are already part of a team. Leave first to create a new one.');
 
   const { data: team, error } = await supabaseAdmin!
     .from('teams')
-    .insert([{ name: teamName, admin_id: adminUserId }])
+    .insert([{ 
+      name: teamName, 
+      admin_id: adminUserId,
+      email: email || null,
+      phone: phone || null
+    }])
     .select('*')
     .single();
 

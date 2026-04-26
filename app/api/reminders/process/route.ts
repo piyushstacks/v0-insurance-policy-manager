@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       // return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Fetch all due pending reminders that haven't been sent
+    // 2. Fetch all due pending reminders that haven't been sent with policy and team details
     const { data: reminders, error } = await supabaseAdmin!
       .from('reminders')
       .select(`
@@ -21,11 +21,17 @@ export async function POST(request: Request) {
         policies (
           id,
           policy_number,
+          policy_type,
           expiry_date,
-          net_premium,
+          premium_amount,
           customers (
             name,
             email
+          ),
+          teams (
+            name,
+            email,
+            phone
           )
         )
       `)
@@ -46,8 +52,10 @@ export async function POST(request: Request) {
       if (!policyData) continue;
 
       const customerData = policyData.customers;
+      const teamData = policyData.teams;
+      
       if (!customerData || !customerData.email) {
-        // Mark as failed or skipped if no email
+        // Mark as skipped if no email
         await supabaseAdmin!.from('reminders').update({ status: 'skipped', updated_at: new Date().toISOString() }).eq('id', reminder.id);
         continue;
       }
@@ -55,10 +63,13 @@ export async function POST(request: Request) {
       const emailParams = reminderEmail({
         customerName: customerData.name || 'Customer',
         policyNumber: policyData.policy_number,
+        policyCategory: policyData.policy_type?.split('|')[0]?.trim() || 'Insurance',
         dueDate: policyData.expiry_date,
         reminderType: reminder.reminder_type.includes('renewal') ? 'renewal' : 'premium',
-        premiumAmount: policyData.net_premium,
-        recipientEmail: customerData.email
+        premiumAmount: policyData.premium_amount,
+        recipientEmail: customerData.email,
+        agencyName: teamData?.name || 'Apex Solutions',
+        agencyContact: teamData?.phone || teamData?.email || ''
       });
 
       // Send email
@@ -68,7 +79,6 @@ export async function POST(request: Request) {
         await supabaseAdmin!.from('reminders').update({ status: 'sent', updated_at: new Date().toISOString() }).eq('id', reminder.id);
         sent++;
       } else {
-        // Leave pending for retry logic or mark failed. We'll leave pending for next cron to retry.
         failed++;
       }
     }

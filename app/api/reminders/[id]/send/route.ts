@@ -88,14 +88,27 @@ export async function POST(
       }, { status: 400 });
     }
 
+    // Fetch agency details (from current user's team)
+    const { data: profile } = await supabaseAdmin!
+      .from('user_profiles')
+      .select('full_name, mobile, teams(name)')
+      .eq('id', user.id)
+      .single();
+
+    const agencyName = (profile?.teams as any)?.name || 'Apex Solutions';
+    const agencyContact = profile?.mobile || user.email || '';
+
     // Send the email
     const emailParams = reminderEmail({
       customerName: customerData.name || 'Customer',
       policyNumber: policyData.policy_number,
+      policyCategory: policyData.policy_type?.split('|')[0]?.trim() || 'Insurance',
       dueDate: policyData.expiry_date,
       reminderType: reminder.reminder_type.includes('renewal') ? 'renewal' : 'premium',
       premiumAmount: policyData.premium_amount,
-      recipientEmail: customerData.email
+      recipientEmail: customerData.email,
+      agencyName,
+      agencyContact
     });
 
     const result = await sendEmail(emailParams);

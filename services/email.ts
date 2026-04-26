@@ -195,18 +195,36 @@ export function otpEmail(params: {
 export function reminderEmail(params: {
   customerName: string;
   policyNumber: string;
+  policyCategory?: string;
   dueDate: string;
   reminderType: 'renewal' | 'premium';
   premiumAmount?: number;
   recipientEmail: string;
+  agencyName?: string;
+  agencyContact?: string;
 }): SendEmailParams {
-  const { customerName, policyNumber, dueDate, reminderType, premiumAmount, recipientEmail } = params;
+  const { 
+    customerName, 
+    policyNumber, 
+    policyCategory = 'General',
+    dueDate, 
+    reminderType, 
+    premiumAmount, 
+    recipientEmail,
+    agencyName = 'PolicyVault',
+    agencyContact = ''
+  } = params;
+
   const typeLabel = reminderType === 'renewal' ? 'Policy Renewal' : 'Premium Payment';
   const due = new Date(dueDate).toLocaleDateString('en-IN', { dateStyle: 'long' });
+  
+  // Logic: Only show amount for Life Insurance. For others, hide it to prevent confusion with variable renewal rates.
+  const isLifeInsurance = policyCategory.toLowerCase().includes('life');
+  const showAmount = isLifeInsurance && premiumAmount && premiumAmount > 0;
 
   return {
     to: recipientEmail,
-    subject: `Reminder: ${typeLabel} due on ${due} — Policy ${policyNumber}`,
+    subject: `Reminder: ${policyCategory} ${typeLabel} due on ${due} — Policy ${policyNumber}`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -217,27 +235,44 @@ export function reminderEmail(params: {
       <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
         <tr>
           <td style="background:linear-gradient(135deg,#f59e0b,#f97316);padding:32px;text-align:center;">
-            <h1 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 4px;">PolicyVault</h1>
-            <p style="color:rgba(255,255,255,0.85);font-size:13px;margin:0;">📅 ${typeLabel} Reminder</p>
+            <h1 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 4px;">${agencyName}</h1>
+            <p style="color:rgba(255,255,255,0.85);font-size:13px;margin:0;">📅 ${policyCategory} ${typeLabel} Reminder</p>
           </td>
         </tr>
         <tr>
           <td style="padding:40px;">
             <p style="font-size:16px;color:#0f172a;margin:0 0 20px;">Dear <strong>${customerName}</strong>,</p>
-            <p style="font-size:15px;color:#475569;margin:0 0 24px;line-height:1.6;">
-              This is a reminder that your <strong>${typeLabel.toLowerCase()}</strong> for policy
+            <p style="font-size:15px;color:#475569;margin:0 0 16px;line-height:1.6;">
+              This is a reminder that your <strong>${policyCategory} ${typeLabel.toLowerCase()}</strong> for policy
               <strong>${policyNumber}</strong> is due on <strong>${due}</strong>.
             </p>
-            ${premiumAmount ? `
-            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:16px;margin-bottom:24px;">
-              <p style="margin:0;color:#c2410c;font-weight:700;font-size:16px;">Amount Due: ₹${premiumAmount.toLocaleString('en-IN')}</p>
-            </div>` : ''}
-            <p style="color:#64748b;font-size:13px;margin:0;">Please ensure timely action to avoid policy lapse.</p>
+
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:16px;padding:20px;margin-bottom:24px;">
+              ${showAmount ? `
+                <p style="margin:0 0 4px;color:#c2410c;font-size:12px;text-transform:uppercase;font-weight:800;letter-spacing:1px;">Premium Amount</p>
+                <p style="margin:0;color:#c2410c;font-weight:900;font-size:24px;">₹${premiumAmount?.toLocaleString('en-IN')}</p>
+              ` : `
+                <p style="margin:0 0 4px;color:#c2410c;font-size:12px;text-transform:uppercase;font-weight:800;letter-spacing:1px;">Renewal Quote</p>
+                <p style="margin:0;color:#c2410c;font-weight:900;font-size:18px;">Contact Us for Exact Amount</p>
+              `}
+            </div>
+
+            <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:20px;">
+              <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;">Next Steps</p>
+              <p style="margin:0;font-size:14px;color:#334155;line-height:1.5;">
+                Please ensure timely action to avoid policy lapse. To renew or for any queries, please reach out to:
+                <br/><br/>
+                <strong>${agencyName}</strong><br/>
+                ${agencyContact ? `<span style="color:#d97706;font-weight:700;">${agencyContact}</span>` : ''}
+              </p>
+            </div>
+            
+            <p style="color:#94a3b8;font-size:12px;margin:0;">Thank you for choosing ${agencyName} for your insurance needs.</p>
           </td>
         </tr>
         <tr>
           <td style="background:#f8fafc;padding:16px;text-align:center;border-top:1px solid #e2e8f0;">
-            <p style="color:#94a3b8;font-size:11px;margin:0;">PolicyVault — Apex Solutions · Automated Reminder</p>
+            <p style="color:#94a3b8;font-size:11px;margin:0;">${agencyName} — Powered by PolicyVault AI</p>
           </td>
         </tr>
       </table>
@@ -245,6 +280,6 @@ export function reminderEmail(params: {
   </table>
 </body>
 </html>`,
-    text: `Hi ${customerName}, your ${typeLabel} for policy ${policyNumber} is due on ${due}.${premiumAmount ? ` Amount: ₹${premiumAmount}` : ''} — PolicyVault`,
+    text: `Hi ${customerName}, your ${policyCategory} ${typeLabel} for policy ${policyNumber} is due on ${due}. ${showAmount ? `Amount: ₹${premiumAmount}` : 'Contact Us for exact renewal amount.'} — ${agencyName}`,
   };
 }

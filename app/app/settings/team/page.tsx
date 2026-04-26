@@ -47,6 +47,8 @@ const ROLE_CONFIG = {
 function CreateTeamPage() {
   const router = useRouter();
   const [teamName, setTeamName] = useState('');
+  const [teamEmail, setTeamEmail] = useState('');
+  const [teamPhone, setTeamPhone] = useState('');
   const [creating, setCreating] = useState(false);
 
   async function handleCreate() {
@@ -56,7 +58,11 @@ function CreateTeamPage() {
       const res = await fetch('/api/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: teamName.trim() }),
+        body: JSON.stringify({ 
+          name: teamName.trim(),
+          email: teamEmail.trim(),
+          phone: teamPhone.trim()
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
@@ -73,40 +79,75 @@ function CreateTeamPage() {
     <div className="min-h-[80vh] flex items-center justify-center p-6">
       <div className="w-full max-w-lg">
         <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 border-2 border-blue-200 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-100">
-            <Users className="w-10 h-10 text-blue-600" />
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 border-2 border-white rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-xl shadow-blue-100">
+            <Shield className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 mb-2">Create Your Team</h1>
-          <p className="text-slate-500 max-w-sm mx-auto">
-            Set up a shared workspace for your colleagues. You'll be the <strong>Admin</strong> and can invite members.
+          <h1 className="text-3xl font-black text-slate-900 mb-2">Create Your Agency</h1>
+          <p className="text-slate-500 max-w-sm mx-auto text-sm">
+            Establish your business identity. PolicyVault uses these details for all automated client communications.
           </p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-[28px] p-8 shadow-xl shadow-slate-100 space-y-6">
-          <div>
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">
-              Team Name
-            </label>
-            <Input
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              placeholder="e.g. Apex Solutions"
-              className="h-12 rounded-2xl text-base font-semibold border-slate-200 focus:border-blue-400 focus:ring-blue-400/10"
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-              autoFocus
-            />
-            <p className="text-xs text-slate-400 mt-2 ml-1">This will be visible to all team members.</p>
+        <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-2xl shadow-slate-200/50 space-y-6">
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
+                Business / Team Name
+              </label>
+              <Input
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="e.g. Apex Solutions or Anil Bhagchandani Team"
+                className="h-14 rounded-2xl text-lg font-bold border-slate-200 focus:border-blue-500 focus:ring-blue-500/10 placeholder:text-slate-300"
+                autoFocus
+              />
+              <p className="text-[11px] text-blue-600 font-semibold mt-2 flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5" />
+                Use your business name or your full name as it should appear in emails.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
+                  Contact Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    value={teamEmail}
+                    onChange={(e) => setTeamEmail(e.target.value)}
+                    placeholder="office@agency.com"
+                    className="h-12 pl-11 rounded-xl font-medium border-slate-200"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
+                  Contact Phone
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    value={teamPhone}
+                    onChange={(e) => setTeamPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className="h-12 pl-11 rounded-xl font-medium border-slate-200"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <Button
-            onClick={handleCreate}
-            disabled={creating || !teamName.trim()}
-            className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-base gap-2 shadow-lg shadow-blue-200"
+          <Button 
+            onClick={handleCreate} 
+            disabled={!teamName.trim() || creating}
+            className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-black text-white font-bold text-lg transition-all hover:scale-[1.02] active:scale-100 disabled:opacity-50"
           >
             {creating ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Creating team...</>
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <><Plus className="w-5 h-5" /> Create Team</>
+              'Initialize Agency →'
             )}
           </Button>
 

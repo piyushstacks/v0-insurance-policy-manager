@@ -33,6 +33,10 @@ ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS reminder_preferences JSONB;
 ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS extracted_data JSONB;
 ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS confidence_score FLOAT;
 CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status_completed ON extraction_jobs(status, completed_at DESC);
+
+-- 4. Add Team Contact Details
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS phone TEXT;
       `.trim(),
       steps: [
         '1. Copy the SQL script above',

@@ -78,11 +78,11 @@ export async function POST(request: NextRequest) {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { name } = await request.json();
+  const { name, email, phone } = await request.json();
   if (!name?.trim()) return NextResponse.json({ error: 'Team name is required' }, { status: 400 });
 
   try {
-    const team = await createTeam(user.id, name.trim());
+    const team = await createTeam(user.id, name.trim(), email, phone);
     return NextResponse.json({ success: true, team });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 400 });

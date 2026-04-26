@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { getReminders, dismissReminder } from '@/services/reminders';
+import { getReminders, dismissReminder, generateExpiryReminders } from '@/services/reminders';
 
 export const runtime = 'nodejs';
 
@@ -45,6 +45,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const pageSize = Math.min(100, parseInt(searchParams.get('pageSize') || '20'));
+
+    // Dynamically regenerate upcoming reminders out to 365 days on load to guarantee UX is fully synced
+    await generateExpiryReminders(365).catch(err => console.error('[v0] Dynamic expiry reminder gen failed', err));
 
     const result = await getReminders(user.id, page, pageSize);
 

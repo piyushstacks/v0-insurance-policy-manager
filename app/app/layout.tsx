@@ -3,6 +3,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import Sidebar from '@/components/sidebar';
 import BottomNav from '@/components/bottom-nav';
+import { TeamProvider } from '@/hooks/use-team';
 
 export default async function AppLayout({
   children,
@@ -45,7 +46,9 @@ export default async function AppLayout({
       <Sidebar user={user} />
       <main className="flex-1 w-full flex flex-col min-w-0 h-screen">
         <div className="flex-1 overflow-y-auto w-full pb-20 lg:pb-0 relative">
-          {children}
+          <TeamProvider>
+            {children}
+          </TeamProvider>
         </div>
       </main>
       <BottomNav />

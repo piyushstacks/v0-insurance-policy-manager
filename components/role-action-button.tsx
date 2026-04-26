@@ -11,13 +11,14 @@ export type ActionRequestType =
   | 'DELETE_DOCUMENT';
 
 interface RoleActionButtonProps {
-  /** If true (ADMIN), executes directAction immediately. If false (MEMBER), creates an action request */
-  isAdmin: boolean;
+  /** If true (ADMIN or SUB_ADMIN), executes directAction immediately.
+   *  If false (MEMBER only), creates an action request for approval. */
+  canDirectlyAct: boolean;
   /** The action type for approval workflow */
   requestType: ActionRequestType;
   entityId: string;
   entityType: string;
-  /** Called immediately when admin performs action */
+  /** Called immediately when admin/sub-admin performs action */
   directAction: () => Promise<void>;
   /** Label for the button */
   label?: string;
@@ -37,7 +38,7 @@ interface RoleActionButtonProps {
  * - Member: sends an ActionRequest to /api/team/requests (approval needed)
  */
 export function RoleActionButton({
-  isAdmin,
+  canDirectlyAct,
   requestType,
   entityId,
   entityType,
@@ -54,7 +55,7 @@ export function RoleActionButton({
   const [requestStatus, setRequestStatus] = useState<'idle' | 'pending' | 'submitted'>('idle');
 
   async function handleClick() {
-    if (isAdmin) {
+    if (canDirectlyAct) {
       // Admin: direct execution
       setLoading(true);
       try {
@@ -96,7 +97,7 @@ export function RoleActionButton({
   }
 
   // Show status badge for members after submission
-  if (!isAdmin && requestStatus === 'pending') {
+  if (!canDirectlyAct && requestStatus === 'pending') {
     return (
       <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
         <Clock className="w-3 h-3" />
@@ -112,7 +113,7 @@ export function RoleActionButton({
       variant={variant}
       size={size}
       className={className}
-      title={isAdmin ? `${label} (Admin)` : `Request ${label} (Needs Approval)`}
+      title={canDirectlyAct ? label : `Request ${label} (Needs Approval)`}
     >
       {loading ? (
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -121,7 +122,7 @@ export function RoleActionButton({
       ) : null}
       {size !== 'icon' && (
         <span className="ml-1">
-          {isAdmin ? label : `Request ${label}`}
+          {canDirectlyAct ? label : `Request ${label}`}
         </span>
       )}
     </Button>

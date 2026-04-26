@@ -72,7 +72,7 @@ export default function PolicyDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [reExtractingDoc, setReExtractingDoc] = useState<string | null>(null);
-  const { isAdmin } = useTeam();
+  const { canDirectlyAct } = useTeam();
 
   useEffect(() => {
     async function fetchPolicy() {
@@ -191,7 +191,7 @@ export default function PolicyDetailPage() {
             {policy.status}
           </span>
           <RoleActionButton
-            isAdmin={isAdmin}
+            canDirectlyAct={canDirectlyAct}
             requestType="DELETE_POLICY"
             entityId={policyId}
             entityType="policy"

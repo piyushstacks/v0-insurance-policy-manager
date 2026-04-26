@@ -3,12 +3,14 @@
 import { useState, useEffect, createContext, useContext, useCallback } from 'react';
 
 interface TeamContext {
-  role: 'ADMIN' | 'MEMBER' | null;
+  role: 'ADMIN' | 'SUB_ADMIN' | 'MEMBER' | null;
   teamId: string | null;
   teamName: string | null;
   loading: boolean;
   isAdmin: boolean;
+  isSubAdmin: boolean;
   isMember: boolean;
+  canDirectlyAct: boolean; // ADMIN or SUB_ADMIN — can delete/edit without approval
   hasTeam: boolean;
   refresh: () => void;
 }
@@ -19,7 +21,9 @@ const TeamCtx = createContext<TeamContext>({
   teamName: null,
   loading: true,
   isAdmin: false,
+  isSubAdmin: false,
   isMember: false,
+  canDirectlyAct: false,
   hasTeam: false,
   refresh: () => {},
 });
@@ -30,7 +34,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
 }
 
 function useTeamState(): TeamContext {
-  const [role, setRole] = useState<'ADMIN' | 'MEMBER' | null>(null);
+  const [role, setRole] = useState<'ADMIN' | 'SUB_ADMIN' | 'MEMBER' | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
   const [teamName, setTeamName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +62,9 @@ function useTeamState(): TeamContext {
     teamName,
     loading,
     isAdmin: role === 'ADMIN',
+    isSubAdmin: role === 'SUB_ADMIN',
     isMember: role === 'MEMBER',
+    canDirectlyAct: role === 'ADMIN' || role === 'SUB_ADMIN',
     hasTeam: !!teamId,
     refresh: fetch_,
   };

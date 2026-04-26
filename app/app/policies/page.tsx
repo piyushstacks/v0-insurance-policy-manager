@@ -78,29 +78,48 @@ export default function PoliciesPage() {
     fetchPolicies();
   }, [fetchPolicies]);
 
-  // --- REALTIME SUBSCRIPTION ---
+  // --- REALTIME POLLING FALLBACK & SUBSCRIPTION ---
   useEffect(() => {
     if (!supabase) return;
 
-    console.log('[v0/Realtime] Subscribing to policy updates...');
+    // Realtime channel
     const channel = supabase
       .channel('public:policies')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'policies' },
         (payload) => {
-          console.log('[v0/Realtime] Policy change detected:', payload.eventType);
-          // Refresh the whole list to catch updated joins (customer/insurer names)
           fetchPolicies();
         }
       )
       .subscribe();
 
     return () => {
-      console.log('[v0/Realtime] Unsubscribing...');
       supabase.removeChannel(channel);
     };
   }, [supabase, fetchPolicies]);
+
+  // Bulletproof fallback: If there are pending objects, poll the table every 3 seconds.
+  // This guarantees UI sync even if the user hasn't enabled Supabase Realtime yet!
+  useEffect(() => {
+    // Only derived variables like pendingPolicies.length aren't in scope unless evaluated inside
+    // Because pendingPolicies relies on policies state, we must check policies directly or just use a boolean
+    const hasPending = policies.some(p => 
+      p.policy_number?.startsWith('PENDING_OCR') || 
+      p.policy_number?.startsWith('BULK_OCR') || 
+      p.policy_number?.startsWith('IMG-') ||
+      p.policy_number?.startsWith('doc_')
+    );
+
+    if (!hasPending) return;
+
+    const interval = setInterval(() => {
+      fetchPolicies();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [policies, fetchPolicies]);
+
 
   // Unique values for dropdowns
   const uniqueProducts = useMemo(() => Array.from(new Set(policies.map(p => p.policy_type).filter(Boolean))), [policies]);

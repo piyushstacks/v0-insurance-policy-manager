@@ -57,17 +57,33 @@ export async function GET(request: NextRequest) {
     ]);
 
     // membership.teams is the joined teams row
-    const team = (membership as any).teams ?? null;
+    let team = (membership as any).teams ?? null;
+
+    // Handle potential missing columns if migration haven't run yet
+    // This allows the UI to at least load even if email/phone are missing in DB
+    if (team) {
+      team = {
+        ...team,
+        email: team.email || null,
+        phone: team.phone || null
+      };
+    }
 
     console.log('[GET /api/team] team:', team?.id, 'role:', role, 'members:', members?.length);
 
     return NextResponse.json({ team, role, members, invitations });
   } catch (err: any) {
     console.error('[GET /api/team] error:', err);
+    
+    // Return a structured error that the UI can display nicely
     return NextResponse.json(
       { 
-        error: String(err.stack || err.message || err) || 'Failed to load team', 
-        team: null, role: null, members: [], invitations: [] 
+        error: err.message || 'Failed to load team data',
+        details: 'Ensure database migrations have been run. Try visiting /api/debug/migrate',
+        team: null, 
+        role: null, 
+        members: [], 
+        invitations: [] 
       }, 
       { status: 500 }
     );

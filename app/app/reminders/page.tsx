@@ -12,7 +12,8 @@ import {
   Calendar,
   ExternalLink,
   ShieldAlert,
-  Clock
+  Clock,
+  History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageLoader } from '@/components/ui/loader';

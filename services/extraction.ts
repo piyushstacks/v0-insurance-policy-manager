@@ -209,7 +209,6 @@ export async function crossVerifyCustomer(
   }
 ): Promise<{
   isSamePerson: boolean;
-  confidence: number;
   matchDetails: {
     name_similarity: number;
     contact_match: boolean;
@@ -255,11 +254,9 @@ export async function crossVerifyCustomer(
 
   // Final decision
   const isSamePerson = matchScore >= 65 || (contactMatch.matched && nameSimilarity >= 0.6);
-  const confidence = Math.min(100, matchScore);
 
   return {
     isSamePerson,
-    confidence: confidence / 100,
     matchDetails: {
       name_similarity: nameSimilarity,
       contact_match: contactMatch.matched,
@@ -710,7 +707,6 @@ export async function extractDocumentInline(
         .update({
           status: 'completed',
           extracted_data: extracted,
-          confidence_score: extracted.confidence || null,
           completed_at: new Date().toISOString(),
         })
         .eq('id', jobDbId);

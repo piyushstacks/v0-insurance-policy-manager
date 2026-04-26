@@ -139,7 +139,6 @@ class PDFParseProvider implements OCRProvider {
               "customer_name": "full name of proposer/policyholder or null",
               "customer_email": "email or null",
               "customer_mobile": "phone number or null",
-              "confidence": 0.95,
               "key_important_details": "HTML <li> list of other key info, or empty string"
             }
 
@@ -268,7 +267,6 @@ class PDFParseProvider implements OCRProvider {
           customer_name: parsed.customer_name || null,
           customer_email: parsed.customer_email || null,
           customer_mobile: parsed.customer_mobile || null,
-          confidence: parsed.confidence || 0.85,
           agent_notes: parsed.key_important_details || null,
         };
       }

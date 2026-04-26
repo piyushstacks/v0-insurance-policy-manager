@@ -48,47 +48,6 @@ const BadgeWithDot = ({ children, color = 'success' }: { children: React.ReactNo
   );
 };
 
-// ─── Real-time Extraction Confidence ─────────────────────────────
-function ExtractionConfidenceWidget() {
-  const [confidence, setConfidence] = useState<number | null>(null);
-  const [total, setTotal] = useState(0);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/api/extract/confidence');
-        if (!res.ok) return;
-        const data = await res.json();
-        setConfidence(data.confidence ?? null);
-        setTotal(data.total ?? 0);
-      } catch {}
-    }
-    load();
-    const id = setInterval(load, 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const score = confidence;
-  const color = score === null ? 'text-slate-400' : score >= 90 ? 'text-emerald-400' : score >= 70 ? 'text-amber-400' : 'text-red-400';
-
-  return (
-    <div className="bg-slate-900 rounded-2xl p-4 text-white relative overflow-hidden group">
-      <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-full -mr-8 -mt-8 group-hover:scale-150 transition-transform duration-700" />
-      <div className="flex items-center gap-2 mb-2">
-        <ShieldCheck className="w-4 h-4 text-emerald-400" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Extraction Confidence</span>
-      </div>
-      <p className={`text-[22px] font-black leading-tight mb-0.5 ${color}`}>
-        {score !== null ? `${score.toFixed(1)}%` : '—'}
-      </p>
-      {total > 0 && (
-        <p className="text-[10px] text-slate-500 font-semibold tracking-wide">
-          {total} document{total !== 1 ? 's' : ''} processed
-        </p>
-      )}
-    </div>
-  );
-}
 
 export default function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
@@ -232,10 +191,6 @@ export default function Sidebar({ user }: SidebarProps) {
           </div>
         </div>
 
-        {/* Extraction Confidence Widget */}
-        <div className="mt-auto p-4">
-          <ExtractionConfidenceWidget />
-        </div>
 
         {/* Footer / User Profile */}
         <div className="p-4 border-t border-slate-100 bg-slate-50/50">

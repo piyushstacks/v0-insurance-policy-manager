@@ -14,7 +14,8 @@ import {
   ShieldAlert,
   Clock,
   History,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageLoader } from '@/components/ui/loader';
@@ -132,144 +133,51 @@ export default function RemindersPage() {
     reminders.filter((r) => r.status !== 'pending'),
   [reminders]);
 
-  const groupedPending = useMemo(() => {
-    const groups = {
-      urgent: [] as Reminder[], // within 7 days
-      upcoming: [] as Reminder[], // within 15 days
-      scheduled: [] as Reminder[] // 30+ days
-    };
-
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    pendingReminders.forEach(r => {
-      const scheduled = new Date(r.scheduled_date);
-      scheduled.setHours(0, 0, 0, 0);
-      const diffTime = scheduled.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays <= 7) groups.urgent.push(r);
-      else if (diffDays <= 15) groups.upcoming.push(r);
-      else groups.scheduled.push(r);
+  const policyLifecycle = useMemo(() => {
+    const groups: Record<string, { policy: Policy; reminders: Reminder[] }> = {};
+    
+    reminders.forEach(r => {
+      if (!r.policies) return;
+      const policyId = r.policies.id;
+      if (!groups[policyId]) {
+        groups[policyId] = { policy: r.policies, reminders: [] };
+      }
+      groups[policyId].reminders.push(r);
     });
+    
+    // Sort groups by the earliest PENDING reminder, or if none, by last UPDATED
+    return Object.values(groups).sort((a, b) => {
+      const aPending = a.reminders.find(r => r.status === 'pending');
+      const bPending = b.reminders.find(r => r.status === 'pending');
+      
+      if (aPending && bPending) {
+        return new Date(aPending.scheduled_date).getTime() - new Date(bPending.scheduled_date).getTime();
+      }
+      if (aPending) return -1;
+      if (bPending) return 1;
+      return 0;
+    });
+  }, [reminders]);
 
-    return groups;
-  }, [pendingReminders]);
-
-  const renderReminderGroup = (title: string, icon: React.ReactNode, reminders: Reminder[], badgeColor: string) => {
-    if (reminders.length === 0) return null;
-
-    return (
-      <div className="space-y-4 mb-8">
-        <div className="flex items-center justify-between px-2">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            {icon}
-            {title}
-          </h2>
-          <span className={`px-2 py-1 ${badgeColor} text-[10px] font-black rounded-md uppercase tracking-wider`}>
-            {reminders.length} Alerts
-          </span>
-        </div>
-
-        <div className="grid gap-4">
-          {reminders.map((reminder) => {
-            const customer = reminder.policies?.customers;
-            const hasInvalidData = isDataInvalid(customer);
-            
-            return (
-              <div key={reminder.id} className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all overflow-hidden">
-                <div className="p-5 flex flex-col sm:flex-row gap-5 items-start">
-                  <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
-                    <Bell className="w-6 h-6 text-slate-400 group-hover:text-blue-500 transition-all" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <h3 className="font-bold text-slate-900 truncate">
-                              {customer?.name || 'Unknown Client'}
-                          </h3>
-                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded border border-blue-100 uppercase tracking-tight">
-                              {getReminderLabel(reminder.reminder_type)}
-                          </span>
-                      </div>
-                      
-                      <div className="flex flex-col gap-1.5 mb-4">
-                          <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                              <span className="flex items-center gap-1.5 font-medium">
-                                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                                  Notify: {new Date(reminder.scheduled_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                              </span>
-                              <span className="flex items-center gap-1.5">
-                                  <ShieldAlert className="w-3.5 h-3.5 text-slate-400" />
-                                  Policy: {reminder.policies?.policy_number}
-                              </span>
-                              {reminder.policies?.premium_amount && (
-                                <span className="flex items-center gap-1.5 font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                                   ₹{(() => {
-                                      const num = reminder.policies?.premium_amount;
-                                      if (num === null || num === undefined) return '—';
-                                      if (num >= 10000000) return (num / 10000000).toFixed(2) + ' Cr';
-                                      if (num >= 100000) return (num / 100000).toFixed(2) + ' Lac';
-                                      return num.toLocaleString('en-IN');
-                                   })()}
-                                </span>
-                              )}
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                              <div className={`flex items-center gap-1.5 text-xs ${hasInvalidData ? 'text-red-500 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-100' : 'text-slate-400 font-medium'}`}>
-                                  <Mail className="w-3.5 h-3.5 text-slate-300" />
-                                  {customer?.email || 'No Email'}
-                                  {hasInvalidData && <AlertCircle className="w-3 h-3 ml-1 animate-pulse" />}
-                              </div>
-                              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                                  <Phone className="w-3.5 h-3.5 text-slate-300" />
-                                  {customer?.mobile || 'No Phone'}
-                              </div>
-                          </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                          <Button 
-                              size="sm" 
-                              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg h-9 px-4 shadow-sm"
-                              onClick={() => handleManualSend(reminder)}
-                              disabled={sendingId === reminder.id}
-                          >
-                              <Send className={`w-3.5 h-3.5 mr-2 ${sendingId === reminder.id ? 'animate-pulse' : ''}`} />
-                              {sendingId === reminder.id ? 'Sending...' : 'Send Reminder Now'}
-                          </Button>
-                          
-                          {hasInvalidData && (
-                              <Link href={`/app/customers/${customer?.id}`}>
-                                  <Button variant="outline" size="sm" className="border-red-200 text-red-600 hover:bg-red-50 rounded-lg h-9">
-                                      Update Profile
-                                      <ExternalLink className="w-3 h-3 ml-2" />
-                                  </Button>
-                              </Link>
-                          )}
-                      </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const LIFECYCLE_STAGES = [
+    { type: 'renewal_30days', label: '30d' },
+    { type: 'renewal_15days', label: '15d' },
+    { type: 'renewal_7days', label: '7d' },
+    { type: 'renewal_3days', label: '3d' },
+    { type: 'renewal_1days', label: '1d' },
+  ];
 
   return (
     <div className="flex flex-col h-full bg-slate-50 max-w-[1600px] mx-auto w-full p-4 md:p-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Reminders Queue</h1>
-          <p className="text-slate-500 font-medium">Automatic lifecycle alerts for your filtered policy directory</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Lifecycle Manager</h1>
+          <p className="text-slate-500 font-medium">Policy preservation journey and automated touchpoints</p>
         </div>
         <div className="flex items-center gap-2">
             <div className="px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Auto-Sync Active</span>
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Engine Active</span>
             </div>
         </div>
       </div>
@@ -279,104 +187,140 @@ export default function RemindersPage() {
           <ReminderSettingsCard />
         </div>
 
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-6">
           {isLoading ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-12">
-                <PageLoader words={['reminders', 'schedules', 'alerts', 'notifications']} label="syncing" />
+                <PageLoader words={['cycles', 'journeys', 'policies', 'reminders']} label="mapping" />
             </div>
-          ) : reminders.length === 0 ? (
+          ) : policyLifecycle.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200">
               <Bell className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-              <h3 className="text-xl font-bold text-slate-800 mb-2">Queue is Empty</h3>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">No Active Journeys</h3>
               <p className="text-slate-500 max-w-sm mx-auto">
-                No upcoming reminders detected for your active policies. New alerts appear here as policy dates approach.
+                Once policies are added, their automated lifecycle touchpoints will appear here.
               </p>
             </div>
           ) : (
-            <>
-              {renderReminderGroup('Urgent (Next 7 Days)', <AlertCircle className="w-5 h-5 text-red-500" />, groupedPending.urgent, 'bg-red-100 text-red-700')}
-              {renderReminderGroup('Upcoming (Next 15 Days)', <Clock className="w-5 h-5 text-amber-500" />, groupedPending.upcoming, 'bg-amber-100 text-amber-700')}
-              {renderReminderGroup('Renewal Notices (30+ Days)', <Calendar className="w-5 h-5 text-blue-500" />, groupedPending.scheduled, 'bg-blue-100 text-blue-700')}
+            <div className="space-y-4">
+              {policyLifecycle.map(({ policy, reminders: policyReminders }) => {
+                const customer = policy.customers;
+                const nextPending = policyReminders.find(r => r.status === 'pending');
+                const hasInvalidData = isDataInvalid(customer);
 
-              {completedReminders.length > 0 && (
-                <div className="pt-8 border-t border-slate-200">
-                   <details className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all">
-                      <summary className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50 transition-colors list-none">
-                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-slate-100 rounded-lg group-open:bg-blue-600 group-open:text-white transition-colors">
-                               <History className="w-4 h-4" />
-                            </div>
-                            <div>
-                               <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Communication History</h2>
-                               <p className="text-[10px] text-slate-400 font-bold uppercase">{completedReminders.length} past logs recorded</p>
-                            </div>
-                         </div>
-                         <ChevronDown className="w-5 h-5 text-slate-400 group-open:rotate-180 transition-transform" />
-                      </summary>
-                      
-                      <div className="p-2 border-t border-slate-100">
-                         <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                               <thead>
-                                  <tr className="border-b border-slate-50">
-                                     <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Recipient</th>
-                                     <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Reminder Type</th>
-                                     <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Date & Time</th>
-                                     <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Action</th>
-                                  </tr>
-                               </thead>
-                               <tbody className="divide-y divide-slate-50">
-                                  {completedReminders.map((reminder) => {
-                                     const isSent = reminder.status === 'sent';
-                                     return (
-                                        <tr key={reminder.id} className="hover:bg-slate-50 transition-colors group/row">
-                                           <td className="px-4 py-4">
-                                              <div className="flex items-center gap-2">
-                                                 <span className={`w-2 h-2 rounded-full ${isSent ? 'bg-green-500' : 'bg-slate-300'}`}></span>
-                                                 <div>
-                                                    <p className="text-sm font-bold text-slate-800 leading-tight">
-                                                       {reminder.policies?.customers?.name || 'Unknown'}
-                                                    </p>
-                                                    <p className="text-[10px] font-medium text-slate-400 truncate max-w-[150px]">
-                                                       {reminder.policies?.customers?.email}
-                                                    </p>
-                                                 </div>
-                                              </div>
-                                           </td>
-                                           <td className="px-4 py-4">
-                                              <div className="flex items-center gap-2">
-                                                 <Mail className="w-3.5 h-3.5 text-slate-400" />
-                                                 <span className="text-xs font-bold text-slate-600">{getReminderLabel(reminder.reminder_type)}</span>
-                                              </div>
-                                           </td>
-                                           <td className="px-4 py-4">
-                                              <div className="flex items-center gap-2">
-                                                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                                 <span className="text-[11px] font-medium text-slate-500">
-                                                    {new Date(reminder.updated_at || reminder.scheduled_date).toLocaleString('en-IN', { 
-                                                       day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
-                                                    })}
-                                                 </span>
-                                              </div>
-                                           </td>
-                                           <td className="px-4 py-4 text-right">
-                                              <Link href={`/app/policies/${reminder.policies?.id}`}>
-                                                 <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 group-hover/row:opacity-100 opacity-0 transition-all">
-                                                    <ExternalLink className="w-4 h-4" />
-                                                 </Button>
-                                              </Link>
-                                           </td>
-                                        </tr>
-                                     );
-                                  })}
-                               </tbody>
-                            </table>
-                         </div>
+                return (
+                  <div key={policy.id} className="bg-white rounded-[24px] border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden p-6">
+                    <div className="flex flex-col md:flex-row gap-6">
+                      {/* Left: Client Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                           <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                              {customer?.name?.charAt(0).toUpperCase() || '?'}
+                           </div>
+                           <div>
+                              <h3 className="font-extrabold text-slate-900 truncate leading-none mb-1 text-lg">
+                                 {customer?.name || 'Unknown Client'}
+                              </h3>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100 w-fit px-1.5 rounded">
+                                 Policy: {policy.policy_number}
+                              </p>
+                           </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 mb-4 ml-1">
+                           <span className="flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                              Expiry: {new Date(policy.expiry_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                           </span>
+                           {policy.premium_amount && (
+                              <span className="font-bold text-slate-700">
+                                 ₹{(() => {
+                                    const num = policy.premium_amount;
+                                    if (num >= 10000000) return (num / 10000000).toFixed(2) + ' Cr';
+                                    if (num >= 100000) return (num / 100000).toFixed(2) + ' Lac';
+                                    return num.toLocaleString('en-IN');
+                                 })()}
+                              </span>
+                           )}
+                           <div className="flex items-center gap-3">
+                              <Mail className="w-3.5 h-3.5 text-slate-300" />
+                              <span className={hasInvalidData ? 'text-red-500 font-bold' : ''}>{customer?.email || 'Missing'}</span>
+                           </div>
+                        </div>
+
+                        {/* Lifecycle Timeline */}
+                        <div className="mt-6">
+                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Communication Journey</p>
+                           <div className="relative flex items-center justify-between max-w-sm">
+                              <div className="absolute left-0 right-0 h-0.5 bg-slate-100 z-0"></div>
+                              {LIFECYCLE_STAGES.map((stage) => {
+                                 const reminder = policyReminders.find(r => r.reminder_type === stage.type);
+                                 const isSent = reminder?.status === 'sent';
+                                 const isPending = reminder?.status === 'pending';
+                                 const isUpcoming = !reminder;
+
+                                 return (
+                                    <div key={stage.type} className="relative z-10 flex flex-col items-center">
+                                       <div 
+                                          className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                                             isSent ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100' :
+                                             isPending ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100 scale-110' :
+                                             'bg-white border-slate-200 text-slate-300'
+                                          }`}
+                                          title={`${stage.label} reminder: ${reminder?.status || 'Not yet generated'}`}
+                                       >
+                                          {isSent ? <CheckCircle className="w-4 h-4" /> : <span className="text-[10px] font-black">{stage.label}</span>}
+                                       </div>
+                                       <span className={`text-[9px] font-bold mt-2 uppercase tracking-tighter ${isPending ? 'text-blue-600' : 'text-slate-400'}`}>
+                                          {isPending ? 'Due' : isSent ? 'Sent' : 'Wait'}
+                                       </span>
+                                    </div>
+                                 );
+                              })}
+                           </div>
+                        </div>
                       </div>
-                   </details>
-                </div>
-              )}
-            </>
+
+                      {/* Right: Actions */}
+                      <div className="flex flex-col justify-between items-center sm:items-end min-w-[140px] border-l border-dashed border-slate-100 pl-6">
+                        <div className="text-right">
+                           {nextPending ? (
+                              <div className="mb-4">
+                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Next</p>
+                                 <p className="text-xs font-bold text-slate-800">{getReminderLabel(nextPending.reminder_type)}</p>
+                                 <p className="text-[10px] text-blue-600 font-bold">{new Date(nextPending.scheduled_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</p>
+                              </div>
+                           ) : (
+                              <div className="mb-4 bg-emerald-50 px-2 py-1 rounded text-emerald-600 text-[10px] font-black uppercase">
+                                 All Clear
+                              </div>
+                           )}
+                        </div>
+
+                        <div className="flex flex-col gap-2 w-full">
+                           {nextPending && (
+                              <Button 
+                                 size="sm" 
+                                 className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 w-full font-bold text-xs"
+                                 onClick={() => handleManualSend(nextPending)}
+                                 disabled={sendingId === nextPending.id}
+                              >
+                                 {sendingId === nextPending.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-2" />}
+                                 {sendingId === nextPending.id ? 'Sending...' : 'Trigger Now'}
+                              </Button>
+                           )}
+                           <Link href={`/app/policies/${policy.id}`} className="w-full">
+                              <Button variant="ghost" size="sm" className="h-10 w-full rounded-xl text-slate-500 hover:bg-slate-50 font-bold text-[11px] gap-2">
+                                 View Details
+                                 <ExternalLink className="w-3.5 h-3.5" />
+                              </Button>
+                           </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

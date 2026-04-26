@@ -134,12 +134,14 @@ export async function updateMemberRole(teamId: string, targetUserId: string, new
   }
 
   // Update in team_members
-  await supabaseAdmin!.from('team_members')
+  const { error: memberErr } = await supabaseAdmin!.from('team_members')
     .update({ role: newRole })
     .eq('team_id', teamId)
     .eq('user_id', targetUserId);
 
-  // Update in user_profiles
+  if (memberErr) throw new Error(`Failed to update member role: ${memberErr.message}`);
+
+  // Update in user_profiles (best-effort, don't block on failure)
   await supabaseAdmin!.from('user_profiles')
     .update({ role: newRole })
     .eq('id', targetUserId);

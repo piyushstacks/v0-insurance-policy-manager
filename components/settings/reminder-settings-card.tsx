@@ -82,8 +82,9 @@ export function ReminderSettingsCard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(prefs)
       });
-      if (!res.ok) throw new Error('Failed to save settings');
-      toast.success('Centralized reminder settings saved successfully');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `Server error ${res.status}`);
+      toast.success('Reminder settings saved!');
     } catch (e: any) {
       toast.error(e.message || 'Error saving settings');
     } finally {

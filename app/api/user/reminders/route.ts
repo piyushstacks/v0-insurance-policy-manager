@@ -26,23 +26,31 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Validate structure briefly
-    if (typeof body.enabled !== 'boolean') throw new Error("Invalid enabled flag");
+    // Validate structure
+    if (typeof body.enabled !== 'boolean') {
+      return NextResponse.json({ error: 'Invalid payload: enabled must be a boolean' }, { status: 400 });
+    }
 
-    const { error } = await supabaseAdmin!
+    // Ensure user_profile row exists first, then update
+    const { error: upsertError } = await supabaseAdmin!
       .from('user_profiles')
-      .update({ reminder_preferences: body })
-      .eq('id', user.id);
+      .upsert(
+        { id: user.id, reminder_preferences: body },
+        { onConflict: 'id', ignoreDuplicates: false }
+      );
 
-    if (error) {
-      console.error("DB update error:", error);
-      throw error;
+    if (upsertError) {
+      console.error('[reminders] DB upsert error:', upsertError);
+      return NextResponse.json(
+        { error: `Database error: ${upsertError.message} (code: ${upsertError.code})` },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ success: true, updated: body });
   } catch (error: any) {
-    console.error("Reminder config error:", error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    console.error('[reminders] PATCH error:', error);
+    return NextResponse.json({ error: error.message || 'Unexpected error' }, { status: 500 });
   }
 }
 

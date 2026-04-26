@@ -58,25 +58,33 @@ export default function RemindersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [prefs, setPrefs] = useState<{ timing_days: number[] } | null>(null);
 
-  const fetchReminders = async () => {
+  const fetchData = async () => {
     try {
-      const response = await fetch('/api/reminders');
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        throw new Error(errData?.error || `HTTP ${response.status}: Failed to fetch reminders`);
+      const [remRes, prefRes] = await Promise.all([
+        fetch('/api/reminders'),
+        fetch('/api/user/reminders')
+      ]);
+
+      if (remRes.ok) {
+        const remData = await remRes.json();
+        setReminders(remData.data || []);
       }
-      const data = await response.json();
-      setReminders(data.data || []);
+
+      if (prefRes.ok) {
+        const prefData = await prefRes.json();
+        if (prefData.preferences) setPrefs(prefData.preferences);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load reminders');
+      setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchReminders();
+    fetchData();
   }, []);
 
   const handleManualSend = async (reminder: Reminder) => {
@@ -103,7 +111,7 @@ export default function RemindersPage() {
       
       toast.success('Reminder triggered successfully');
       // Refresh list to show updated status
-      fetchReminders();
+      fetchData();
     } catch (err: any) {
       toast.error('Send Failed', { description: err.message });
     } finally {
@@ -112,11 +120,8 @@ export default function RemindersPage() {
   };
 
   const getReminderLabel = (type: string) => {
-    if (type.includes('30days')) return '30 Day Renewal Notice';
-    if (type.includes('15days')) return '15 Day Renewal Notice';
-    if (type.includes('7days')) return '7 Day Renewal Notice';
-    if (type.includes('3days')) return '3 Day Final Notice';
-    if (type.includes('1days')) return '1 Day Urgent Notice';
+    const match = type.match(/(\d+)days/);
+    if (match) return `${match[1]} Day Renewal Notice`;
     return 'Policy Reminder';
   };
 
@@ -159,13 +164,15 @@ export default function RemindersPage() {
     });
   }, [reminders]);
 
-  const LIFECYCLE_STAGES = [
-    { type: 'renewal_30days', label: '30d' },
-    { type: 'renewal_15days', label: '15d' },
-    { type: 'renewal_7days', label: '7d' },
-    { type: 'renewal_3days', label: '3d' },
-    { type: 'renewal_1days', label: '1d' },
-  ];
+  const lifecycleStages = useMemo(() => {
+    const days = prefs?.timing_days || [30, 15, 7, 3, 1];
+    return [...days]
+      .sort((a, b) => b - a)
+      .map(d => ({
+        type: `renewal_${d}days`,
+        label: `${d}d`
+      }));
+  }, [prefs]);
 
   return (
     <div className="flex flex-col h-full bg-slate-50 max-w-[1600px] mx-auto w-full p-4 md:p-8">
@@ -184,7 +191,7 @@ export default function RemindersPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
-          <ReminderSettingsCard />
+          <ReminderSettingsCard onSave={fetchData} />
         </div>
 
         <div className="lg:col-span-2 space-y-6">
@@ -247,16 +254,14 @@ export default function RemindersPage() {
                            </div>
                         </div>
 
-                        {/* Lifecycle Timeline */}
                         <div className="mt-6">
                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Communication Journey</p>
                            <div className="relative flex items-center justify-between max-w-sm">
                               <div className="absolute left-0 right-0 h-0.5 bg-slate-100 z-0"></div>
-                              {LIFECYCLE_STAGES.map((stage) => {
+                              {lifecycleStages.map((stage) => {
                                  const reminder = policyReminders.find(r => r.reminder_type === stage.type);
                                  const isSent = reminder?.status === 'sent';
                                  const isPending = reminder?.status === 'pending';
-                                 const isUpcoming = !reminder;
 
                                  return (
                                     <div key={stage.type} className="relative z-10 flex flex-col items-center">
@@ -305,7 +310,7 @@ export default function RemindersPage() {
                                  disabled={sendingId === nextPending.id}
                               >
                                  {sendingId === nextPending.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-2" />}
-                                 {sendingId === nextPending.id ? 'Sending...' : 'Trigger Now'}
+                                 {sendingId === nextPending.id ? 'Sending...' : 'Send Now'}
                               </Button>
                            )}
                            <Link href={`/app/policies/${policy.id}`} className="w-full">

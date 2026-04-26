@@ -13,7 +13,7 @@ interface ReminderPreferences {
   types: string[];
 }
 
-export function ReminderSettingsCard() {
+export function ReminderSettingsCard({ onSave }: { onSave?: () => void }) {
   const defaultPrefs: ReminderPreferences = {
     enabled: true,
     email: true,
@@ -85,6 +85,7 @@ export function ReminderSettingsCard() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || `Server error ${res.status}`);
       toast.success('Reminder settings saved!');
+      if (onSave) onSave();
     } catch (e: any) {
       toast.error(e.message || 'Error saving settings');
     } finally {

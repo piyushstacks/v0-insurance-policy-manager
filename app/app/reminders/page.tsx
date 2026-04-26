@@ -218,7 +218,22 @@ export default function RemindersPage() {
             <div className="space-y-4">
               {policyLifecycle.map(({ policy, reminders: policyReminders }) => {
                 const customer = policy.customers;
-                const nextPending = policyReminders.find(r => r.status === 'pending');
+                
+                // Identify the first pending stage in the visual journey
+                // This ensures "All Clear" only shows if EVERY stage in the global journey is "sent"
+                const firstPendingJourneyStage = lifecycleStages.find(stage => {
+                  const r = policyReminders.find(pr => pr.reminder_type === stage.type);
+                  return r?.status === 'pending' || !r; 
+                });
+
+                const nextPending = firstPendingJourneyStage 
+                  ? policyReminders.find(r => r.reminder_type === firstPendingJourneyStage.type) || { 
+                      scheduled_date: new Date(new Date(policy.expiry_date).getTime() - (parseInt(firstPendingJourneyStage.type.match(/\d+/)?.[0] || '0') * 86400000)).toISOString(),
+                      reminder_type: firstPendingJourneyStage.type,
+                      status: 'pending'
+                    }
+                  : null;
+
                 const hasInvalidData = isDataInvalid(customer);
 
                 return (

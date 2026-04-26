@@ -27,6 +27,8 @@ const RETRY_BACKOFF_MS = 2000;
 interface CustomerDedupeResult {
   customerId: string;
   customerName: string;
+  email?: string | null;
+  mobile?: string | null;
   matchScore: number;
   matchType: 'exact' | 'fuzzy' | 'contact' | 'cross_verified';
   crossVerified: boolean;
@@ -36,6 +38,15 @@ interface CustomerDedupeResult {
     contact_type?: 'email' | 'mobile';
     details: string[];
   };
+}
+
+/**
+ * Check if a string contains masked characters (like xxxx)
+ */
+function isMasked(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const lower = value.toLowerCase();
+  return lower.includes('xxxx') || lower.includes('****') || /^[x\*]+$/.test(lower);
 }
 
 export interface PolicyExtractionMetrics {
@@ -335,13 +346,14 @@ export async function findOrCreateCustomer(extractedData: {
         );
 
         // Update customer with new contact info if found
-        if (extractedData.customer_email || extractedData.customer_mobile) {
-          await updateCustomerContacts(bestMatch.id, extractedData);
-        }
+        // Use the returned updated object to enrich extraction
+        const updatedCustomer = await updateCustomerContacts(bestMatch.id, extractedData);
 
         return {
           customerId: bestMatch.id,
           customerName: bestMatch.name,
+          email: updatedCustomer?.email || bestMatch.email,
+          mobile: updatedCustomer?.mobile || bestMatch.mobile,
           matchScore: verification.confidence,
           matchType: 'cross_verified',
           crossVerified: true,
@@ -364,10 +376,14 @@ export async function findOrCreateCustomer(extractedData: {
         console.log(
           `[Dedup] Found exact ${contactMatch.type} match for customer "${customer.name}"`
         );
+        
+        const updatedCustomer = await updateCustomerContacts(customer.id, extractedData);
 
         return {
           customerId: customer.id,
           customerName: customer.name,
+          email: updatedCustomer?.email || customer.email,
+          mobile: updatedCustomer?.mobile || customer.mobile,
           matchScore: CONTACT_MATCH_CONFIDENCE,
           matchType: 'contact',
           crossVerified: true,
@@ -419,6 +435,8 @@ async function createNewCustomer(extractedData: {
     return {
       customerId: newCustomer.id,
       customerName: extractedData.customer_name || '',
+      email: extractedData.customer_email || null,
+      mobile: extractedData.customer_mobile || null,
       matchScore: 1,
       matchType: 'exact',
       crossVerified: false,
@@ -430,7 +448,7 @@ async function createNewCustomer(extractedData: {
 }
 
 /**
- * Update customer contact information
+ * Update customer contact information with unmasking logic
  */
 async function updateCustomerContacts(
   customerId: string,
@@ -438,7 +456,7 @@ async function updateCustomerContacts(
     customer_email?: string | null;
     customer_mobile?: string | null;
   }
-): Promise<void> {
+): Promise<{ email?: string | null; mobile?: string | null } | null> {
   try {
     const { data: existing } = await supabaseAdmin!
       .from('customers')
@@ -446,29 +464,50 @@ async function updateCustomerContacts(
       .eq('id', customerId)
       .single();
 
-    if (!existing) return;
+    if (!existing) return null;
 
     const updatePayload: any = {};
 
-    // Only update if new value exists and current is empty
-    if (extractedData.customer_email && !existing.email) {
-      updatePayload.email = extractedData.customer_email;
+    // ── EMAIL UNMASKING LOGIC ──
+    const currentEmailMasked = isMasked(existing.email);
+    const newEmailMasked = isMasked(extractedData.customer_email);
+
+    if (extractedData.customer_email) {
+      // If we have a new email, update if:
+      // 1. Current DB is empty
+      // 2. Current DB is masked AND new email is NOT masked
+      if (!existing.email || (currentEmailMasked && !newEmailMasked)) {
+        updatePayload.email = extractedData.customer_email;
+      }
     }
 
-    if (extractedData.customer_mobile && !existing.mobile) {
-      updatePayload.mobile = extractedData.customer_mobile;
+    // ── MOBILE UNMASKING LOGIC ──
+    const currentMobileMasked = isMasked(existing.mobile);
+    const newMobileMasked = isMasked(extractedData.customer_mobile);
+
+    if (extractedData.customer_mobile) {
+      // Same logic for mobile
+      if (!existing.mobile || (currentMobileMasked && !newMobileMasked)) {
+        updatePayload.mobile = extractedData.customer_mobile;
+      }
     }
 
     if (Object.keys(updatePayload).length > 0) {
-      await supabaseAdmin!
+      const { data: updated } = await supabaseAdmin!
         .from('customers')
         .update(updatePayload)
-        .eq('id', customerId);
+        .eq('id', customerId)
+        .select('email, mobile')
+        .single();
 
-      console.log(`[Dedup] Updated customer ${customerId} with new contact info`);
+      console.log(`[Dedup] Updated customer ${customerId} with ${Object.keys(updatePayload).join(', ')} (unmasking: ${currentEmailMasked || currentMobileMasked})`);
+      return updated;
     }
+
+    return existing;
   } catch (error) {
     console.error('[Dedup] Failed to update customer contacts:', error);
+    return null;
   }
 }
 
@@ -657,6 +696,19 @@ export async function extractDocumentInline(
     let finalCustId = dedupeResult?.customerId || null;
     metrics.customerDeduped = !!dedupeResult;
 
+    // ── SMART CONTACT UNMASKING (ENRICHMENT) ──
+    // If OCR found masked data but we have clean data in DB for this customer, use the clean data
+    if (dedupeResult) {
+      if (isMasked(extracted.customer_email) && dedupeResult.email && !isMasked(dedupeResult.email)) {
+        console.log(`[Inline] 🛡️ Unmasked Email using history: ${dedupeResult.email}`);
+        extracted.customer_email = dedupeResult.email;
+      }
+      if (isMasked(extracted.customer_mobile) && dedupeResult.mobile && !isMasked(dedupeResult.mobile)) {
+        console.log(`[Inline] 🛡️ Unmasked Mobile using history: ${dedupeResult.mobile}`);
+        extracted.customer_mobile = dedupeResult.mobile;
+      }
+    }
+
     // ── INSURER RESOLUTION ──
     const insurerId = await findOrCreateInsurer(extracted.insurer_name);
     metrics.insurerResolved = !!insurerId;
@@ -838,6 +890,19 @@ export async function processExtractionJob(retryAttempt = 0): Promise<any> {
 
     let finalCustId = dedupeResult?.customerId || null;
     metrics.customerDeduped = !!dedupeResult;
+
+    // ── SMART CONTACT UNMASKING (ENRICHMENT) ──
+    // If OCR found masked data but we have clean data in DB for this customer, use the clean data
+    if (dedupeResult) {
+      if (isMasked(structuredData.customer_email) && dedupeResult.email && !isMasked(dedupeResult.email)) {
+        console.log(`[Worker] 🛡️ Unmasked Email using history: ${dedupeResult.email}`);
+        structuredData.customer_email = dedupeResult.email;
+      }
+      if (isMasked(structuredData.customer_mobile) && dedupeResult.mobile && !isMasked(dedupeResult.mobile)) {
+        console.log(`[Worker] 🛡️ Unmasked Mobile using history: ${dedupeResult.mobile}`);
+        structuredData.customer_mobile = dedupeResult.mobile;
+      }
+    }
 
     // ── INSURER RESOLUTION ──
     const insurerId = await findOrCreateInsurer(structuredData.insurer_name);

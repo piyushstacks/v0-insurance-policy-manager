@@ -142,44 +142,97 @@ export default function CustomerProfilePage() {
       <div className="max-w-5xl mx-auto w-full p-4 md:p-8 space-y-6">
         
         {/* Core Profile Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-              <User className="w-4 h-4" /> Personal Information
-           </h2>
-           {isEditing && (
-              <div className="mb-6 p-4 bg-slate-50 border rounded-lg space-y-4">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                       <label className="text-xs font-bold text-slate-500 uppercase">Full Name</label>
-                       <Input value={formData.name} onChange={e => setFormData(f => ({...f, name: e.target.value}))} />
-                    </div>
-                    <div className="space-y-1.5">
-                       <label className="text-xs font-bold text-slate-500 uppercase">Email Address</label>
-                       <Input value={formData.email} onChange={e => setFormData(f => ({...f, email: e.target.value}))} />
-                    </div>
-                    <div className="space-y-1.5">
-                       <label className="text-xs font-bold text-slate-500 uppercase">Phone Number</label>
-                       <Input value={formData.mobile} onChange={e => setFormData(f => ({...f, mobile: e.target.value}))} />
-                    </div>
-                    <div className="space-y-1.5">
-                       <label className="text-xs font-bold text-slate-500 uppercase">Physical Address</label>
-                       <Input value={formData.address} onChange={e => setFormData(f => ({...f, address: e.target.value}))} />
-                    </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                 <User className="w-4 h-4" /> Personal Information
+              </h2>
+              {isEditing && (
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded uppercase">Editing Mode</span>
+              )}
+           </div>
+           
+           <div className="p-6 space-y-6">
+              {isEditing && (
+                 <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6 flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-500 mt-0.5" />
+                    <p className="text-xs text-blue-700 leading-relaxed">
+                       Update the customer's contact information below. Changes will be reflected across all policies linked to this client.
+                    </p>
                  </div>
-              </div>
-           )}
-           <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${isEditing ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
-              <div className="flex gap-3 items-center p-3 rounded-lg bg-slate-50 border border-slate-100">
-                 <Mail className="w-5 h-5 text-slate-400" />
-                 <div className="min-w-0"><p className="text-xs text-slate-500">Email Address</p><p className="font-medium text-slate-800 truncate" title={customer.email || '—'}>{customer.email || '—'}</p></div>
-              </div>
-              <div className="flex gap-3 items-center p-3 rounded-lg bg-slate-50 border border-slate-100">
-                 <Phone className="w-5 h-5 text-slate-400" />
-                 <div className="min-w-0"><p className="text-xs text-slate-500">Phone</p><p className="font-medium text-slate-800 truncate">{customer.mobile || '—'}</p></div>
-              </div>
-              <div className="flex gap-3 items-center p-3 rounded-lg bg-slate-50 border border-slate-100">
-                 <MapPin className="w-5 h-5 text-slate-400" />
-                 <div className="min-w-0"><p className="text-xs text-slate-500">Address</p><p className="font-medium text-slate-800 truncate" title={customer.address || '—'}>{customer.address || '—'}</p></div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {/* Name Field */}
+                 <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100 transition-all">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name</label>
+                    {isEditing ? (
+                       <Input 
+                          value={formData.name} 
+                          onChange={e => setFormData(f => ({...f, name: e.target.value}))}
+                          className="h-9 bg-white border-blue-200 focus:ring-blue-500 font-medium"
+                          placeholder="Enter name"
+                       />
+                    ) : (
+                       <p className="font-bold text-slate-800">{customer.name}</p>
+                    )}
+                 </div>
+
+                 {/* Email Field */}
+                 <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100 transition-all">
+                    <div className="flex items-center gap-2">
+                       <Mail className="w-3.5 h-3.5 text-slate-400" />
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email Address</label>
+                    </div>
+                    {isEditing ? (
+                       <Input 
+                          value={formData.email} 
+                          onChange={e => setFormData(f => ({...f, email: e.target.value}))}
+                          className="h-9 bg-white border-blue-200 focus:ring-blue-500 font-medium"
+                          placeholder="abc@example.com"
+                       />
+                    ) : (
+                       <p className="font-bold text-slate-800 truncate" title={customer.email || '—'}>
+                          {customer.email || '—'}
+                       </p>
+                    )}
+                 </div>
+
+                 {/* Phone Field */}
+                 <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100 transition-all">
+                    <div className="flex items-center gap-2">
+                       <Phone className="w-3.5 h-3.5 text-slate-400" />
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone Number</label>
+                    </div>
+                    {isEditing ? (
+                       <Input 
+                          value={formData.mobile} 
+                          onChange={e => setFormData(f => ({...f, mobile: e.target.value}))}
+                          className="h-9 bg-white border-blue-200 focus:ring-blue-500 font-medium"
+                          placeholder="9876543210"
+                       />
+                    ) : (
+                       <p className="font-bold text-slate-800">{customer.mobile || '—'}</p>
+                    )}
+                 </div>
+
+                 {/* Address Field */}
+                 <div className="md:col-span-2 lg:col-span-3 space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100 transition-all">
+                    <div className="flex items-center gap-2">
+                       <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Physical Address</label>
+                    </div>
+                    {isEditing ? (
+                       <Input 
+                          value={formData.address} 
+                          onChange={e => setFormData(f => ({...f, address: e.target.value}))}
+                          className="h-9 bg-white border-blue-200 focus:ring-blue-500 font-medium"
+                          placeholder="Enter complete address..."
+                       />
+                    ) : (
+                       <p className="font-bold text-slate-800">{customer.address || '—'}</p>
+                    )}
+                 </div>
               </div>
            </div>
         </div>

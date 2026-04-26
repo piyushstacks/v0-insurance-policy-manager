@@ -53,8 +53,11 @@ export async function POST(
         policies (
           id,
           policy_number,
+          policy_type,
           expiry_date,
           premium_amount,
+          extracted_data,
+          insurers ( name ),
           customers (
             name,
             email,
@@ -98,11 +101,33 @@ export async function POST(
     const agencyName = (profile?.teams as any)?.name || 'Apex Solutions';
     const agencyContact = profile?.mobile || user.email || '';
 
+    // Extract AI Insights / Highlights
+    const extracted = policyData.extracted_data || {};
+    const insights: string[] = [];
+    
+    if (extracted.sum_assured) {
+      const sa = extracted.sum_assured;
+      const formattedSA = sa >= 10000000 ? (sa / 10000000).toFixed(2) + ' Cr' : sa >= 100000 ? (sa / 100000).toFixed(2) + ' Lac' : sa.toLocaleString('en-IN');
+      insights.push(`Sum Assured: ₹${formattedSA}`);
+    }
+    
+    if (extracted.is_floater !== undefined) {
+      insights.push(extracted.is_floater ? 'Floater Policy' : 'Individual Policy');
+    } else if (policyData.policy_type?.toLowerCase().includes('floater')) {
+      insights.push('Floater Policy');
+    }
+
+    if (extracted.plan_name) insights.push(`Plan: ${extracted.plan_name}`);
+    if (extracted.vehicle_number) insights.push(`Vehicle: ${extracted.vehicle_number}`);
+    if (extracted.nominee_name) insights.push(`Nominee: ${extracted.nominee_name}`);
+
     // Send the email
     const emailParams = reminderEmail({
       customerName: customerData.name || 'Customer',
       policyNumber: policyData.policy_number,
-      policyCategory: policyData.policy_type?.split('|')[0]?.trim() || 'Insurance',
+      policyCategory: (policyData.policy_type || 'Insurance').split('|')[0]?.trim(),
+      insurerName: (policyData.insurers as any)?.name || '',
+      policyInsights: insights,
       dueDate: policyData.expiry_date,
       reminderType: reminder.reminder_type.includes('renewal') ? 'renewal' : 'premium',
       premiumAmount: policyData.premium_amount,

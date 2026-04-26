@@ -196,6 +196,8 @@ export function reminderEmail(params: {
   customerName: string;
   policyNumber: string;
   policyCategory?: string;
+  insurerName?: string;
+  policyInsights?: string[];
   dueDate: string;
   reminderType: 'renewal' | 'premium';
   premiumAmount?: number;
@@ -207,6 +209,8 @@ export function reminderEmail(params: {
     customerName, 
     policyNumber, 
     policyCategory = 'General',
+    insurerName = '',
+    policyInsights = [],
     dueDate, 
     reminderType, 
     premiumAmount, 
@@ -247,6 +251,13 @@ export function reminderEmail(params: {
               <strong>${policyNumber}</strong> is due on <strong>${due}</strong>.
             </p>
 
+            ${insurerName ? `
+            <div style="background:#f1f5f9;border-left:4px solid #3b82f6;padding:12px 16px;margin-bottom:20px;">
+              <p style="margin:0;font-size:13px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Insurer</p>
+              <p style="margin:2px 0 0;font-size:16px;color:#1e40af;font-weight:800;">${insurerName}</p>
+            </div>
+            ` : ''}
+
             <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:16px;padding:20px;margin-bottom:24px;">
               ${showAmount ? `
                 <p style="margin:0 0 4px;color:#c2410c;font-size:12px;text-transform:uppercase;font-weight:800;letter-spacing:1px;">Premium Amount</p>
@@ -256,6 +267,17 @@ export function reminderEmail(params: {
                 <p style="margin:0;color:#c2410c;font-weight:900;font-size:18px;">Contact Us for Exact Amount</p>
               `}
             </div>
+
+            ${policyInsights && policyInsights.length > 0 ? `
+            <div style="margin-bottom:24px;">
+              <p style="margin:0 0 8px;font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Policy Highlights</p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                ${policyInsights.map(insight => `
+                  <span style="background:#f8fafc;border:1px solid #e2e8f0;padding:6px 12px;border-radius:8px;font-size:12px;color:#475569;font-weight:700;display:inline-block;margin-bottom:6px;margin-right:6px;">${insight}</span>
+                `).join('')}
+              </div>
+            </div>
+            ` : ''}
 
             <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:20px;">
               <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;">Next Steps</p>
@@ -280,6 +302,6 @@ export function reminderEmail(params: {
   </table>
 </body>
 </html>`,
-    text: `Hi ${customerName}, your ${policyCategory} ${typeLabel} for policy ${policyNumber} is due on ${due}. ${showAmount ? `Amount: ₹${premiumAmount}` : 'Contact Us for exact renewal amount.'} — ${agencyName}`,
+    text: `Hi ${customerName}, your ${insurerName} ${policyCategory} ${typeLabel} for policy ${policyNumber} is due on ${due}. ${showAmount ? `Amount: ₹${premiumAmount}` : 'Contact Us for exact renewal amount.'} — ${agencyName}`,
   };
 }

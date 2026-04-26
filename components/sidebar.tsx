@@ -167,10 +167,6 @@ export default function Sidebar({ user }: SidebarProps) {
               </div>
               <div>
                 <h1 className="text-xl font-black text-slate-900 leading-none tracking-tight">PolicyVault</h1>
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Engine</span>
-                </div>
               </div>
             </div>
 

@@ -23,21 +23,22 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Please run the migration SQL in your Supabase SQL Editor',
       migrationSQL: `
--- Add columns to store OCR results and confidence
+-- 1. Fix Reminders Check Constraint (Allow flexible days like 15 days)
+ALTER TABLE reminders DROP CONSTRAINT IF EXISTS reminders_reminder_type_check;
+
+-- 2. Add Reminder Preferences to Profiles
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS reminder_preferences JSONB;
+
+-- 3. Enhance Extraction Jobs tracking
 ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS extracted_data JSONB;
 ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS confidence_score FLOAT;
-
--- Add index for better query performance
-CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status_completed 
-  ON extraction_jobs(status, completed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status_completed ON extraction_jobs(status, completed_at DESC);
       `.trim(),
       steps: [
-        '1. Go to Supabase Dashboard → Your Project',
-        '2. Click SQL Editor in the left sidebar',
-        '3. Click "New Query" button',
-        '4. Copy and paste the migrationSQL above',
-        '5. Click "Run" button',
-        '6. The extracted_data column will now be available',
+        '1. Copy the SQL script above',
+        '2. Go to Supabase Dashboard → SQL Editor',
+        '3. Run this script to fix "constraint violation" errors and enable new reminder features',
+        '4. Refresh your application',
       ],
     });
   } catch (error) {

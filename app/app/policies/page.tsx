@@ -60,19 +60,28 @@ export default function PoliciesPage() {
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
 
-  // Fetch logic wrapped in useCallback so it's stable for realtime effects
+  const [totalRecords, setTotalRecords] = useState(0);
+
   const fetchPolicies = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const response = await fetch('/api/policies');
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: pageSize.toString(),
+      });
+      if (searchTerm) params.set('search', searchTerm.trim());
+
+      const response = await fetch(`/api/policies?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch');
       const data = await response.json();
       setPolicies(data.data || []);
+      setTotalRecords(data.total || 0);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error loading policies');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentPage, pageSize, searchTerm]);
 
   useEffect(() => {
     fetchPolicies();
@@ -157,10 +166,10 @@ export default function PoliciesPage() {
   }, [policies, searchTerm, filterProduct, filterCompany, dateStart, dateEnd, isPending]);
 
   // Derive Paginated Context
-  const totalPages = Math.ceil(filteredPolicies.length / pageSize);
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   const paginatedPolicies = useMemo(() => {
-    return filteredPolicies.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  }, [filteredPolicies, currentPage, pageSize]);
+    return filteredPolicies;
+  }, [filteredPolicies]);
 
   // Actions
   const toggleSelect = (id: string) => {
@@ -456,6 +465,7 @@ export default function PoliciesPage() {
               <p className="text-sm text-slate-500">Try clearing your filters or adding a new policy.</p>
             </div>
           ) : (
+            <>
             <div className="w-full overflow-x-auto custom-scrollbar">
               <table className="w-full text-left border-collapse min-w-full table-auto">
                 <thead>
@@ -519,6 +529,34 @@ export default function PoliciesPage() {
                 </tbody>
               </table>
             </div>
+            {totalPages > 1 && (
+              <div className="p-4 border-t bg-slate-50 flex items-center justify-between">
+                <div className="text-xs text-slate-500 font-medium">
+                  Page <span className="font-bold text-slate-700">{currentPage}</span> of <span className="font-bold text-slate-700">{totalPages}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </div>
       </main>

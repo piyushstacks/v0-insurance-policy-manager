@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
   Bell, 
   AlertCircle, 
@@ -59,17 +59,26 @@ export default function RemindersPage() {
   const [error, setError] = useState<string>();
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<{ timing_days: number[] } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalRecords, setTotalRecords] = useState(0);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
     try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: pageSize.toString(),
+      });
       const [remRes, prefRes] = await Promise.all([
-        fetch('/api/reminders'),
+        fetch(`/api/reminders?${params.toString()}`),
         fetch('/api/user/reminders')
       ]);
 
       if (remRes.ok) {
         const remData = await remRes.json();
         setReminders(remData.data || []);
+        setTotalRecords(remData.total || 0);
       }
 
       if (prefRes.ok) {
@@ -81,11 +90,11 @@ export default function RemindersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, pageSize]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleManualSend = async (policy: Policy) => {
     const customer = policy?.customers;
@@ -329,6 +338,37 @@ export default function RemindersPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Pagination Footer */}
+          {Math.ceil(totalRecords / pageSize) > 1 && (
+            <div className="mt-8 flex items-center justify-between bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                  Page <span className="text-blue-600">{currentPage}</span> of {Math.ceil(totalRecords / pageSize)} 
+                  <span className="mx-2 opacity-30">|</span> 
+                  Total <span className="text-slate-900">{totalRecords}</span> Reminders
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-xl border-slate-200 text-slate-600 font-bold px-4"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-xl border-slate-200 text-slate-600 font-bold px-4"
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalRecords / pageSize), p + 1))}
+                    disabled={currentPage === Math.ceil(totalRecords / pageSize)}
+                  >
+                    Next
+                  </Button>
+                </div>
             </div>
           )}
         </div>

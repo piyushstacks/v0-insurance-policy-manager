@@ -37,6 +37,29 @@ CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status_completed ON extraction_jo
 -- 4. Add Team Contact Details
 ALTER TABLE teams ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE teams ADD COLUMN IF NOT EXISTS phone TEXT;
+
+-- 5. PERFORMANCE INDEXES (FOR HUGE DATA HANDLING)
+-- Indexed lookups for policies by user and status
+CREATE INDEX IF NOT EXISTS idx_policies_user_status ON policies(user_id, status);
+-- Fast expiry/start date range queries
+CREATE INDEX IF NOT EXISTS idx_policies_dates ON policies(user_id, expiry_date, start_date);
+-- Faster customer lookups
+CREATE INDEX IF NOT EXISTS idx_customers_user_name ON customers(user_id, name);
+CREATE INDEX IF NOT EXISTS idx_customers_contact ON customers(user_id, email, mobile);
+-- Scheduled reminders optimization
+CREATE INDEX IF NOT EXISTS idx_reminders_user_scheduled ON reminders(user_id, status, scheduled_date);
+
+-- 6. HIGH-PERFORMANCE DASHBOARD AGGREGATE
+CREATE OR REPLACE FUNCTION get_active_premium_sum(uid UUID)
+RETURNS NUMERIC AS $$
+BEGIN
+  RETURN (
+    SELECT COALESCE(SUM(premium_amount), 0)
+    FROM policies
+    WHERE user_id = uid AND status = 'active'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
       `.trim(),
       steps: [
         '1. Copy the SQL script above',

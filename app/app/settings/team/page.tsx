@@ -323,6 +323,13 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
   const [inviteLink, setInviteLink] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // ── Team Profile Edit States ──
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editTeamName, setEditTeamName] = useState(initialData.team?.name || '');
+  const [editTeamEmail, setEditTeamEmail] = useState((initialData.team as any)?.email || '');
+  const [editTeamPhone, setEditTeamPhone] = useState((initialData.team as any)?.phone || '');
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+
   // Sync when parent refreshes
   useEffect(() => {
     setMembers(initialData.members);
@@ -365,6 +372,37 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
       toast.error(e.message);
     } finally {
       setInviting(false);
+    }
+  }
+
+  // ── Save Team Profile ──
+  async function handleUpdateProfile() {
+    if (!editTeamName.trim()) {
+      toast.error('Team name cannot be empty');
+      return;
+    }
+    setUpdatingProfile(true);
+    try {
+      const res = await fetch('/api/team', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          teamId: team?.id, 
+          name: editTeamName, 
+          email: editTeamEmail, 
+          phone: editTeamPhone 
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      
+      toast.success('Team profile updated successfully');
+      setIsEditingProfile(false);
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setUpdatingProfile(false);
     }
   }
 
@@ -541,6 +579,70 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
           <p className="text-xs font-semibold text-slate-400 mt-0.5">Your Role</p>
         </div>
       </div>
+
+      {/* ── Team Profile (Admin only) ── */}
+      {isAdmin && (
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+          <div className="flex justify-between items-center mb-2">
+             <h2 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
+               <Shield className="w-4 h-4 text-blue-600" /> Agency Profile Settings
+             </h2>
+             {!isEditingProfile ? (
+                 <Button onClick={() => setIsEditingProfile(true)} variant="outline" size="sm" className="rounded-xl h-8 text-xs font-bold">Edit Profile</Button>
+             ) : (
+                 <div className="flex gap-2">
+                    <Button onClick={() => setIsEditingProfile(false)} variant="ghost" size="sm" className="rounded-xl h-8 text-xs">Cancel</Button>
+                    <Button disabled={updatingProfile} onClick={handleUpdateProfile} size="sm" className="rounded-xl h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                       {updatingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null} Save Changes
+                    </Button>
+                 </div>
+             )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">Business Name</label>
+              <Input
+                disabled={!isEditingProfile}
+                value={editTeamName}
+                onChange={(e) => setEditTeamName(e.target.value)}
+                placeholder="Team Name"
+                className="h-11 rounded-2xl font-bold border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">Contact Email</label>
+              <div className="relative">
+                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                 <Input
+                   disabled={!isEditingProfile}
+                   value={editTeamEmail}
+                   onChange={(e) => setEditTeamEmail(e.target.value)}
+                   placeholder="Support Email"
+                   className="h-11 pl-9 rounded-2xl font-medium border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+                 />
+              </div>
+            </div>
+            <div>
+               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">Contact Phone</label>
+               <div className="relative">
+                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                 <Input
+                   disabled={!isEditingProfile}
+                   value={editTeamPhone}
+                   onChange={(e) => setEditTeamPhone(e.target.value)}
+                   placeholder="Support Phone"
+                   className="h-11 pl-9 rounded-2xl font-medium border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+                 />
+               </div>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-2">
+             <AlertCircle className="w-3.5 h-3.5" />
+             These details are highlighted in the reminder emails to your clients.
+          </p>
+        </div>
+      )}
 
       {/* ── Invite (Admin / SubAdmin only) ── */}
       {canManageTeam && (

@@ -55,6 +55,7 @@ export async function getPolicies(
     status?: string;
     customerId?: string;
     insurerId?: string;
+    search?: string;
   },
   page = 1,
   pageSize = 20
@@ -62,7 +63,7 @@ export async function getPolicies(
   try {
     let query = supabaseAdmin!
       .from('policies')
-      .select('*, customer:customers(name, email), insurer:insurers(name), documents:policy_documents(file_path, file_name)')
+      .select('*, customer:customers(name, email), insurer:insurers(name), documents:policy_documents(file_path, file_name)', { count: 'exact' })
       .order('created_at', { ascending: false });
 
     if (filters?.status) {
@@ -73,6 +74,9 @@ export async function getPolicies(
     }
     if (filters?.insurerId) {
       query = query.eq('insurer_id', filters.insurerId);
+    }
+    if (filters?.search) {
+      query = query.or(`policy_number.ilike.%${filters.search}%,policy_type.ilike.%${filters.search}%`);
     }
 
     const { data, error, count } = await query

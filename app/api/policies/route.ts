@@ -50,8 +50,9 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || undefined;
     const customerId = searchParams.get('customerId') || undefined;
     const insurerId = searchParams.get('insurerId') || undefined;
+    const search = searchParams.get('search') || undefined;
 
-    const result = await getPolicies(user.id, { status, customerId, insurerId }, page, pageSize);
+    const result = await getPolicies(user.id, { status, customerId, insurerId, search }, page, pageSize);
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {

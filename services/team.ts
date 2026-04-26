@@ -59,6 +59,18 @@ export async function createTeam(adminUserId: string, teamName: string, email?: 
   return team;
 }
 
+export async function updateTeam(teamId: string, payload: { name?: string; email?: string; phone?: string }) {
+  const { data, error } = await supabaseAdmin!
+    .from('teams')
+    .update(payload)
+    .eq('id', teamId)
+    .select('*')
+    .single();
+    
+  if (error) throw error;
+  return data;
+}
+
 export async function getTeam(teamId: string) {
   const { data, error } = await supabaseAdmin!
     .from('teams')

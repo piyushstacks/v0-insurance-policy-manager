@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -35,41 +35,44 @@ export default function CustomersPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [totalRecords, setTotalRecords] = useState(0);
   const { canDirectlyAct } = useTeam();
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  async function fetchCustomers() {
+  const fetchCustomers = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const res = await fetch('/api/customers');
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: pageSize.toString(),
+      });
+      if (searchTerm) params.set('search', searchTerm.trim());
+
+      const res = await fetch(`/api/customers?${params.toString()}`);
       if (!res.ok) throw new Error('Fetch failed');
       const data = await res.json();
       setCustomers(data.data || []);
+      setTotalRecords(data.total || 0);
     } catch {
       toast.error('Failed to load customers');
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [currentPage, pageSize, searchTerm]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const filtered = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return customers
-      .filter(c =>
-        c.name?.toLowerCase().includes(q) ||
-        c.email?.toLowerCase().includes(q) ||
-        c.mobile?.includes(q)
-      )
-      .sort((a, b) => {
+    // Search is handled server-side now. We only need client-side aggregation sorting for the current fetched slice.
+    return [...customers].sort((a, b) => {
         let av: any = a[sortKey] ?? '';
         let bv: any = b[sortKey] ?? '';
         if (typeof av === 'string') av = av.toLowerCase();
         if (typeof bv === 'string') bv = bv.toLowerCase();
         return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
       });
-  }, [customers, searchTerm, sortKey, sortDir]);
+  }, [customers, sortKey, sortDir]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -77,10 +80,10 @@ export default function CustomersPage() {
   }
 
   const paginatedCustomers = useMemo(() => {
-    return filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  }, [filtered, currentPage, pageSize]);
+    return filtered;
+  }, [filtered]);
 
-  const totalPages = Math.ceil(filtered.length / pageSize);
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
 
   const toggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault();

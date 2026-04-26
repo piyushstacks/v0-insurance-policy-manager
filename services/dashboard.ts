@@ -58,14 +58,25 @@ export async function getDashboardMetrics(userId: string): Promise<DashboardMetr
       .eq('user_id', userId)
       .eq('status', 'pending');
 
-    // Get total coverage and premium values
-    const { data: policyData } = await supabaseAdmin!
-      .from('policies')
-      .select('premium_amount')
-      .eq('user_id', userId)
-      .eq('status', 'active');
-
-    const totalPremium = (policyData || []).reduce((sum, p) => sum + p.premium_amount, 0);
+    // Get total premium value safely
+    // Note: In a production environment with crores of data, this should be handled via a database RPC function:
+    // "SELECT SUM(premium_amount) FROM policies WHERE user_id = $1 AND status = 'active'"
+    const { data: premiumStats, error: premiumError } = await supabaseAdmin!
+      .rpc('get_active_premium_sum', { uid: userId });
+    
+    let totalPremium = 0;
+    if (!premiumError && premiumStats !== null) {
+      totalPremium = premiumStats;
+    } else {
+      // Fallback for smaller datasets if RPC isn't deployed yet
+      const { data: fallbackData } = await supabaseAdmin!
+        .from('policies')
+        .select('premium_amount')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .limit(1000); // Guardrails for massive datasets
+      totalPremium = (fallbackData || []).reduce((sum, p) => sum + (p.premium_amount || 0), 0);
+    }
 
     // Get recent audit logs
     const { data: auditData } = await supabaseAdmin!

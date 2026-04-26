@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import {
-  createTeam, getUserTeam, deleteTeam, getTeamMembers, getTeamInvitations
+  createTeam, getUserTeam, deleteTeam, getTeamMembers, getTeamInvitations, updateTeam
 } from '@/services/team';
 
 async function getUser(request: NextRequest) {
@@ -99,6 +99,33 @@ export async function POST(request: NextRequest) {
 
   try {
     const team = await createTeam(user.id, name.trim(), email, phone);
+    return NextResponse.json({ success: true, team });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const user = await getUser(request);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { teamId, name, email, phone } = await request.json();
+  
+  if (!teamId) return NextResponse.json({ error: 'Team ID is required' }, { status: 400 });
+
+  try {
+    // Only verify they belong to team (service also protects via RLS if setup, but let's be safe)
+    const membership = await getUserTeam(user.id);
+    if (!membership || membership.team_id !== teamId) {
+       return NextResponse.json({ error: 'Not a member of this team' }, { status: 403 });
+    }
+    
+    // Ideally check if ADMIN, but we'll let UI restrict and maybe enforce if strict
+    if (membership.role !== 'ADMIN') {
+       return NextResponse.json({ error: 'Only admins can edit team settings' }, { status: 403 });
+    }
+
+    const team = await updateTeam(teamId, { name: name?.trim(), email, phone });
     return NextResponse.json({ success: true, team });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 400 });

@@ -6,7 +6,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const { data: customers, error } = await supabaseAdmin!
+    const searchParams = request.nextUrl.searchParams;
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const pageSize = Math.min(100, parseInt(searchParams.get('pageSize') || '20'));
+    const search = searchParams.get('search') || '';
+
+    let query = supabaseAdmin!
       .from('customers')
       .select(`
          id,
@@ -19,9 +24,16 @@ export async function GET(request: NextRequest) {
            policy_type,
            expiry_date
          )
-      `)
-      .neq('name', 'Bulk Upload Customer')
-      .order('name', { ascending: true });
+      `, { count: 'exact' })
+      .neq('name', 'Bulk Upload Customer');
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,mobile.ilike.%${search}%`);
+    }
+
+    const { data: customers, error, count } = await query
+      .order('name', { ascending: true })
+      .range((page - 1) * pageSize, page * pageSize - 1);
 
     if (error) throw error;
     
@@ -46,7 +58,7 @@ export async function GET(request: NextRequest) {
        };
     });
 
-    return NextResponse.json({ data: formatted }, { status: 200 });
+    return NextResponse.json({ data: formatted, total: count || 0, page, pageSize }, { status: 200 });
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 });

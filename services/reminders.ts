@@ -17,35 +17,28 @@ export async function generateExpiryReminders(maxLookaheadDays: number = 45) {
 
     const { data: policies, error: fetchError } = await supabaseAdmin!
       .from('policies')
-      .select('id, user_id, expiry_date')
+      .select('id, expiry_date')
       .eq('status', 'active')
       .gte('expiry_date', new Date().toISOString().split('T')[0])
       .lte('expiry_date', futureDate.toISOString().split('T')[0]);
 
     if (fetchError) throw fetchError;
 
-    // Fetch user profiles for preferences
-    const { data: profiles, error: profileError } = await supabaseAdmin!
+    // Fetch master agency profile for global preferences
+    const { data: profile } = await supabaseAdmin!
       .from('user_profiles')
-      .select('id, reminder_preferences');
+      .select('reminder_preferences')
+      .limit(1)
+      .maybeSingle();
 
-    if (profileError) console.warn("[v0] Failed to fetch user_profiles for reminders:", profileError);
-
-    // Build lookup map
-    const prefLookup: Record<string, any> = {};
-    if (profiles) {
-      profiles.forEach(p => {
-        prefLookup[p.id] = p.reminder_preferences || { enabled: true, timing_days: [7, 15, 30], types: ['renewal'] };
-      });
-    }
-
+    const prefs = profile?.reminder_preferences || { enabled: true, timing_days: [7, 15, 30], types: ['renewal'] };
+    
     const reminders: any[] = [];
     const todayStr = new Date().toISOString().split('T')[0];
 
     for (const policy of policies) {
-      if (!policy.expiry_date || !policy.user_id) continue;
+      if (!policy.expiry_date) continue;
       
-      const prefs = prefLookup[policy.user_id] || { enabled: true, timing_days: [7, 15, 30], types: ['renewal'] };
       if (!prefs.enabled || prefs.timing_days?.length === 0) continue;
 
       for (const daysBefore of prefs.timing_days) {
@@ -66,7 +59,7 @@ export async function generateExpiryReminders(maxLookaheadDays: number = 45) {
           .select('id')
           .eq('policy_id', policy.id)
           .eq('reminder_type', reminderType)
-          .single();
+          .maybeSingle();
 
         if (existing) continue;
 
@@ -117,7 +110,10 @@ export async function getPendingReminders(userId: string) {
           policy_type,
           expiry_date,
           customers (
-            name
+            id,
+            name,
+            email,
+            mobile
           ),
           insurers (
             name
@@ -155,12 +151,21 @@ export async function getReminders(userId: string, page = 1, pageSize = 20) {
           id,
           policy_number,
           policy_type,
-          expiry_date
+          expiry_date,
+          customers (
+            id,
+            name,
+            email,
+            mobile
+          ),
+          insurers (
+            name
+          )
         )
       `,
         { count: 'exact' }
       )
-      .order('scheduled_date', { ascending: false })
+      .order('scheduled_date', { ascending: true })
       .range((page - 1) * pageSize, page * pageSize - 1);
 
     if (error) throw error;

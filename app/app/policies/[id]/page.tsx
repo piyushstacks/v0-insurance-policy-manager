@@ -19,6 +19,9 @@ import {
   Loader2,
   Trash2,
   RefreshCw,
+  Download,
+  Upload,
+  ExternalLink,
 } from 'lucide-react';
 import { PageLoader } from '@/components/ui/loader';
 import { RoleActionButton } from '@/components/role-action-button';
@@ -532,46 +535,87 @@ export default function PolicyDetailPage() {
         </div>
       )}
 
-      {/* Documents */}
-      <div className="rounded-lg border bg-card p-4">
-        <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">Documents</h3>
+      {/* ── Documents ── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-sm text-slate-700 uppercase tracking-wide flex items-center gap-2">
+            <FileText className="w-4 h-4 text-indigo-500" /> Documents
+            {documents.length > 0 && (
+              <span className="text-xs font-normal text-slate-400">({documents.length})</span>
+            )}
+          </h3>
+        </div>
+
         {documents.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">No documents uploaded yet.</p>
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+              <Upload className="w-6 h-6 text-slate-400" />
+            </div>
+            <p className="text-sm font-semibold text-slate-500">No documents uploaded yet</p>
+            <p className="text-xs text-slate-400 mt-1">Documents attached during upload will appear here</p>
+          </div>
         ) : (
           <div className="space-y-3">
-            {documents.map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium text-sm">{doc.file_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(doc.upload_date).toLocaleDateString()}
-                    </p>
+            {documents.map((doc) => {
+              const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+              const downloadUrl = doc.file_path
+                ? `${supabaseUrl}/storage/v1/object/public/policy-documents/${doc.file_path}`
+                : null;
+
+              return (
+                <div key={doc.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-slate-900 truncate">{doc.file_name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Uploaded {new Date(doc.upload_date || doc.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      doc.extraction_status === 'extracted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                      doc.extraction_status === 'failed'    ? 'bg-red-50 text-red-700 border-red-200' :
+                      doc.extraction_status === 'reviewed'  ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                      'bg-amber-50 text-amber-700 border-amber-200'
+                    }`}>
+                      {doc.extraction_status?.toUpperCase() ?? 'PENDING'}
+                    </span>
+
+                    {downloadUrl ? (
+                      <a
+                        href={downloadUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={doc.file_name}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                        title="Download document"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Download
+                      </a>
+                    ) : (
+                      <span className="text-xs text-red-500">URL missing</span>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleReExtractDoc(doc.id)}
+                      disabled={reExtractingDoc === doc.id}
+                      title="Re-run AI extraction"
+                      className="h-8 w-8 p-0"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${reExtractingDoc === doc.id ? 'animate-spin text-indigo-500' : 'text-slate-400'}`} />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <a href={`${process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://vvueurxfbdrfbdanxbnl.supabase.co'}/storage/v1/object/public/policy-documents/${doc.file_path}`} 
-                     target="_blank" 
-                     rel="noreferrer"
-                     className="px-3 py-1 text-xs font-semibold bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 transition-colors">
-                     Download original PDF
-                  </a>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${extractionColors[doc.extraction_status] ?? 'bg-gray-100 text-gray-700'}`}>
-                    {doc.extraction_status}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleReExtractDoc(doc.id)}
-                    disabled={reExtractingDoc === doc.id}
-                    title="Re-run extraction"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${reExtractingDoc === doc.id ? 'animate-spin' : ''}`} />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -109,38 +109,55 @@ export async function getPolicyWithDocuments(policyId: string, userId: string) {
 
     if (policyError || !policy) throw new Error('Policy not found');
 
-    // Get documents with their extraction jobs - gracefully handle if extracted_data doesn't exist
+    // Get documents with their extraction jobs
     let documents: any[] = [];
     try {
       const { data, error: docsError } = await supabaseAdmin!
         .from('policy_documents')
         .select(`
-          *,
-          extraction_jobs (
+          id,
+          policy_id,
+          file_name,
+          file_path,
+          file_type,
+          upload_date,
+          created_at,
+          extraction_status,
+          raw_ocr_text,
+          extraction_jobs!extraction_jobs_document_id_fkey (
             id,
             status,
             extracted_data,
-            raw_ocr_text,
             error_message,
             completed_at
           )
         `)
         .eq('policy_id', policyId)
-        .order('upload_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
-      if (!docsError) {
+      if (docsError) {
+        console.warn('[policies] extraction_jobs join failed, falling back to docs-only:', docsError.message);
+        // Fallback: documents without the join
+        const { data: fallbackData, error: fallbackErr } = await supabaseAdmin!
+          .from('policy_documents')
+          .select('*')
+          .eq('policy_id', policyId)
+          .order('created_at', { ascending: false });
+        if (fallbackErr) console.error('[policies] fallback doc query also failed:', fallbackErr.message);
+        documents = fallbackData || [];
+      } else {
         documents = data || [];
       }
     } catch (e) {
-      console.warn('Failed to fetch extraction jobs with extracted_data, fetching documents only:', e);
-      // Fallback: fetch just documents without extraction jobs
+      console.warn('[policies] Unexpected error fetching documents:', e);
       const { data } = await supabaseAdmin!
         .from('policy_documents')
         .select('*')
         .eq('policy_id', policyId)
-        .order('upload_date', { ascending: false });
+        .order('created_at', { ascending: false });
       documents = data || [];
     }
+    console.log(`[policies] Found ${documents.length} documents for policy ${policyId}`);
 
     // Aggregate all extracted data from all documents and extraction jobs
     const allExtractionData: Record<string, any> = {};

@@ -205,6 +205,7 @@ export default function RemindersPage() {
                                 <span className="flex items-center gap-1.5 font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                                    ₹{(() => {
                                       const num = reminder.policies?.premium_amount;
+                                      if (num === null || num === undefined) return '—';
                                       if (num >= 10000000) return (num / 10000000).toFixed(2) + ' Cr';
                                       if (num >= 100000) return (num / 100000).toFixed(2) + ' Lac';
                                       return num.toLocaleString('en-IN');

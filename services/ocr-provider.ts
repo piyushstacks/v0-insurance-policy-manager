@@ -4,7 +4,7 @@
  * does NOT bundle it. Node.js loads it natively at runtime via require.
  */
 
-import { ExtractionResult } from '@/lib/schemas';
+import { ExtractionResultInput } from '@/lib/schemas';
 import { DocumentProcessorServiceClient } from '@google-cloud/documentai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -16,8 +16,8 @@ const pdfParse: (buf: Buffer) => Promise<{ text: string; numpages: number }> =
 export interface OCRProvider {
   name: string;
   extractText(fileUrl: string): Promise<string>;
-  extractStructuredData(text: string, existingInsurers?: string[], existingCustomers?: string[]): Promise<ExtractionResult>;
-  consensusExtract(text: string, existingInsurers?: string[], existingCustomers?: string[]): Promise<ExtractionResult>;
+  extractStructuredData(text: string, existingInsurers?: string[], existingCustomers?: string[]): Promise<ExtractionResultInput>;
+  consensusExtract(text: string, existingInsurers?: string[], existingCustomers?: string[]): Promise<ExtractionResultInput>;
 }
 
 class PDFParseProvider implements OCRProvider {
@@ -55,7 +55,7 @@ class PDFParseProvider implements OCRProvider {
     }
   }
 
-  async extractStructuredData(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResult> {
+  async extractStructuredData(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResultInput> {
     console.log('[v0/OCR] Running AI extraction with Entity Resolution Maps...');
 
     const now = new Date();
@@ -276,7 +276,7 @@ class PDFParseProvider implements OCRProvider {
     return this.regexFallback(text);
   }
 
-  async consensusExtract(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResult> {
+  async consensusExtract(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResultInput> {
     console.log('[v0/AI] 🧠 Entering Consensus Mode: Calling dual models for cross-verification...');
     
     // Run two models in parallel
@@ -340,7 +340,7 @@ class PDFParseProvider implements OCRProvider {
     return val1;
   }
 
-  private regexFallback(text: string): ExtractionResult {
+  private regexFallback(text: string): ExtractionResultInput {
     const now = new Date();
     const nextYear = new Date(now);
     nextYear.setFullYear(nextYear.getFullYear() + 1);
@@ -472,7 +472,7 @@ class PDFParseProvider implements OCRProvider {
       sanitizeName(holderMatch) ??
       null;
 
-    const result: ExtractionResult = {
+    const result: ExtractionResultInput = {
       policy_number:  policyNumber,
       policy_type:    policyType.trim(),
       coverage_start: coverageStart,
@@ -549,13 +549,13 @@ class GoogleDocumentAIProvider implements OCRProvider {
     }
   }
 
-  async extractStructuredData(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResult> {
+  async extractStructuredData(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResultInput> {
      // Regex data heuristics works beautifully on top of GCP text.
      const fallbackEngine = new PDFParseProvider();
      return fallbackEngine.extractStructuredData(text, existingInsurers, existingCustomers);
   }
 
-  async consensusExtract(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResult> {
+  async consensusExtract(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResultInput> {
      const fallbackEngine = new PDFParseProvider();
      return fallbackEngine.consensusExtract(text, existingInsurers, existingCustomers);
   }

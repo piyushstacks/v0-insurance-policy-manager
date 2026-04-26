@@ -40,6 +40,7 @@ interface Policy {
   expiry_date: string;
   customers: Customer | null;
   insurers: Insurer | null;
+  premium_amount: number | null;
 }
 
 interface Reminder {
@@ -47,6 +48,7 @@ interface Reminder {
   scheduled_date: string;
   reminder_type: string;
   status: 'pending' | 'sent' | 'skipped';
+  updated_at?: string | null;
   policies: Policy | null;
 }
 

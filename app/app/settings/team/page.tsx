@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Users, Plus, Mail, UserX, Copy, CheckCircle,
   Loader2, Shield, AlertCircle, Clock, LogOut, RefreshCw,
-  Crown, Trash2, SendHorizonal, ChevronDown, UserCog,
+  Crown, Trash2, SendHorizonal, ChevronDown, UserCog, Phone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

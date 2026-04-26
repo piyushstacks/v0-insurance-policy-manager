@@ -120,6 +120,14 @@ export default function RemindersPage() {
     return !email || email.includes('xxxx') || email.includes('dummy') || email.includes('example.com') || email.includes('upload.local');
   };
 
+  const pendingReminders = useMemo(() => 
+    reminders.filter((r) => r.status === 'pending'),
+  [reminders]);
+
+  const completedReminders = useMemo(() => 
+    reminders.filter((r) => r.status !== 'pending'),
+  [reminders]);
+
   const groupedPending = useMemo(() => {
     const groups = {
       urgent: [] as Reminder[], // within 7 days

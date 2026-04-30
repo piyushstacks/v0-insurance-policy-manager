@@ -24,6 +24,7 @@ export async function createPolicy(userId: string, data: PolicyInput) {
           coverage_end: data.coverage_end.toISOString().split('T')[0],
           premium_amount: data.premium_amount,
           status: data.status,
+          user_id: userId,
           renewal_date: data.renewal_date
             ? data.renewal_date.toISOString().split('T')[0]
             : null,
@@ -64,6 +65,7 @@ export async function getPolicies(
     let query = supabaseAdmin!
       .from('policies')
       .select('*, customer:customers(name, email), insurer:insurers(name), documents:policy_documents(file_path, file_name)', { count: 'exact' })
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (filters?.status) {
@@ -109,6 +111,7 @@ export async function getPolicyWithDocuments(policyId: string, userId: string) {
         insurer:insurers(name, contact)
       `)
       .eq('id', policyId)
+      .eq('user_id', userId)
       .single();
 
     if (policyError || !policy) throw new Error('Policy not found');
@@ -206,6 +209,7 @@ export async function updatePolicy(
       .from('policies')
       .select('*')
       .eq('id', policyId)
+      .eq('user_id', userId)
       .single();
 
     if (!existing) throw new Error('Policy not found');
@@ -251,13 +255,14 @@ export async function updatePolicy(
 export async function deletePolicy(policyId: string, userId: string) {
   try {
     // Verify ownership
-    const { data: policy } = await supabaseAdmin!
+    const { data: existing } = await supabaseAdmin!
       .from('policies')
-      .select('*')
+      .select('id, policy_number')
       .eq('id', policyId)
+      .eq('user_id', userId)
       .single();
 
-    if (!policy) throw new Error('Policy not found');
+    if (!existing) throw new Error('Policy not found');
 
     // Delete associated documents and extraction jobs
     const { data: documents } = await supabaseAdmin!

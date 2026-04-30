@@ -60,6 +60,7 @@ export async function POST(
         )
       `)
       .eq('id', policyId)
+      .eq('user_id', user.id)
       .single();
 
     if (error || !policy) {

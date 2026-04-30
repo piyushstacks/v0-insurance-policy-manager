@@ -121,6 +121,7 @@ export async function getPendingReminders(userId: string) {
         )
       `
       )
+      .eq('user_id', userId)
       .eq('status', 'pending')
       .lte('scheduled_date', new Date().toISOString().split('T')[0])
       .order('scheduled_date', { ascending: true });
@@ -165,6 +166,7 @@ export async function getReminders(userId: string, page = 1, pageSize = 20) {
       `,
         { count: 'exact' }
       )
+      .eq('user_id', userId)
       .order('scheduled_date', { ascending: true })
       .range((page - 1) * pageSize, page * pageSize - 1);
 
@@ -197,8 +199,9 @@ export async function dismissReminder(reminderId: string, userId: string) {
 
     const { error } = await supabaseAdmin!
       .from('reminders')
-      .update({ status: 'skipped' })
-      .eq('id', reminderId);
+      .update({ status: 'dismissed' })
+      .eq('id', reminderId)
+      .eq('user_id', userId);
 
     if (error) throw error;
 

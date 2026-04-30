@@ -43,8 +43,14 @@ export async function POST(request: NextRequest) {
       // Get the public file URL
       const { data: doc } = await supabaseAdmin!
         .from('policy_documents')
-        .select('file_path')
+        .select(`
+          file_path,
+          policies!inner (
+            user_id
+          )
+        `)
         .eq('id', documentId)
+        .eq('policies.user_id', user.id)
         .single();
 
       if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
@@ -68,7 +74,15 @@ export async function POST(request: NextRequest) {
     // --- Bulk re-extraction for selected / all policies ---
     let query = supabaseAdmin!
       .from('policy_documents')
-      .select('id, file_path, policy_id');
+      .select(`
+        id, 
+        file_path, 
+        policy_id,
+        policies!inner (
+          user_id
+        )
+      `)
+      .eq('policies.user_id', user.id);
 
     if (policyIds && policyIds.length > 0) {
       query = query.in('policy_id', policyIds);

@@ -78,12 +78,10 @@ export function normalizeCustomerName(name: string): string {
   return name
     .trim()
     .toLowerCase()
-    // Replace underscores and other non-word/non-space characters with space
-    .replace(/[_\W]+/g, ' ')
-    // Collapse multiple spaces
-    .replace(/\s+/g, ' ')
-    // Remove common suffixes that don't affect identity
-    .replace(/\b(jr|sr|esq|ii|iii|iv|v)\b/g, '')
+    .replace(/_/g, ' ') // Replace underscores with space
+    .replace(/[^a-z0-9\s]/g, '') // Strip all other non-alphanumeric characters (hyphens, apostrophes, non-ASCII)
+    .replace(/\s+/g, ' ') // Collapse multiple spaces
+    .replace(/\b(jr|sr|esq|ii|iii|iv|v)\b/g, '') // Remove common suffixes
     .trim();
 }
 
@@ -102,7 +100,7 @@ export function extractNameComponents(name: string): {
   return {
     firstName: parts[0] || '',
     lastName: parts[parts.length - 1] || '',
-    initials: parts.map(p => p[0]).join(''),
+    initials: parts.map(p => p[0]).join('').toUpperCase(),
     wordCount: parts.length,
   };
 }
@@ -118,19 +116,76 @@ export function calculateNameSimilarity(name1: string, name2: string): number {
   if (norm1 === norm2) return 1;
   if (!norm1 || !norm2) return 0;
 
+  const words1 = norm1.split(/\s+/).filter(Boolean);
+  const words2 = norm2.split(/\s+/).filter(Boolean);
+
+  // Check for perfect word permutation match
+  const sorted1 = [...words1].sort().join(' ');
+  const sorted2 = [...words2].sort().join(' ');
+  if (sorted1 === sorted2) {
+    return norm1 === norm2 ? 1 : 0.85;
+  }
+
+  // Filter out common corporate noise words for company/insurer matching
+  const noiseWords = new Set(['company', 'ltd', 'limited', 'insurance', 'corp', 'corporation', 'co', 'general', 'services']);
+  const cleanWords1 = words1.filter(w => !noiseWords.has(w));
+  const cleanWords2 = words2.filter(w => !noiseWords.has(w));
+
+  const cleanNorm1 = cleanWords1.join(' ');
+  const cleanNorm2 = cleanWords2.join(' ');
+
+  if (cleanNorm1 === cleanNorm2 && cleanNorm1.length > 0) return 1;
+
+  // If one clean name is substring of the other clean name, give high similarity
+  if (cleanNorm1 && cleanNorm2) {
+    if (cleanNorm1.includes(cleanNorm2) || cleanNorm2.includes(cleanNorm1)) {
+      const minLen = Math.min(cleanNorm1.length, cleanNorm2.length);
+      const maxLen = Math.max(cleanNorm1.length, cleanNorm2.length);
+      if (minLen / maxLen >= 0.4) {
+        return 0.85;
+      }
+    }
+  }
+
+  // Calculate fuzzy word-level similarity
+  let totalWordSimilarity = 0;
+  for (const w1 of words1) {
+    let bestWordSim = 0;
+    for (const w2 of words2) {
+      const wordMaxLen = Math.max(w1.length, w2.length);
+      const wordDist = levenshteinDistance(w1, w2);
+      const wordSim = 1 - wordDist / wordMaxLen;
+      if (wordSim > bestWordSim) {
+        bestWordSim = wordSim;
+      }
+    }
+    if (bestWordSim >= 0.6) {
+      totalWordSimilarity += bestWordSim;
+    }
+  }
+  const fuzzyJaccard = totalWordSimilarity / Math.max(words1.length, words2.length);
+
+  // Calculate Levenshtein similarity of the entire normalized strings
   const maxLen = Math.max(norm1.length, norm2.length);
   const distance = levenshteinDistance(norm1, norm2);
-  const similarity = 1 - distance / maxLen;
+  const levSimilarity = 1 - distance / maxLen;
+
+  let similarity = Math.max(levSimilarity, fuzzyJaccard);
+
+  // If no words match fuzzily for multi-word names, penalize similarity heavily
+  if (fuzzyJaccard === 0 && (words1.length > 1 || words2.length > 1)) {
+    similarity = similarity * 0.1;
+  }
 
   // Boost score if first and last names match
   const comp1 = extractNameComponents(norm1);
   const comp2 = extractNameComponents(norm2);
 
-  if (comp1.firstName === comp2.firstName && comp1.lastName === comp2.lastName) {
+  if (comp1.firstName === comp2.firstName && comp1.lastName === comp2.lastName && comp1.firstName !== '') {
     return Math.min(1, similarity + 0.2);
   }
 
-  // Penalize if word count is very different (likely different person)
+  // Penalize if word count is very different
   if (Math.abs(comp1.wordCount - comp2.wordCount) > 2) {
     return Math.max(0, similarity - 0.1);
   }
@@ -220,6 +275,7 @@ export async function crossVerifyCustomer(
   }
 ): Promise<{
   isSamePerson: boolean;
+  confidence: number;
   matchDetails: {
     name_similarity: number;
     contact_match: boolean;
@@ -228,46 +284,54 @@ export async function crossVerifyCustomer(
   };
 }> {
   const details: string[] = [];
-  let matchScore = 0;
-
-  // 1. Name similarity check
   const nameSimilarity = calculateNameSimilarity(
     existingCustomer.name,
     extractedData.customer_name || ''
   );
   details.push(`Name similarity: ${(nameSimilarity * 100).toFixed(1)}%`);
 
-  if (nameSimilarity >= NAME_SIMILARITY_THRESHOLD) {
-    matchScore += 40; // 40% weight for name
-    details.push('✓ Name matches (fuzzy)');
-  }
-
-  // 2. Contact details check
   const contactMatch = contactsMatch(
     { email: existingCustomer.email, mobile: existingCustomer.mobile },
     { email: extractedData.customer_email, mobile: extractedData.customer_mobile }
   );
 
-  if (contactMatch.matched) {
-    matchScore += 50; // 50% weight for contact (high confidence)
-    details.push(`✓ ${contactMatch.type} matches perfectly`);
+  const emailConflict = (existingCustomer.email && extractedData.customer_email && 
+                         existingCustomer.email.toLowerCase() !== extractedData.customer_email.toLowerCase());
+  const mobileConflict = (existingCustomer.mobile && extractedData.customer_mobile && 
+                          normalizePhoneNumber(existingCustomer.mobile) !== normalizePhoneNumber(extractedData.customer_mobile));
+  const contactConflict = emailConflict || mobileConflict;
+
+  let ageMatch = false;
+  if (extractedData.customer_age && extractedData.full_details) {
+    ageMatch = extractedData.full_details.toLowerCase().includes(extractedData.customer_age.toString());
   }
 
-  // 3. Age verification (if available in policy)
-  if (extractedData.customer_age && extractedData.full_details) {
-    const ageMatch =
-      extractedData.full_details.toLowerCase().includes(extractedData.customer_age.toString());
-    if (ageMatch) {
-      matchScore += 10; // 10% weight for age
-      details.push(`✓ Age verification: ${extractedData.customer_age}`);
+  let isSamePerson = false;
+  if (!contactConflict) {
+    if (nameSimilarity >= 0.95) {
+      isSamePerson = true;
+      details.push('✓ Name matches (fuzzy)');
+    } else if (nameSimilarity >= NAME_SIMILARITY_THRESHOLD && ageMatch) {
+      isSamePerson = true;
+      details.push('✓ Name matches (fuzzy) and age verified');
+    } else if (contactMatch.matched && nameSimilarity >= 0.6) {
+      isSamePerson = true;
+      details.push(`✓ Name matches (decent) and ${contactMatch.type} matches perfectly`);
     }
   }
 
-  // Final decision
-  const isSamePerson = matchScore >= 65 || (contactMatch.matched && nameSimilarity >= 0.6);
+  // Calculate confidence score (0 to 1)
+  let confidence = nameSimilarity * 0.4;
+  if (contactMatch.matched) {
+    confidence = Math.max(confidence + 0.55, 0.95);
+  }
+  if (ageMatch) {
+    confidence = Math.min(1.0, confidence + 0.1);
+  }
 
   return {
     isSamePerson,
+    confidence,
     matchDetails: {
       name_similarity: nameSimilarity,
       contact_match: contactMatch.matched,

@@ -5,11 +5,12 @@ module.exports = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    '^p-limit$': '<rootDir>/__mocks__/p-limit.js',
   },
   testMatch: ['**/__tests__/**/*.test.ts'],
   setupFiles: ['<rootDir>/jest.setup.js'],
   transformIgnorePatterns: [
-    '/node_modules/(?!p-limit|yocto-queue)/',
+    '/node_modules/',
   ],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { useESM: true }],

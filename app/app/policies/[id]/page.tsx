@@ -208,7 +208,7 @@ export default function PolicyDetailPage() {
         </div>
       </div>
 
-      {/* ── Unified Policy Details Card ── */}
+      {/* ── Unified Policy Details Dashboard ── */}
       {(() => {
         const fmt = (d: string | undefined) => {
           if (!d) return '—';
@@ -216,28 +216,110 @@ export default function PolicyDetailPage() {
           return isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
         };
 
-        // Build the canonical field set from DB (always shown, never duplicated)
-        const coreFields: { label: string; value: string }[] = [];
+        const notes = String(policy.agent_notes || extractedData.agent_notes || extractedData.key_important_details || policy.agent_notes || '');
 
-        if (policy.policy_number) coreFields.push({ label: 'Policy Number', value: policy.policy_number });
+        const isMotor = policy.policy_type?.toLowerCase().includes('motor') ||
+                        policy.policy_type?.toLowerCase().includes('vehicle') ||
+                        policy.policy_type?.toLowerCase().includes('car') ||
+                        policy.policy_type?.toLowerCase().includes('bike') ||
+                        policy.policy_type?.toLowerCase().includes('two wheeler') ||
+                        notes.toLowerCase().includes('registration') ||
+                        notes.toLowerCase().includes('chassis');
+
+        const isHealth = policy.policy_type?.toLowerCase().includes('health') ||
+                         policy.policy_type?.toLowerCase().includes('medical') ||
+                         policy.policy_type?.toLowerCase().includes('mediclaim') ||
+                         notes.toLowerCase().includes('ped') ||
+                         notes.toLowerCase().includes('pre-existing');
+
+        // ── MOTOR DETAILS EXTRACTION ──
+        const regMatch = notes.match(/(?:Registration\s*No\.?|Reg\s*No\.?|Vehicle\s*No\.?|Registration\s*Number):\s*([^\n<|•]+)/i);
+        const chassisMatch = notes.match(/(?:Chassis\s*No\.?|Chassis(?:\s*Number)?):\s*([A-Z0-9]+|[^\n<|•]+)/i);
+        const engineMatch = notes.match(/(?:Engine\s*No\.?|Engine(?:\s*Number)?):\s*([A-Z0-9]+|[^\n<|•]+)/i);
+        const idvMatch = notes.match(/(?:IDV|Insured\s*Declared\s*Value):\s*(?:₹|Rs\.?\s*)?([^\n<|•]+)/i);
+        const fuelMatch = notes.match(/(?:Fuel\s*Type|Fuel):\s*([^\n<|•]+)/i);
+        const bodyMatch = notes.match(/(?:Body\s*Type|Vehicle\s*Type):\s*([^\n<|•]+)/i);
+        const yearMatch = notes.match(/(?:Year|YOM|Year\s*of\s*Manufacture|Manufacturing\s*Year):\s*([0-9]{4}|[^\n<|•]+)/i);
+
+        const motorFields: { label: string; value: string }[] = [];
+        const regVal = extractedData.vehicle_number || (regMatch ? regMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') : '');
+        if (regVal) motorFields.push({ label: 'Registration No', value: regVal });
+        if (chassisMatch) motorFields.push({ label: 'Chassis No', value: chassisMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') });
+        if (engineMatch) motorFields.push({ label: 'Engine No', value: engineMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') });
+        if (idvMatch) {
+          const rawIdv = idvMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '');
+          motorFields.push({ label: 'Insured Declared Value (IDV)', value: rawIdv.startsWith('₹') ? rawIdv : `₹${rawIdv}` });
+        }
+        if (fuelMatch) motorFields.push({ label: 'Fuel Type', value: fuelMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') });
+        if (bodyMatch) motorFields.push({ label: 'Body Type', value: bodyMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') });
+        if (yearMatch) motorFields.push({ label: 'Year of Manufacture', value: yearMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') });
+
+        // ── HEALTH DETAILS EXTRACTION ──
+        const pedMatch = notes.match(/(?:Health\s*PED|PED|Pre-Existing\s*Diseases?):\s*([^\n<|•]+)/i);
+        const tpaMatch = notes.match(/(?:TPA|Third\s*Party\s*Administrator):\s*([^\n<|•]+)/i);
+        const copayMatch = notes.match(/(?:Copay|Co-pay|Co-payment):\s*([^\n<|•]+)/i);
+        const roomMatch = notes.match(/(?:Room\s*Rent(?:\s*Limit)?):\s*([^\n<|•]+)/i);
+
+        const healthFields: { label: string; value: string }[] = [];
+        const pedVal = extractedData.health_ped || (pedMatch ? pedMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') : '');
+        if (pedVal) healthFields.push({ label: 'Pre-Existing Diseases (PED)', value: pedVal });
+        if (tpaMatch) healthFields.push({ label: 'TPA Name', value: tpaMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') });
+        if (copayMatch) healthFields.push({ label: 'Copay / Co-payment', value: copayMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') });
+        if (roomMatch) healthFields.push({ label: 'Room Rent Limit', value: roomMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') });
+
+        // ── NOMINEE EXTRACTION ──
+        const nomineeMatch = notes.match(/(?:Nominee(?:\s*Name)?):\s*([^\n<|•]+)/i);
+        const nomineeVal = policy.nominee || extractedData.nominee_name || (nomineeMatch ? nomineeMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '') : '');
+
+        // ── CUSTOMER & INSURER FIELDS ──
+        const customerInsurerFields: { label: string; value: string }[] = [];
+        const cName = policy.customer?.name || extractedData.customer_name;
+        if (cName) customerInsurerFields.push({ label: 'Customer Name', value: cName });
+        const cMobile = policy.customer?.mobile || extractedData.customer_mobile;
+        if (cMobile) customerInsurerFields.push({ label: 'Mobile', value: cMobile });
+        const cEmail = policy.customer?.email || extractedData.customer_email;
+        if (cEmail) customerInsurerFields.push({ label: 'Email', value: cEmail });
+
+        const iName = policy.insurer?.name || extractedData.insurer_name;
+        if (iName) customerInsurerFields.push({ label: 'Insurer', value: iName });
+        const iContact = policy.insurer?.contact;
+        if (iContact) customerInsurerFields.push({ label: 'Insurer Contact', value: iContact });
+
+        // ── COVERAGE & FINANCIAL FIELDS ──
+        const coverageFinancialFields: { label: string; value: string }[] = [];
+        if (policy.policy_number) coverageFinancialFields.push({ label: 'Policy Number', value: policy.policy_number });
         if (policy.policy_type) {
           const parts = policy.policy_type.split(' | ');
-          coreFields.push({ label: 'Policy Type', value: parts.join(' — ') });
+          coverageFinancialFields.push({ label: 'Policy Type', value: parts.join(' — ') });
         }
-        if (policy.start_date || policy.coverage_start) coreFields.push({ label: 'Coverage Start', value: fmt(policy.start_date || policy.coverage_start) });
-        if (policy.expiry_date || policy.coverage_end) coreFields.push({ label: 'Coverage End', value: fmt(policy.expiry_date || policy.coverage_end) });
-        if (policy.premium_amount) coreFields.push({ label: 'Premium Amount', value: `₹${policy.premium_amount.toLocaleString('en-IN')}` });
-        if (policy.sum_insured) coreFields.push({ label: 'Sum Insured', value: `₹${policy.sum_insured.toLocaleString('en-IN')}` });
-        if (policy.customer?.name) coreFields.push({ label: 'Customer', value: policy.customer.name });
-        if (policy.customer?.mobile) coreFields.push({ label: 'Mobile', value: policy.customer.mobile });
-        if (policy.customer?.email) coreFields.push({ label: 'Email', value: policy.customer.email });
-        if (policy.insurer?.name) coreFields.push({ label: 'Insurer', value: policy.insurer.name });
-        if (policy.insurer?.contact) coreFields.push({ label: 'Insurer Contact', value: policy.insurer.contact });
+        if (policy.start_date || policy.coverage_start) {
+          coverageFinancialFields.push({ label: 'Coverage Start', value: fmt(policy.start_date || policy.coverage_start) });
+        }
+        if (policy.expiry_date || policy.coverage_end) {
+          coverageFinancialFields.push({ label: 'Coverage End', value: fmt(policy.expiry_date || policy.coverage_end) });
+        }
+        if (policy.premium_amount) {
+          coverageFinancialFields.push({ label: 'Premium Amount', value: `₹${policy.premium_amount.toLocaleString('en-IN')}` });
+        }
+        if (policy.sum_insured) {
+          coverageFinancialFields.push({ label: 'Sum Insured', value: `₹${policy.sum_insured.toLocaleString('en-IN')}` });
+        }
+        if (nomineeVal) {
+          coverageFinancialFields.push({ label: 'Nominee', value: nomineeVal });
+        }
 
-        // Track which labels are already shown to avoid duplication
-        const shownLabels = new Set(coreFields.map(f => f.label.toLowerCase()));
+        // ── DEDUPLICATE EXTRA EXTRACTED DATA ──
+        const renderedLabels = new Set([
+          'policy_number', 'policy_type', 'start_date', 'coverage_start', 'expiry_date', 'coverage_end',
+          'premium_amount', 'sum_insured', 'nominee', 'nominee_name', 'status',
+          'name', 'customer_name', 'mobile', 'customer_mobile', 'email', 'customer_email',
+          'insurer_name', 'insurer_contact', 'contact', 'vehicle_number', 'health_ped'
+        ]);
 
-        // Field label map for AI data
+        // Add normalized forms of regex-extracted details to renderedLabels
+        motorFields.forEach(f => renderedLabels.add(f.label.toLowerCase().replace(/[\s_]/g, '')));
+        healthFields.forEach(f => renderedLabels.add(f.label.toLowerCase().replace(/[\s_]/g, '')));
+
         const fieldLabels: Record<string, string> = {
           policy_number: 'Policy Number',
           policy_type: 'Policy Type',
@@ -247,37 +329,36 @@ export default function PolicyDetailPage() {
           coverage_end: 'Coverage End',
           premium_amount: 'Premium Amount',
           sum_insured: 'Sum Insured',
-          insurer_name: 'Insurer',
-          customer_name: 'Customer',
-          customer_email: 'Email',
-          customer_mobile: 'Mobile',
+          insurer_name: 'Insurer Name',
+          customer_name: 'Customer Name',
+          customer_email: 'Customer Email',
+          customer_mobile: 'Customer Mobile',
           vehicle_number: 'Vehicle No',
           nominee_name: 'Nominee',
           health_ped: 'Health PED',
         };
 
-        // Fields to always skip (raw HTML / internal)
         const skipKeys = new Set(['key_important_details', 'agent_notes']);
-
-        // Extra fields from AI extraction not already shown
         const extraFields: { label: string; value: string }[] = [];
+
         Object.entries(extractedData).forEach(([key, value]) => {
           if (skipKeys.has(key)) return;
           if (value === null || value === undefined || value === '') return;
+          
           const label = fieldLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-          if (shownLabels.has(label.toLowerCase())) return; // already shown above
+          const normalizedKey = key.toLowerCase().replace(/[\s_]/g, '');
+          const normalizedLabel = label.toLowerCase().replace(/[\s_]/g, '');
+          
+          if (renderedLabels.has(normalizedKey) || renderedLabels.has(normalizedLabel)) return;
+
           let displayValue = String(value).replace(/<[^>]*>/g, '').trim();
           if (!displayValue) return;
-          if ((key === 'coverage_start' || key === 'coverage_end') && !shownLabels.has(label.toLowerCase())) {
-            try { displayValue = new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); } catch { }
-          }
+
           if (key === 'premium_amount' && typeof value === 'number') {
             displayValue = `₹${value.toLocaleString('en-IN')}`;
           }
           extraFields.push({ label, value: displayValue });
         });
-
-        const allFields = [...coreFields, ...extraFields];
 
         // Parse agent_notes / key_important_details for bullet items
         const rawNotes = extractedData.agent_notes || extractedData.key_important_details || policy.agent_notes;
@@ -293,34 +374,123 @@ export default function PolicyDetailPage() {
         }
 
         return (
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            {/* Card Header */}
-            <div className="px-5 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-indigo-600" />
-              <h3 className="font-bold text-sm text-indigo-900 uppercase tracking-widest">Policy Details</h3>
-            </div>
-
-            {/* Main Fields Grid */}
-            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {allFields.map(({ label, value }) => (
-                <div key={label} className="bg-slate-50 rounded-lg border border-slate-200 px-4 py-3 hover:border-indigo-300 transition-colors">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-                  <p className="font-semibold text-slate-800 text-sm break-words">{value}</p>
+          <div className="space-y-6">
+            {/* Row 1: Core Profile & Policy Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Customer & Insurer Profile Card */}
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                <div className="px-5 py-3.5 bg-rose-50/70 border-b border-rose-100 flex items-center gap-2">
+                  <User className="w-4 h-4 text-rose-500" />
+                  <h3 className="font-bold text-xs text-rose-900 uppercase tracking-widest">Customer & Insurer Profile</h3>
                 </div>
-              ))}
+                <div className="p-5 space-y-3">
+                  {customerInsurerFields.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No contact information available</p>
+                  ) : (
+                    customerInsurerFields.map(({ label, value }) => (
+                      <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
+                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+                        <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Policy Coverage & Financials Card */}
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                <div className="px-5 py-3.5 bg-amber-50/70 border-b border-amber-100 flex items-center gap-2">
+                  <IndianRupee className="w-4 h-4 text-amber-600" />
+                  <h3 className="font-bold text-xs text-amber-900 uppercase tracking-widest">Coverage & Financials</h3>
+                </div>
+                <div className="p-5 space-y-3">
+                  {coverageFinancialFields.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No coverage details available</p>
+                  ) : (
+                    coverageFinancialFields.map(({ label, value }) => (
+                      <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
+                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+                        <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Key Details Bullets */}
+            {/* Row 2: Policy-Specific Sub-sections & Other Extracted Data */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Motor Policy Details Card */}
+              {isMotor && motorFields.length > 0 && (
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="px-5 py-3.5 bg-blue-50/70 border-b border-blue-100 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-500" />
+                    <h3 className="font-bold text-xs text-blue-900 uppercase tracking-widest">Motor Policy Details</h3>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    {motorFields.map(({ label, value }) => (
+                      <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
+                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+                        <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Health Policy Details Card */}
+              {isHealth && healthFields.length > 0 && (
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="px-5 py-3.5 bg-emerald-50/70 border-b border-emerald-100 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-emerald-500" />
+                    <h3 className="font-bold text-xs text-emerald-900 uppercase tracking-widest">Health Policy Details</h3>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    {healthFields.map(({ label, value }) => (
+                      <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
+                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+                        <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Other Extracted AI Insights Card */}
+              {extraFields.length > 0 && (
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="px-5 py-3.5 bg-purple-50/70 border-b border-purple-100 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-purple-500" />
+                    <h3 className="font-bold text-xs text-purple-900 uppercase tracking-widest">Other Extracted Insights</h3>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    {extraFields.map(({ label, value }) => (
+                      <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
+                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+                        <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Row 3: Key Details Bullet Highlights */}
             {bulletItems.length > 0 && (
-              <div className="px-5 pb-5 border-t border-slate-100 pt-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Key Details</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {bulletItems.map((item, i) => (
-                    <div key={i} className="flex items-start gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
-                      <span className="text-indigo-400 font-bold shrink-0 mt-0.5">›</span>
-                      <p className="text-sm text-indigo-900 leading-snug">{item}</p>
-                    </div>
-                  ))}
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                <div className="px-5 py-3.5 bg-indigo-50/70 border-b border-indigo-100 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-indigo-500" />
+                  <h3 className="font-bold text-xs text-indigo-900 uppercase tracking-widest">Key Important Details</h3>
+                </div>
+                <div className="p-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {bulletItems.map((item, i) => (
+                      <div key={i} className="flex items-start gap-2 bg-indigo-50/40 border border-indigo-100/40 rounded-xl px-4 py-3 hover:bg-indigo-50 transition-colors">
+                        <span className="text-indigo-500 font-bold shrink-0 mt-0.5">›</span>
+                        <p className="text-sm text-indigo-950 font-medium leading-relaxed">{item}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

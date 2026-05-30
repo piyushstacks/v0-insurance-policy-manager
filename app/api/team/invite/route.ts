@@ -51,7 +51,9 @@ export async function POST(request: NextRequest) {
   try {
     const invite = await inviteMember(membership.team_id, email, user.id);
     const teamName = (membership as any).teams?.name || 'Your Team';
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('host') || process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL || 'localhost:3000';
+    const appUrl = host.includes('localhost') ? `http://${host}` : `${protocol}://${host}`;
     const inviteUrl = `${appUrl}/join?token=${invite.token}`;
 
     console.log(`[Invite] Created for ${email} → ${inviteUrl}`);
@@ -136,7 +138,9 @@ export async function PATCH(request: NextRequest) {
     // inviteMember expires old token + creates fresh one with new 24h expiry
     const invite = await inviteMember(membership.team_id, existing.email, user.id);
     const teamName = (membership as any).teams?.name || 'Your Team';
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('host') || process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL || 'localhost:3000';
+    const appUrl = host.includes('localhost') ? `http://${host}` : `${protocol}://${host}`;
     const inviteUrl = `${appUrl}/join?token=${invite.token}`;
 
     console.log(`[Resend] Fresh invite for ${existing.email} → ${inviteUrl}`);

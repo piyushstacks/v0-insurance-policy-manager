@@ -22,14 +22,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server misconfiguration.' }, { status: 500 });
     }
 
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('host') || process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL || 'localhost:3000';
+    const appUrl = host.includes('localhost') ? `http://${host}` : `${protocol}://${host}`;
+
     // Generate a magic link token via admin API
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email,
       options: {
-        redirectTo: process.env.NEXT_PUBLIC_APP_URL
-          ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
-          : 'http://localhost:3000/auth/callback',
+        redirectTo: `${appUrl}/auth/callback`,
       },
     });
 

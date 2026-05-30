@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Plus, Users, Search, IndianRupee, FileText,
-  Phone, Mail, Trash2, ArrowUpDown,
+  Phone, Mail, Trash2, ArrowUpDown, Sparkles, ChevronRight, X, ArrowRight, Info
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -38,6 +38,21 @@ export default function CustomersPage() {
   const [totalRecords, setTotalRecords] = useState(0);
   const { canDirectlyAct } = useTeam();
 
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const [isMerging, setIsMerging] = useState<string | null>(null);
+
+  const fetchSuggestions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/customers/suggestions');
+      if (!res.ok) return;
+      const data = await res.json();
+      setSuggestions(data.suggestions || []);
+    } catch (err) {
+      console.error('Failed to load suggestions:', err);
+    }
+  }, []);
+
   const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -61,7 +76,36 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [fetchCustomers]);
+    fetchSuggestions();
+  }, [fetchCustomers, fetchSuggestions]);
+
+  async function handleMerge(sourceId: string, targetId: string) {
+    setIsMerging(`${sourceId}:${targetId}`);
+    try {
+      const res = await fetch('/api/customers/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceCustomerId: sourceId, targetCustomerId: targetId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Merge failed');
+      
+      toast.success('Customers merged successfully!', {
+        description: data.message
+      });
+      
+      fetchCustomers();
+      fetchSuggestions();
+      
+      if (suggestions.length <= 1) {
+        setIsSuggestionsOpen(false);
+      }
+    } catch (err: any) {
+      toast.error('Merge failed', { description: err.message });
+    } finally {
+      setIsMerging(null);
+    }
+  }
 
   const filtered = useMemo(() => {
     // Search is handled server-side now. We only need client-side aggregation sorting for the current fetched slice.
@@ -99,8 +143,13 @@ export default function CustomersPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setCustomers(prev => prev.filter(c => c.id !== id));
-      toast.success('Customer deleted');
+      
+      if (data.pendingApproval) {
+        toast.success('Approval Requested', { description: data.message });
+      } else {
+        setCustomers(prev => prev.filter(c => c.id !== id));
+        toast.success('Customer deleted');
+      }
     } catch (e: any) {
       throw e; // Let RoleActionButton handle the error
     }
@@ -117,7 +166,13 @@ export default function CustomersPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(`Deleted ${selected.size} customers`);
+      
+      if (data.pendingApproval) {
+        toast.success('Approval Requested', { description: data.message });
+      } else {
+        toast.success(`Deleted ${selected.size} customers`);
+        setCustomers(prev => prev.filter(c => !selected.has(c.id)));
+      }
       setSelected(new Set());
       fetchCustomers();
     } catch (e: any) {
@@ -172,14 +227,33 @@ export default function CustomersPage() {
               Delete ({selected.size})
             </Button>
           )}
-          <Link href="/app/customers/new">
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl gap-2 h-10 shrink-0">
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Add Client</span>
-            </Button>
-          </Link>
         </div>
       </div>
+
+      {/* AI Suggestions Banner */}
+      {suggestions.length > 0 && (
+        <div className="mx-6 mt-4 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-indigo-100 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white shrink-0 shadow-sm">
+              <Sparkles className="w-5 h-5 text-white animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800">AI Customer Mapping Suggestions</h4>
+              <p className="text-xs text-slate-500 mt-0.5">
+                We found {suggestions.length} pair{suggestions.length > 1 ? 's' : ''} of similar customer profiles that can be merged.
+              </p>
+            </div>
+          </div>
+          <Button 
+            onClick={() => setIsSuggestionsOpen(true)}
+            size="sm" 
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold gap-1.5 shadow-sm text-xs py-2 px-4 h-9"
+          >
+            Review Suggestions
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="flex-1 overflow-auto p-4 md:p-6 pb-32">
@@ -360,6 +434,100 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
+      {/* AI Suggestions Modal */}
+      {isSuggestionsOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white shadow-sm">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-800">Smart Mapping</h2>
+                  <p className="text-xs text-slate-500">AI found {suggestions.length} similar customer pairs to merge.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsSuggestionsOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
+              {suggestions.map((sug, idx) => {
+                const isLoading = isMerging === `${sug.source.id}:${sug.target.id}`;
+                return (
+                  <div key={idx} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        {sug.similarity}% Match
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                      {/* Source (Will be deleted/merged) */}
+                      <div className="flex-1 w-full bg-red-50/50 rounded-xl p-4 border border-red-100 relative">
+                        <div className="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600">
+                          Duplicate
+                        </div>
+                        <h4 className="font-bold text-slate-800">{sug.source.name}</h4>
+                        <div className="mt-2 space-y-1 text-xs text-slate-500">
+                          {sug.source.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3"/> {sug.source.email}</div>}
+                          {sug.source.mobile && <div className="flex items-center gap-1"><Phone className="w-3 h-3"/> {sug.source.mobile}</div>}
+                          <div className="flex items-center gap-1 font-semibold text-slate-600"><FileText className="w-3 h-3"/> {sug.source.policiesCount} policies</div>
+                        </div>
+                      </div>
+
+                      <div className="hidden md:flex flex-col items-center justify-center px-2">
+                        <ArrowRight className="w-5 h-5 text-slate-400" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">Merge into</span>
+                      </div>
+
+                      {/* Target (Will be kept) */}
+                      <div className="flex-1 w-full bg-indigo-50/50 rounded-xl p-4 border border-indigo-100 relative">
+                        <div className="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-600">
+                          Primary
+                        </div>
+                        <h4 className="font-bold text-slate-800">{sug.target.name}</h4>
+                        <div className="mt-2 space-y-1 text-xs text-slate-500">
+                          {sug.target.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3"/> {sug.target.email}</div>}
+                          {sug.target.mobile && <div className="flex items-center gap-1"><Phone className="w-3 h-3"/> {sug.target.mobile}</div>}
+                          <div className="flex items-center gap-1 font-semibold text-slate-600"><FileText className="w-3 h-3"/> {sug.target.policiesCount} policies</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
+                      <RoleActionButton
+                        canDirectlyAct={canDirectlyAct}
+                        requestType="EDIT_CUSTOMER"
+                        entityId={sug.target.id}
+                        entityType="customer"
+                        directAction={() => handleMerge(sug.source.id, sug.target.id)}
+                        label={isLoading ? 'Merging...' : 'Merge Profiles'}
+                        icon={Sparkles}
+                        variant="default"
+                        size="sm"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg gap-2"
+                        reasonPrompt="Why do you want to merge these customers?"
+                        metadata={{ 
+                          action: 'merge',
+                          source_id: sug.source.id, 
+                          source_name: sug.source.name,
+                          target_name: sug.target.name
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

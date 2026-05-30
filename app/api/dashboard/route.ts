@@ -1,13 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+     const cookieStore = await cookies();
+     const supabase = createServerClient(
+       process.env.NEXT_PUBLIC_SUPABASE_URL!,
+       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+       {
+         cookies: {
+           getAll() {
+             return cookieStore.getAll();
+           },
+           setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+             try {
+               cookiesToSet.forEach(({ name, value, options }) =>
+                 cookieStore.set(name, value, options)
+               );
+             } catch {
+               // Ignore
+             }
+           },
+         },
+       }
+     );
+
+     const { data: { user } } = await supabase.auth.getUser();
+     if (!user) {
+       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+     }
+
+     const { getTeamUserIds } = await import('@/services/team');
+     const teamUserIds = await getTeamUserIds(user.id);
+
      const { data: policies, error } = await supabaseAdmin!
        .from('policies')
-       .select('*, customer:customers(name), insurer:insurers(name)');
+       .select('*, customer:customers(name), insurer:insurers(name)')
+       .in('user_id', teamUserIds);
 
      if (error) throw error;
      const allPolicies = policies || [];
@@ -50,6 +83,10 @@ export async function GET() {
         .sort((a,b) => b.premium - a.premium)
         .slice(0, 5);
 
+     const recentPolicies = [...allPolicies]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5);
+
      return NextResponse.json({
        data: {
          totalPremium,
@@ -59,7 +96,8 @@ export async function GET() {
          companiesCount: companyIds.size,
          companyChartData: companyChartData.length > 0 ? companyChartData : [{ name: 'No Data Yet', premium: 0 }],
          customerChartData: customerChartData.length > 0 ? customerChartData : [{ name: 'No Data Yet', premium: 0 }],
-         topCustomers: topCustomers,
+         topCustomers,
+         recentPolicies
        }
      });
   } catch (error: any) {

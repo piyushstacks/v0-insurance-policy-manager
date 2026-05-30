@@ -102,6 +102,19 @@ export async function getUserRole(userId: string, teamId: string): Promise<TeamR
   return (data?.role as TeamRole) ?? null;
 }
 
+export async function getTeamUserIds(userId: string): Promise<string[]> {
+  const team = await getUserTeam(userId);
+  if (!team || !team.team_id) return [userId];
+
+  const { data } = await supabaseAdmin!
+    .from('team_members')
+    .select('user_id')
+    .eq('team_id', team.team_id);
+
+  if (!data || data.length === 0) return [userId];
+  return data.map((m: any) => m.user_id);
+}
+
 export async function getTeamMembers(teamId: string): Promise<TeamMemberWithProfile[]> {
   const { data, error } = await supabaseAdmin!
     .from('team_members')
@@ -171,6 +184,11 @@ export async function removeMember(teamId: string, userId: string, requesterUser
   const requesterRole = await getUserRole(requesterUserId, teamId);
   if (requesterRole !== 'ADMIN' && requesterRole !== 'SUB_ADMIN') {
     throw new Error('Only admins or sub-admins can remove members.');
+  }
+
+  const targetRole = await getUserRole(userId, teamId);
+  if (requesterRole === 'SUB_ADMIN' && targetRole === 'ADMIN') {
+    throw new Error('Sub-admins cannot remove admins.');
   }
 
   await supabaseAdmin!.from('team_members')

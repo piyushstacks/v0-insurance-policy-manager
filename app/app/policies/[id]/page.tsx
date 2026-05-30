@@ -123,11 +123,18 @@ export default function PolicyDetailPage() {
     setIsDeleting(true);
     try {
       const res = await fetch(`/api/policies/${policyId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete policy');
-      toast.success('Policy deleted');
-      router.push('/app/policies');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete policy');
+      
+      if (data.pendingApproval) {
+        toast.success('Approval Requested', { description: data.message });
+      } else {
+        toast.success('Policy deleted');
+        router.push('/app/policies');
+      }
     } catch (err: any) {
       toast.error('Delete failed', { description: err.message });
+    } finally {
       setIsDeleting(false);
     }
   }

@@ -40,6 +40,9 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(100, parseInt(searchParams.get('pageSize') || '20'));
     const search = searchParams.get('search') || '';
 
+    const { getTeamUserIds } = await import('@/services/team');
+    const teamUserIds = await getTeamUserIds(user.id);
+
     let query = supabaseAdmin!
       .from('customers')
       .select(`
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest) {
            expiry_date
          )
       `, { count: 'exact' })
-      .eq('user_id', user.id)
+      .in('user_id', teamUserIds)
       .neq('name', 'Bulk Upload Customer');
 
     if (search) {

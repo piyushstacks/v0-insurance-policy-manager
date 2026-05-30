@@ -19,11 +19,13 @@ import {
   Fingerprint,
   PieChart,
   CalendarDays,
-  ShieldCheck
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import { useTeam } from '@/hooks/use-team';
 
 interface SidebarProps {
   user: User;
@@ -54,12 +56,15 @@ export default function Sidebar({ user }: SidebarProps) {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const { isMember } = useTeam();
+
   const navItems = [
     { 
       name: 'Home', 
       href: '/app', 
       icon: Home, 
       exact: true,
+      locked: isMember,
       children: [
         { name: 'Dashboard', href: '/app', icon: BarChart3, exact: true }
       ]
@@ -68,7 +73,7 @@ export default function Sidebar({ user }: SidebarProps) {
     { divider: true },
     { name: 'Customers', href: '/app/customers', icon: Users, exact: false },
     { name: 'Reminders', href: '/app/reminders', icon: CalendarDays, exact: false },
-    { name: 'Reporting', href: '/app/reporting', icon: PieChart, exact: false },
+    { name: 'Reporting', href: '/app/reporting', icon: PieChart, exact: false, locked: isMember },
     { divider: true },
     { name: 'Approvals', href: '/app/approvals', icon: Bell, exact: false },
     { name: 'Settings', href: '/app/settings', icon: Settings, exact: false },
@@ -80,7 +85,6 @@ export default function Sidebar({ user }: SidebarProps) {
     },
   ];
 
-
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push('/auth/login');
@@ -90,23 +94,24 @@ export default function Sidebar({ user }: SidebarProps) {
     if (item.divider) return <div className="h-px bg-slate-100 my-4 mx-3" />;
     
     const isActive = item.exact ? pathname === item.href : pathname?.startsWith(item.href);
+    const isLocked = item.locked;
     
     return (
-      <div className="space-y-1">
+      <div className={`space-y-1 ${isLocked ? 'opacity-50 grayscale' : ''}`}>
         <Link
-          href={item.href}
+          href={isLocked ? '#' : item.href}
           className={`flex items-center justify-between group px-3 py-2 rounded-xl transition-all duration-200 ${
-            isActive 
+            isActive && !isLocked
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
               : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-          }`}
-          onClick={() => setIsMobileMenuOpen(false)}
+          } ${isLocked ? 'pointer-events-none' : ''}`}
+          onClick={() => !isLocked && setIsMobileMenuOpen(false)}
         >
           <div className="flex items-center gap-3">
-            <item.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2 group-hover:text-blue-600'}`} />
+            <item.icon className={`w-5 h-5 ${isActive && !isLocked ? 'stroke-[2.5]' : 'stroke-2 group-hover:text-blue-600'}`} />
             <span className="font-semibold text-sm tracking-tight">{item.name}</span>
           </div>
-          {item.badge ? item.badge : (isActive && <ChevronRight className="w-4 h-4 opacity-70" />)}
+          {item.badge ? item.badge : isLocked ? <Lock className="w-4 h-4 opacity-70" /> : (isActive && <ChevronRight className="w-4 h-4 opacity-70" />)}
         </Link>
         
         {item.children && (
@@ -116,11 +121,11 @@ export default function Sidebar({ user }: SidebarProps) {
               return (
                 <Link
                   key={child.name}
-                  href={child.href}
+                  href={isLocked ? '#' : child.href}
                   className={`flex items-center gap-3 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    isChildActive ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                  onClick={() => setIsMobileMenuOpen(false)}
+                    isChildActive && !isLocked ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
+                  } ${isLocked ? 'pointer-events-none' : ''}`}
+                  onClick={() => !isLocked && setIsMobileMenuOpen(false)}
                 >
                   <child.icon className="w-3.5 h-3.5" />
                   {child.name}

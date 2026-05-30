@@ -27,6 +27,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No policy IDs provided' }, { status: 400 });
     }
 
+    const { getUserTeam, getUserRole, createActionRequest } = await import('@/services/team');
+    const team = await getUserTeam(user.id);
+    if (team) {
+      const role = await getUserRole(user.id, team.team_id);
+      if (role === 'MEMBER') {
+        for (const pid of policyIds) {
+          await createActionRequest({
+            teamId: team.team_id,
+            type: 'DELETE_POLICY',
+            entityId: pid,
+            entityType: 'policies',
+            requestedBy: user.id,
+            reason: 'Member requested bulk delete.',
+          }).catch(e => console.warn('Duplicate request:', e.message));
+        }
+        return NextResponse.json({ 
+          message: 'Bulk deletion requested. Sent to admin for approval.',
+          pendingApproval: true
+        }, { status: 202 });
+      }
+    }
+
     if (!supabaseAdmin) throw new Error('Supabase admin undefined');
 
     // 1. Fetch documents to delete from Storage Bucket

@@ -167,6 +167,27 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { getUserTeam, getUserRole, createActionRequest } = await import('@/services/team');
+    const team = await getUserTeam(user.id);
+    if (team) {
+      const role = await getUserRole(user.id, team.team_id);
+      if (role === 'MEMBER') {
+        // Create an action request instead of deleting
+        await createActionRequest({
+          teamId: team.team_id,
+          type: 'DELETE_POLICY',
+          entityId: id,
+          entityType: 'policies',
+          requestedBy: user.id,
+          reason: 'Member requested to delete this policy.',
+        });
+        return NextResponse.json({ 
+          message: 'Deletion requested. Sent to admin for approval.',
+          pendingApproval: true
+        }, { status: 202 });
+      }
+    }
+
     const result = await deletePolicy(id, user.id);
 
     return NextResponse.json(result, { status: 200 });

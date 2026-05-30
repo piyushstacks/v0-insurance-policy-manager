@@ -6,8 +6,10 @@ import { IndianRupee, FileText, Users, Building, TrendingUp, BarChart3, Upload, 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, AreaChart, Area } from 'recharts';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { PageLoader } from '@/components/ui/loader';
+import { useTeam } from '@/hooks/use-team';
 
 interface DashboardData {
   totalPremium: number;
@@ -37,6 +39,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'company' | 'customer'>('company');
   const [greeting, setGreeting] = useState('Good morning');
+  const { isMember } = useTeam();
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -48,18 +51,12 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchMetrics() {
       try {
-        const [dashRes, polRes] = await Promise.all([
-          fetch('/api/dashboard'),
-          supabase!.from('policies')
-            .select('id, policy_number, policy_type, status, created_at, premium_amount, customers(name), insurers(name)')
-            .order('created_at', { ascending: false })
-            .limit(5)
-        ]);
-        
+        const dashRes = await fetch('/api/dashboard');
         const json = await dashRes.json();
         if (!dashRes.ok) throw new Error(json.error || 'Failed to load dashboard data');
+        
         setData(json.data);
-        setRecentPolicies((polRes.data || []) as any);
+        setRecentPolicies(json.data.recentPolicies || []);
       } catch (err: any) {
         toast.error('Failed to load dashboard', { description: err.message });
       } finally {
@@ -123,12 +120,12 @@ export default function DashboardPage() {
               </div>
             </div>
             <h2 className="text-2xl md:text-3xl font-black text-slate-900 relative z-10 tabular-nums">
-              ₹{data.totalPremium >= 100000 
+              {isMember ? '***' : `₹${data.totalPremium >= 100000 
                 ? `${(data.totalPremium / 100000).toFixed(1)}L` 
-                : data.totalPremium.toLocaleString('en-IN')}
+                : data.totalPremium.toLocaleString('en-IN')}`}
             </h2>
             <span className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1 relative z-10">
-              <ArrowUpRight className="w-3 h-3" /> +12% vs last month
+              {isMember ? 'Restricted access' : <><ArrowUpRight className="w-3 h-3" /> +12% vs last month</>}
             </span>
           </div>
 
@@ -185,47 +182,55 @@ export default function DashboardPage() {
           <div className="flex-1 flex flex-col gap-6 min-w-0">
 
             {/* Chart Card */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-blue-500" />
-                  Activity Flow
-                </h3>
-                <div className="flex items-center p-0.5 bg-slate-100 rounded-md border border-slate-200/60">
-                  <button
-                    onClick={() => setViewMode('company')}
-                    className={`px-3 py-1 text-xs font-semibold rounded-sm transition-all ${viewMode === 'company' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    Company
-                  </button>
-                  <button
-                    onClick={() => setViewMode('customer')}
-                    className={`px-3 py-1 text-xs font-semibold rounded-sm transition-all ${viewMode === 'customer' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    Customer
-                  </button>
+            {!isMember ? (
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-blue-500" />
+                    Activity Flow
+                  </h3>
+                  <div className="flex items-center p-0.5 bg-slate-100 rounded-md border border-slate-200/60">
+                    <button
+                      onClick={() => setViewMode('company')}
+                      className={`px-3 py-1 text-xs font-semibold rounded-sm transition-all ${viewMode === 'company' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Company
+                    </button>
+                    <button
+                      onClick={() => setViewMode('customer')}
+                      className={`px-3 py-1 text-xs font-semibold rounded-sm transition-all ${viewMode === 'customer' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Customer
+                    </button>
+                  </div>
+                </div>
+                <div className="w-full h-[260px] md:h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={viewMode === 'company' ? data.companyChartData : data.customerChartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(val) => val >= 100000 ? `₹${(val / 100000).toFixed(1)}L` : `₹${val.toLocaleString('en-IN')}`} dx={-10} />
+                      <Tooltip 
+                        cursor={{ fill: '#f1f5f9' }}
+                        contentStyle={{ borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 8px 32px rgb(0 0 0 / 0.08)', fontSize: '13px' }}
+                        formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Premium']}
+                      />
+                      <Bar dataKey="premium" radius={[6, 6, 0, 0]} barSize={36}>
+                        {(viewMode === 'company' ? data.companyChartData : data.customerChartData).map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#2563eb' : '#93c5fd'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
-              <div className="w-full h-[260px] md:h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={viewMode === 'company' ? data.companyChartData : data.customerChartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`} dx={-10} />
-                    <Tooltip 
-                      cursor={{ fill: '#f1f5f9' }}
-                      contentStyle={{ borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 8px 32px rgb(0 0 0 / 0.08)', fontSize: '13px' }}
-                      formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Premium']}
-                    />
-                    <Bar dataKey="premium" radius={[6, 6, 0, 0]} barSize={36}>
-                      {(viewMode === 'company' ? data.companyChartData : data.customerChartData).map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#2563eb' : '#93c5fd'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 flex flex-col items-center justify-center text-center">
+                <BarChart3 className="w-12 h-12 text-slate-200 mb-3" />
+                <h3 className="text-base font-bold text-slate-700 mb-1">Activity Flow Restricted</h3>
+                <p className="text-sm text-slate-500 max-w-sm">You do not have permission to view revenue and premium activity. Please contact your administrator.</p>
               </div>
-            </div>
+            )}
 
             {/* Recent Uploads Table */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
@@ -322,7 +327,9 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold">{c.policies}</span>
-                      <span className="text-xs font-semibold text-slate-600 tabular-nums">₹{(c.premium / 1000).toFixed(0)}k</span>
+                      {!isMember && (
+                        <span className="text-xs font-semibold text-slate-600 tabular-nums">₹{c.premium >= 100000 ? (c.premium / 100000).toFixed(1) + 'L' : c.premium.toLocaleString('en-IN')}</span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -333,25 +340,27 @@ export default function DashboardPage() {
             </div>
 
             {/* Top Companies Dark Card */}
-            <div className="bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700 flex flex-col">
-              <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wider">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Top Companies
-              </h3>
-              <div className="space-y-2.5">
-                {data.companyChartData.slice(0, 4).map((comp, i) => (
-                  <div key={i} className="flex justify-between items-center text-xs">
-                    <div className="flex gap-2 items-center min-w-0">
-                      <span className="w-4 h-4 rounded bg-slate-700 text-slate-300 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
-                      <span className="text-slate-200 truncate">{comp.name}</span>
+            {!isMember && (
+              <div className="bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700 flex flex-col">
+                <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wider">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Top Companies
+                </h3>
+                <div className="space-y-2.5">
+                  {data.companyChartData.slice(0, 4).map((comp, i) => (
+                    <div key={i} className="flex justify-between items-center text-xs">
+                      <div className="flex gap-2 items-center min-w-0">
+                        <span className="w-4 h-4 rounded bg-slate-700 text-slate-300 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
+                        <span className="text-slate-200 truncate">{comp.name}</span>
+                      </div>
+                      <span className="text-emerald-400 font-semibold shrink-0 ml-2 tabular-nums">₹{comp.premium >= 100000 ? (comp.premium / 100000).toFixed(1) + 'L' : comp.premium.toLocaleString('en-IN')}</span>
                     </div>
-                    <span className="text-emerald-400 font-semibold shrink-0 ml-2 tabular-nums">₹{(comp.premium / 1000).toFixed(0)}k</span>
-                  </div>
-                ))}
-                {data.companyChartData.length === 0 && (
-                  <div className="text-slate-400 text-[11px]">No data available.</div>
-                )}
+                  ))}
+                  {data.companyChartData.length === 0 && (
+                    <div className="text-slate-400 text-[11px]">No data available.</div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
         </div>

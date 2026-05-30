@@ -6,6 +6,7 @@
 import { supabaseAdmin, supabase } from '@/lib/supabase';
 import type { Policy, PolicyDocument } from '@/lib/types';
 import { PolicyInput } from '@/lib/schemas';
+import { getTeamUserIds } from './team';
 
 /**
  * Create a new policy
@@ -62,10 +63,12 @@ export async function getPolicies(
   pageSize = 20
 ) {
   try {
+    const teamUserIds = await getTeamUserIds(userId);
+
     let query = supabaseAdmin!
       .from('policies')
       .select('*, customer:customers(name, email), insurer:insurers(name), documents:policy_documents(file_path, file_name)', { count: 'exact' })
-      .eq('user_id', userId)
+      .in('user_id', teamUserIds)
       .order('created_at', { ascending: false });
 
     if (filters?.status) {
@@ -111,7 +114,7 @@ export async function getPolicyWithDocuments(policyId: string, userId: string) {
         insurer:insurers(name, contact)
       `)
       .eq('id', policyId)
-      .eq('user_id', userId)
+      .in('user_id', await getTeamUserIds(userId))
       .single();
 
     if (policyError || !policy) throw new Error('Policy not found');
@@ -209,7 +212,7 @@ export async function updatePolicy(
       .from('policies')
       .select('*')
       .eq('id', policyId)
-      .eq('user_id', userId)
+      .in('user_id', await getTeamUserIds(userId))
       .single();
 
     if (!existing) throw new Error('Policy not found');
@@ -259,7 +262,7 @@ export async function deletePolicy(policyId: string, userId: string) {
       .from('policies')
       .select('id, policy_number')
       .eq('id', policyId)
-      .eq('user_id', userId)
+      .in('user_id', await getTeamUserIds(userId))
       .single();
 
     if (!existing) throw new Error('Policy not found');

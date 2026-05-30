@@ -4,8 +4,12 @@ import React from 'react';
 import { BarChart3, Clock, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useTeam } from '@/hooks/use-team';
 
 export default function ReportingPage() {
+  const { isMember } = useTeam();
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] p-6 text-center">
       <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-600 mb-6 shadow-xl shadow-blue-100/50">

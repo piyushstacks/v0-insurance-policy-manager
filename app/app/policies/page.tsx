@@ -224,9 +224,14 @@ export default function PoliciesPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success('Successfully deleted', { description: data.message });
+
+      if (data.pendingApproval) {
+        toast.success('Approval Requested', { description: data.message });
+      } else {
+        toast.success('Successfully deleted', { description: data.message });
+        setPolicies(prev => prev.filter(p => !selected.has(p.id))); // Optimistic UI update
+      }
       setSelected(new Set());
-      setPolicies(prev => prev.filter(p => !selected.has(p.id))); // Optimistic UI update
     } catch (err: any) {
       toast.error('Bulk deletion failed', { description: err.message });
     } finally {
@@ -240,10 +245,16 @@ export default function PoliciesPage() {
     setIsDeleting(true);
     try {
       const res = await fetch(`/api/policies/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
-      toast.success('Successfully deleted');
-      setPolicies(prev => prev.filter(p => p.id !== id));
-      setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+
+      if (data.pendingApproval) {
+        toast.success('Approval Requested', { description: data.message });
+      } else {
+        toast.success('Successfully deleted');
+        setPolicies(prev => prev.filter(p => p.id !== id));
+        setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+      }
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -260,7 +271,19 @@ export default function PoliciesPage() {
           <p className="text-slate-500 font-medium">Manage and explore {totalRecords} parsed policies</p>
         </div>
         
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input
+              value={searchTerm}
+              onChange={e => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Search policies..."
+              className="pl-9 h-10 rounded-xl bg-slate-50 border-slate-200 w-full"
+            />
+          </div>
           <ActionButton 
              color={showMobileFilters ? "primary" : "secondary"}
              size="md"
@@ -298,21 +321,7 @@ export default function PoliciesPage() {
       {/* --- TOP COLLAPSIBLE FILTERS --- */}
       {showMobileFilters && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6 animate-in slide-in-from-top-2 fade-in duration-200 flex flex-col gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Search */}
-            <div className="space-y-1.5 lg:col-span-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Search Query</label>
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                <Input 
-                  value={searchTerm} 
-                  onChange={e => setSearchTerm(e.target.value)}
-                  placeholder="Policy No, Client..." 
-                  className="pl-9 h-9 text-sm bg-slate-50 border-slate-200"
-                />
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Product Dropdown */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Category</label>

@@ -1,4 +1,4 @@
-import { generateExpiryReminders } from './services/reminders';
+import { generateExpiryReminders } from '../services/reminders';
 import * as dotenv from 'dotenv';
 import path from 'path';
 

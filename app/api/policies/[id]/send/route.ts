@@ -67,7 +67,8 @@ export async function POST(
       return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
     }
 
-    const customerData = policy.customers;
+    const customerDataRaw = policy.customers;
+    const customerData = Array.isArray(customerDataRaw) ? customerDataRaw[0] : customerDataRaw;
     if (!customerData || !customerData.email) {
       return NextResponse.json({ error: 'Customer email is missing' }, { status: 400 });
     }

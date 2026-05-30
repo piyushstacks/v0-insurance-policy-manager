@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params;
+    const { id } = await props.params;
     const body = await request.json();
 
     const authHeader = request.headers.get('authorization');

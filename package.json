@@ -65,11 +65,13 @@
     "pdf-parse": "^1.1.1",
     "pdf2pic": "^3.2.0",
     "react": "^19",
+    "react-aria": "^3.49.0",
     "react-aria-components": "^1.16.0",
     "react-day-picker": "9.13.2",
     "react-dom": "^19",
     "react-hook-form": "^7.54.1",
     "react-resizable-panels": "^2.1.7",
+    "react-stately": "^3.47.0",
     "recharts": "^2.15.0",
     "resend": "^6.12.0",
     "sonner": "^1.7.1",
@@ -79,7 +81,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.0",
+    "@tailwindcss/postcss": "^4.3.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22",
     "@types/react": "^19",

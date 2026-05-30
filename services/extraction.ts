@@ -11,7 +11,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { ocrProvider } from './ocr-provider';
 import redis, { enqueueExtractionJob, getNextJob, completeJob, failJob } from '@/lib/redis';
-import { ExtractionResult } from '@/lib/schemas';
+import { ExtractionResultInput } from '@/lib/schemas';
 import pLimit from 'p-limit';
 
 // ============================================================================

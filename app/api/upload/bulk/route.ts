@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       if (!custData) {
         const { data: newCust, error: newCustErr } = await supabaseAdmin
           .from('customers')
-          .insert([{ name: 'Bulk Upload Customer', email: 'bulk@upload.local' }])
+          .insert([{ name: 'Bulk Upload Customer', email: 'bulk@upload.local', user_id: user.id }])
           .select('id')
           .single();
         if (newCustErr || !newCust) {
@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
         const { data: polData, error: polErr } = await supabaseAdmin
           .from('policies')
           .insert([{
+            user_id: user.id,
             customer_id: finalCustomerId,
             insurer_id: insData.id,
             policy_number: `BULK_OCR_${timestamp}_${Math.floor(Math.random() * 10000)}`,

@@ -144,7 +144,7 @@ export default function CustomersPage() {
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Customers</h1>
           <p className="text-sm text-slate-500">
-            {isLoading ? '...' : `${customers.length} total clients`}
+            {isLoading ? '...' : `${totalRecords} total clients`}
           </p>
         </div>
         <div className="flex w-full sm:w-auto items-center gap-3">
@@ -214,8 +214,8 @@ export default function CustomersPage() {
                 </div>
                 <div className="hidden sm:block ml-2 px-3 py-1 border-l border-slate-200">
                   Showing <span className="font-bold text-slate-700">
-                    {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filtered.length)}
-                  </span> of <span className="font-bold text-slate-700">{filtered.length}</span>
+                    {totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {(currentPage - 1) * pageSize + filtered.length}
+                  </span> of <span className="font-bold text-slate-700">{totalRecords}</span>
                 </div>
               </div>
             </div>

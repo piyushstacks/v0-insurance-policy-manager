@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       if (!custData) {
         const { data: newCust, error: newCustErr } = await supabaseAdmin
           .from('customers')
-          .insert([{ name: 'Pending OCR Customer', email: 'pending@ocr.local' }])
+          .insert([{ name: 'Pending OCR Customer', email: 'pending@ocr.local', user_id: user.id }])
           .select('id')
           .single();
         if (newCustErr || !newCust) {
@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
       const { data: polData, error: polErr } = await supabaseAdmin
         .from('policies')
         .insert([{
+          user_id: user.id,
           customer_id: custData.id,
           insurer_id:  insData.id,
           policy_number: `PENDING_OCR_${timestamp}_${Math.floor(Math.random() * 1000)}`,

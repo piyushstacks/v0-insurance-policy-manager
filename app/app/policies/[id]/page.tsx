@@ -59,6 +59,7 @@ interface Document {
   file_type: string;
   upload_date: string;
   extraction_status: 'pending' | 'extracted' | 'reviewed' | 'failed';
+  created_at?: string;
 }
 
 export default function PolicyDetailPage() {
@@ -207,333 +208,125 @@ export default function PolicyDetailPage() {
         </div>
       </div>
 
-      {/* Core Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="rounded-lg border bg-card p-4 space-y-3">
-          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Coverage</h3>
-          <div className="flex items-center gap-3">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <div>
-              <p className="text-xs text-muted-foreground">Start Date</p>
-              <p className="font-medium">{new Date(policy.start_date || policy.coverage_start || '').toLocaleDateString()}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <div>
-              <p className="text-xs text-muted-foreground">Expiry Date</p>
-              <p className="font-medium">{new Date(policy.expiry_date || policy.coverage_end || '').toLocaleDateString()}</p>
-            </div>
-          </div>
-        </div>
+      {/* ── Unified Policy Details Card ── */}
+      {(() => {
+        const fmt = (d: string | undefined) => {
+          if (!d) return '—';
+          const parsed = new Date(d);
+          return isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        };
 
-        <div className="rounded-lg border bg-card p-4 space-y-3 shadow-sm">
-          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Financial</h3>
-          <div className="space-y-2">
-            <div>
-              <p className="text-xs text-muted-foreground">Premium Amount</p>
-              <p className="font-medium text-lg">₹{policy.premium_amount?.toLocaleString('en-IN')}</p>
+        // Build the canonical field set from DB (always shown, never duplicated)
+        const coreFields: { label: string; value: string }[] = [];
+
+        if (policy.policy_number) coreFields.push({ label: 'Policy Number', value: policy.policy_number });
+        if (policy.policy_type) {
+          const parts = policy.policy_type.split(' | ');
+          coreFields.push({ label: 'Policy Type', value: parts.join(' — ') });
+        }
+        if (policy.start_date || policy.coverage_start) coreFields.push({ label: 'Coverage Start', value: fmt(policy.start_date || policy.coverage_start) });
+        if (policy.expiry_date || policy.coverage_end) coreFields.push({ label: 'Coverage End', value: fmt(policy.expiry_date || policy.coverage_end) });
+        if (policy.premium_amount) coreFields.push({ label: 'Premium Amount', value: `₹${policy.premium_amount.toLocaleString('en-IN')}` });
+        if (policy.sum_insured) coreFields.push({ label: 'Sum Insured', value: `₹${policy.sum_insured.toLocaleString('en-IN')}` });
+        if (policy.customer?.name) coreFields.push({ label: 'Customer', value: policy.customer.name });
+        if (policy.customer?.mobile) coreFields.push({ label: 'Mobile', value: policy.customer.mobile });
+        if (policy.customer?.email) coreFields.push({ label: 'Email', value: policy.customer.email });
+        if (policy.insurer?.name) coreFields.push({ label: 'Insurer', value: policy.insurer.name });
+        if (policy.insurer?.contact) coreFields.push({ label: 'Insurer Contact', value: policy.insurer.contact });
+
+        // Track which labels are already shown to avoid duplication
+        const shownLabels = new Set(coreFields.map(f => f.label.toLowerCase()));
+
+        // Field label map for AI data
+        const fieldLabels: Record<string, string> = {
+          policy_number: 'Policy Number',
+          policy_type: 'Policy Type',
+          policy_category: 'Category',
+          policy_sub_category: 'Sub Category',
+          coverage_start: 'Coverage Start',
+          coverage_end: 'Coverage End',
+          premium_amount: 'Premium Amount',
+          sum_insured: 'Sum Insured',
+          insurer_name: 'Insurer',
+          customer_name: 'Customer',
+          customer_email: 'Email',
+          customer_mobile: 'Mobile',
+          vehicle_number: 'Vehicle No',
+          nominee_name: 'Nominee',
+          health_ped: 'Health PED',
+        };
+
+        // Fields to always skip (raw HTML / internal)
+        const skipKeys = new Set(['key_important_details', 'agent_notes']);
+
+        // Extra fields from AI extraction not already shown
+        const extraFields: { label: string; value: string }[] = [];
+        Object.entries(extractedData).forEach(([key, value]) => {
+          if (skipKeys.has(key)) return;
+          if (value === null || value === undefined || value === '') return;
+          const label = fieldLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          if (shownLabels.has(label.toLowerCase())) return; // already shown above
+          let displayValue = String(value).replace(/<[^>]*>/g, '').trim();
+          if (!displayValue) return;
+          if ((key === 'coverage_start' || key === 'coverage_end') && !shownLabels.has(label.toLowerCase())) {
+            try { displayValue = new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); } catch { }
+          }
+          if (key === 'premium_amount' && typeof value === 'number') {
+            displayValue = `₹${value.toLocaleString('en-IN')}`;
+          }
+          extraFields.push({ label, value: displayValue });
+        });
+
+        const allFields = [...coreFields, ...extraFields];
+
+        // Parse agent_notes / key_important_details for bullet items
+        const rawNotes = extractedData.agent_notes || extractedData.key_important_details || policy.agent_notes;
+        let bulletItems: string[] = [];
+        if (rawNotes) {
+          const raw = String(rawNotes);
+          const liMatches = raw.match(/<li>(.*?)<\/li>/gi);
+          if (liMatches && liMatches.length > 0) {
+            bulletItems = liMatches.map(li => li.replace(/<[^>]*>/g, '').trim()).filter(Boolean);
+          } else {
+            bulletItems = raw.split(/\n|•/).map(s => s.replace(/<[^>]*>/g, '').trim()).filter(Boolean);
+          }
+        }
+
+        return (
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            {/* Card Header */}
+            <div className="px-5 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-indigo-600" />
+              <h3 className="font-bold text-sm text-indigo-900 uppercase tracking-widest">Policy Details</h3>
             </div>
-            {policy.sum_insured && (
-              <div>
-                <p className="text-xs text-muted-foreground">Sum Insured</p>
-                <p className="font-medium text-lg">₹{policy.sum_insured?.toLocaleString('en-IN')}</p>
+
+            {/* Main Fields Grid */}
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {allFields.map(({ label, value }) => (
+                <div key={label} className="bg-slate-50 rounded-lg border border-slate-200 px-4 py-3 hover:border-indigo-300 transition-colors">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+                  <p className="font-semibold text-slate-800 text-sm break-words">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Key Details Bullets */}
+            {bulletItems.length > 0 && (
+              <div className="px-5 pb-5 border-t border-slate-100 pt-4">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Key Details</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {bulletItems.map((item, i) => (
+                    <div key={i} className="flex items-start gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+                      <span className="text-indigo-400 font-bold shrink-0 mt-0.5">›</span>
+                      <p className="text-sm text-indigo-900 leading-snug">{item}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-        </div>
-
-        {policy.customer && (
-          <div className="rounded-lg border bg-card p-4 space-y-3">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Customer</h3>
-            <div className="flex items-center gap-3">
-              <User className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <p className="font-medium">{policy.customer.name}</p>
-                {policy.customer.mobile && <p className="text-sm text-muted-foreground">{policy.customer.mobile}</p>}
-                {policy.customer.email && <p className="text-sm text-muted-foreground">{policy.customer.email}</p>}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {policy.insurer && (
-          <div className="rounded-lg border bg-card p-4 space-y-3">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Insurer</h3>
-            <div className="flex items-center gap-3">
-              <Building className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <p className="font-medium">{policy.insurer.name}</p>
-                {policy.insurer.contact && <p className="text-sm text-muted-foreground">{policy.insurer.contact}</p>}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Comprehensive Extracted Data from All AI Services */}
-      {Object.keys(extractedData).length > 0 && (
-        <div className="rounded-lg border bg-purple-50 border-purple-200 p-5 space-y-4">
-          <h3 className="font-semibold text-sm text-purple-900 uppercase tracking-wide flex items-center gap-2">
-            <FileText className="w-4 h-4 text-purple-600" />
-            All Extracted Data from AI Intelligence
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {(() => {
-              // Format extracted data for display
-              const displayFields: Record<string, string> = {};
-              
-              // Map API field names to readable labels
-              const fieldLabels: Record<string, string> = {
-                'policy_number': 'Policy Number',
-                'policy_type': 'Policy Type',
-                'policy_category': 'Category',
-                'policy_sub_category': 'Sub Category',
-                'coverage_start': 'Coverage Start',
-                'coverage_end': 'Coverage End',
-                'premium_amount': 'Premium Amount',
-                'insurer_name': 'Insurer',
-                'customer_name': 'Customer',
-                'customer_email': 'Email',
-                'customer_mobile': 'Mobile',
-                'vehicle_number': 'Vehicle No',
-                'nominee_name': 'Nominee',
-                'health_ped': 'Health PED',
-                'key_important_details': 'Key Details',
-              };
-              
-              Object.entries(extractedData).forEach(([key, value]) => {
-                if (value === null || value === undefined || value === '') return;
-                
-                const label = fieldLabels[key] || key.replace(/_/g, ' ').toUpperCase();
-                let displayValue = String(value);
-                
-                // Format specific fields
-                if (key === 'premium_amount' && typeof value === 'number') {
-                  displayValue = `₹${value.toLocaleString('en-IN')}`;
-                } else if (key === 'coverage_start' || key === 'coverage_end') {
-                  try {
-                    displayValue = new Date(value).toLocaleDateString('en-IN');
-                  } catch (e) {
-                    displayValue = String(value);
-                  }
-                } else if (key === 'key_important_details' && displayValue.includes('<li>')) {
-                  // Skip HTML content, will be shown in AI insights section
-                  return;
-                }
-                
-                displayFields[label] = displayValue;
-              });
-              
-              return Object.entries(displayFields).map(([label, value]) => (
-                <div key={label} className="bg-white p-3 rounded-md border border-purple-100 hover:border-purple-300 transition-colors">
-                  <p className="text-xs text-muted-foreground mb-1 font-medium">{label}</p>
-                  <p className="font-semibold text-purple-900 text-sm word-wrap">{value}</p>
-                </div>
-              ));
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* Motor Policy Details (extracted from AI insights) */}
-      {policy.policy_type?.toLowerCase().includes('motor') && policy.agent_notes && (
-        <div className="rounded-lg border bg-blue-50 border-blue-200 p-5 space-y-4">
-          <h3 className="font-semibold text-sm text-blue-900 uppercase tracking-wide flex items-center gap-2">
-            <Building className="w-4 h-4 text-blue-600" />
-            Motor Policy Details
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(() => {
-              // Extract motor details from agent_notes with comprehensive patterns
-              const motorDetails: Record<string, string> = {};
-              const notes = policy.agent_notes || '';
-              
-              // 1. Vehicle Information (Model, Make, Type)
-              const vehicleMatch = notes.match(/(?:Vehicle|vehicle|Car|car|Model):\s*([^\n<|•]+)/);
-              if (vehicleMatch) {
-                const vehicle = vehicleMatch[1].trim().replace(/<[^>]*>/g, '');
-                motorDetails['Vehicle'] = vehicle;
-              }
-              
-              // 2. Registration/License Plate
-              const regPatterns = [
-                /(?:Reg\s*(?:istration)?\s*No(?:\.)?|Vehicle\s*Reg|License\s*Plate|Number\s*Plate):\s*([^\n<|•]+)/i,
-                /Reg(?:istration)?(?:\s*No)?:\s*([A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4})/i,
-                /(?:Reg\s*No\s*[-:]?\s*)([A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4})/i,
-              ];
-              let regMatch;
-              for (const pattern of regPatterns) {
-                const match = notes.match(pattern);
-                if (match) {
-                  regMatch = match;
-                  break;
-                }
-              }
-              if (regMatch) {
-                const reg = regMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '');
-                motorDetails['Registration Number'] = reg;
-              }
-              
-              // 3. NCB (No Claim Bonus)
-              const ncbPatterns = [
-                /(?:NCB|No[\s-]*Claim[\s-]*Bonus|No\s*Claim\s*Bonus):\s*([^\n<|•]+)/i,
-                /(?:NCB|NCP|No[\s-]*Claim)?\s*(?:Bonus|Discount):\s*([^\n<|•]+)/i,
-              ];
-              let ncbMatch;
-              for (const pattern of ncbPatterns) {
-                const match = notes.match(pattern);
-                if (match) {
-                  ncbMatch = match;
-                  break;
-                }
-              }
-              if (ncbMatch) {
-                const ncb = ncbMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '');
-                motorDetails['NCB'] = ncb;
-              }
-              
-              // 4. Nominee Information
-              const nomineePatterns = [
-                /(?:Nominee)(?:\s*(?:Name)?):\s*([^\n<|•]+)/i,
-                /(?:Nominated?)\s*(?:Person|Name)?:\s*([^\n<|•]+)/i,
-              ];
-              let nomineeMatch;
-              for (const pattern of nomineePatterns) {
-                const match = notes.match(pattern);
-                if (match) {
-                  nomineeMatch = match;
-                  break;
-                }
-              }
-              if (nomineeMatch) {
-                const nominee = nomineeMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '');
-                motorDetails['Nominee'] = nominee;
-              }
-              
-              // 5. Premium Amount
-              const premiumPatterns = [
-                /(?:Premium)(?:\s*Amount)?\s*(?:Payable)?:\s*(?:₹|Rs\.?\s*)([^\n<|•]+)/i,
-                /(?:Total\s*)?Premium:\s*(?:₹|Rs\.?\s*)([0-9,]+)/i,
-                /(?:Premium|Amount):\s*₹?([0-9,]+(?:\.\d{2})?)/i,
-              ];
-              let premiumMatch;
-              for (const pattern of premiumPatterns) {
-                const match = notes.match(pattern);
-                if (match) {
-                  premiumMatch = match;
-                  break;
-                }
-              }
-              if (premiumMatch) {
-                const premium = premiumMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '');
-                motorDetails['Premium Amount'] = `₹${premium}`;
-              }
-              
-              // 6. Coverage Period/Duration
-              const coveragePatterns = [
-                /(?:Coverage|Period):\s*([^\n<|•]+)/i,
-                /(?:From|Coverage\s*Start):\s*([^\n<|•]+?)(?:\s*to\s*(?:Coverage\s*)?End:\s*([^\n<|•]+))?/i,
-              ];
-              let coverageMatch;
-              for (const pattern of coveragePatterns) {
-                const match = notes.match(pattern);
-                if (match) {
-                  coverageMatch = match;
-                  break;
-                }
-              }
-              if (coverageMatch) {
-                const coverage = coverageMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '');
-                motorDetails['Coverage'] = coverage;
-              }
-              
-              // 7. Additional Motor Details (IDV, Body Type, Fuel Type, etc.)
-              const idvMatch = notes.match(/(?:IDV|Insured\s*Declared\s*Value):\s*(?:₹|Rs\.?\s*)([^\n<|•]+)/i);
-              if (idvMatch) {
-                const idv = idvMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '');
-                motorDetails['IDV'] = `₹${idv}`;
-              }
-              
-              const fuelMatch = notes.match(/(?:Fuel\s*Type|Fuel):\s*([^\n<|•]+)/i);
-              if (fuelMatch) {
-                const fuel = fuelMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '');
-                motorDetails['Fuel Type'] = fuel;
-              }
-              
-              const bodyMatch = notes.match(/(?:Body\s*Type|Vehicle\s*Type):\s*([^\n<|•]+)/i);
-              if (bodyMatch) {
-                const body = bodyMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '');
-                motorDetails['Body Type'] = body;
-              }
-              
-              // 8. Year of Manufacture
-              const yearMatch = notes.match(/(?:Year|YOM|Year\s*of\s*Manufacture|Manufacturing\s*Year):\s*([0-9]{4}|[^\n<|•]+)/i);
-              if (yearMatch) {
-                const year = yearMatch[1].trim().replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '');
-                motorDetails['Year'] = year;
-              }
-              
-              return Object.entries(motorDetails).length > 0 ? (
-                Object.entries(motorDetails).map(([key, value]) => (
-                  <div key={key} className="bg-white p-3 rounded-md border border-blue-100 hover:border-blue-300 transition-colors">
-                    <p className="text-xs text-muted-foreground mb-1 font-medium">{key}</p>
-                    <p className="font-semibold text-blue-900 text-sm word-wrap">{value}</p>
-                  </div>
-                ))
-              ) : null;
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* Extra Details */}
-      {policy.agent_notes && (
-        <div className="rounded-lg border bg-card p-5 space-y-3 shadow-sm border-t-4 border-t-indigo-400">
-          <h3 className="font-semibold text-sm text-indigo-900 uppercase tracking-wide flex items-center gap-2">
-             <AlertCircle className="w-4 h-4 text-indigo-500" /> 
-             Deep AI Extraction Insights
-          </h3>
-          <div className="bg-muted/30 p-4 rounded-md text-sm space-y-2">
-            {(() => {
-              // Parse HTML and extract text content
-              const parser = new DOMParser();
-              let items: string[] = [];
-              
-              try {
-                // Try to parse as HTML
-                const doc = parser.parseFromString(policy.agent_notes, 'text/html');
-                const listItems = doc.querySelectorAll('li');
-                
-                if (listItems.length > 0) {
-                  items = Array.from(listItems).map(item => item.textContent?.trim() || '').filter(Boolean);
-                } else {
-                  // Fallback: split by newlines or common delimiters
-                  items = policy.agent_notes
-                    .split(/\n|<li>|<\/li>|•/)
-                    .map(item => item.replace(/<[^>]*>/g, '').trim())
-                    .filter(item => item && item.length > 0);
-                }
-              } catch {
-                // Fallback if parsing fails
-                items = policy.agent_notes
-                  .split(/\n|•/)
-                  .map(item => item.replace(/<[^>]*>/g, '').trim())
-                  .filter(item => item && item.length > 0);
-              }
-              
-              return items.length > 0 ? items.map((item, idx) => (
-                <div key={idx} className="flex items-start gap-2">
-                  <span className="text-indigo-600 font-semibold min-w-fit">•</span>
-                  <p className="text-muted-foreground leading-relaxed">{item}</p>
-                </div>
-              )) : (
-                <p className="text-muted-foreground">{policy.agent_notes.replace(/<[^>]*>/g, '')}</p>
-              );
-            })()}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Documents ── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -571,7 +364,7 @@ export default function PolicyDetailPage() {
                     <div className="min-w-0">
                       <p className="font-semibold text-sm text-slate-900 truncate">{doc.file_name}</p>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        Uploaded {new Date(doc.upload_date || doc.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        Uploaded {(doc.upload_date || doc.created_at) ? new Date(doc.upload_date || doc.created_at || '').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                       </p>
                     </div>
                   </div>

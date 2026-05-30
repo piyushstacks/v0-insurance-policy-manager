@@ -257,7 +257,7 @@ export default function PoliciesPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 mb-1">Policies Directory</h1>
-          <p className="text-slate-500 font-medium">Manage and explore {filteredPolicies.length} parsed policies</p>
+          <p className="text-slate-500 font-medium">Manage and explore {totalRecords} parsed policies</p>
         </div>
         
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -423,7 +423,7 @@ export default function PoliciesPage() {
                    </select>
                </div>
                <div className="hidden sm:block ml-2 px-3 py-1 border-l border-slate-200">
-                   Showing <span className="font-bold text-slate-700">{filteredPolicies.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> to <span className="font-bold text-slate-700">{Math.min(currentPage * pageSize, filteredPolicies.length)}</span> of <span className="font-bold text-slate-700">{filteredPolicies.length}</span> entries
+                   Showing <span className="font-bold text-slate-700">{totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> to <span className="font-bold text-slate-700">{(currentPage - 1) * pageSize + filteredPolicies.length}</span> of <span className="font-bold text-slate-700">{totalRecords}</span> entries
                </div>
             </div>
             

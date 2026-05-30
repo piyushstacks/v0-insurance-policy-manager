@@ -296,7 +296,7 @@ export async function deletePolicy(policyId: string, userId: string) {
 
     // Log audit
     await auditLog(userId, 'DELETE', 'policies', policyId, {
-      policy_number: policy.policy_number,
+      policy_number: existing?.policy_number,
     });
 
     return { success: true };

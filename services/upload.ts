@@ -6,6 +6,7 @@
 import { supabaseAdmin, storageBucket } from '@/lib/supabase';
 import { extractDocumentInline, queueDocumentExtraction } from './extraction';
 import { compressPdf } from './pdf-compression';
+import { uploadToB2, deleteFromB2 } from '@/lib/b2';
 
 /**
  * Upload a policy document
@@ -41,51 +42,21 @@ export async function uploadPolicyDocument(
 
     console.log(`[v0] Processing file: ${fileName}`);
 
-    let uploadBody: File | Buffer = file;
+    let uploadBody: Buffer | Uint8Array;
     if (file.type === 'application/pdf') {
       const buffer = Buffer.from(await file.arrayBuffer());
       uploadBody = await compressPdf(buffer);
+    } else {
+      uploadBody = Buffer.from(await file.arrayBuffer());
     }
 
-    // Upload to Supabase Storage using Admin client to bypass RLS policies
-    const { data: uploadData, error: uploadError } = await supabaseAdmin!.storage
-      .from(storageBucket)
-      .upload(fileName, uploadBody, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: file.type,
-      });
-
-    if (uploadError) {
-      if (uploadError.message.toLowerCase().includes('not found') || uploadError.message.toLowerCase().includes('bucket')) {
-        console.log(`[v0] Bucket '${storageBucket}' not found. Auto-creating public bucket...`);
-        const { error: bucketErr } = await supabaseAdmin!.storage.createBucket(storageBucket, { public: true });
-        
-        if (bucketErr && !bucketErr.message.includes('already exists')) {
-           throw new Error(`Failed to auto-create bucket: ${bucketErr.message}`);
-        }
-        
-        // Retry upload after successful bucket creation natively bypassing RLS
-        const retry = await supabaseAdmin!.storage.from(storageBucket).upload(fileName, uploadBody, {
-           cacheControl: '3600',
-           upsert: false,
-           contentType: file.type,
-        });
-        
-        if (retry.error) {
-           throw new Error(`Upload failed after bucket creation: ${retry.error.message}`);
-        }
-      } else {
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
+    // Upload to Backblaze B2
+    let fileUrl: string;
+    try {
+      fileUrl = await uploadToB2(fileName, uploadBody, file.type);
+    } catch (uploadError: any) {
+      throw new Error(`Upload failed: ${uploadError.message}`);
     }
-
-    // Get public URL
-    const { data: urlData } = supabaseAdmin!.storage
-      .from(storageBucket)
-      .getPublicUrl(fileName);
-
-    const fileUrl = urlData.publicUrl;
 
     // Create document record
     const { data: docData, error: docError } = await supabaseAdmin!
@@ -138,13 +109,11 @@ export async function uploadPolicyDocument(
  */
 export async function deletePolicyDocument(documentId: string, filePath: string) {
   try {
-    // Delete from storage
-    const { error: storageError } = await supabaseAdmin!.storage
-      .from(storageBucket)
-      .remove([filePath]);
-
-    if (storageError) {
-      console.warn('Storage deletion warning:', storageError);
+    // Delete from Backblaze B2
+    try {
+      await deleteFromB2(filePath);
+    } catch (b2Error) {
+      console.warn('B2 deletion warning:', b2Error);
     }
 
     // Delete record from database

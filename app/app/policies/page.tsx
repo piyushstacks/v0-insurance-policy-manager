@@ -492,7 +492,9 @@ export default function PoliciesPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedPolicies.map((p) => {
-                    const fileUrl = p.documents?.[0]?.file_path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/policy-documents/${p.documents[0].file_path}` : `/app/policies/${p.id}`;
+                    const baseUrl = process.env.NEXT_PUBLIC_B2_PUBLIC_URL || '';
+                    const fileUrl = p.documents?.[0]?.file_path ? `${baseUrl}/${p.documents[0].file_path}` : `/app/policies/${p.id}`;
+                    
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/80 transition-colors text-sm">
                         <td className="px-3 py-3 align-middle text-center"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>

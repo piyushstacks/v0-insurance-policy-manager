@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createBrowserClient } from '@supabase/ssr';
+import { getB2PublicUrl } from './b2';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -50,9 +51,9 @@ export async function uploadFile(file: File, path: string) {
   return data;
 }
 
+
 export async function getPublicUrl(path: string) {
-  const { data } = supabase.storage.from(storageBucket).getPublicUrl(path);
-  return data.publicUrl;
+  return getB2PublicUrl(path);
 }
 
 export async function deleteFile(path: string) {

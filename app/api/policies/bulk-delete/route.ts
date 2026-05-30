@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { supabaseAdmin, storageBucket } from '@/lib/supabase';
+import { deleteFromB2 } from '@/lib/b2';
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,12 +61,14 @@ export async function POST(request: NextRequest) {
     const docIds = documents?.map(d => d.id) || [];
     const filePaths = documents?.map(d => d.file_path).filter(Boolean) || [];
 
+
     // 2. Remove files natively from Storage (so it wipes actual physical data!)
     if (filePaths.length > 0) {
-      const { error: storageError } = await supabaseAdmin.storage
-        .from(storageBucket)
-        .remove(filePaths);
-      if (storageError) console.error('[v0] Bulk storage remove error:', storageError);
+      try {
+        await Promise.all(filePaths.map(path => deleteFromB2(path)));
+      } catch (b2Error) {
+        console.error('[v0] Bulk B2 storage remove error:', b2Error);
+      }
     }
 
     // 3. Remove extraction jobs

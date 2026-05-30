@@ -602,9 +602,9 @@ export default function PolicyDetailPage() {
         ) : (
           <div className="space-y-3">
             {documents.map((doc) => {
-              const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+              const baseUrl = process.env.NEXT_PUBLIC_B2_PUBLIC_URL || '';
               const downloadUrl = doc.file_path
-                ? `${supabaseUrl}/storage/v1/object/public/policy-documents/${doc.file_path}`
+                ? `${baseUrl}/${doc.file_path}`
                 : null;
 
               return (

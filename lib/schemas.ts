@@ -111,6 +111,8 @@ export const extractionResultSchema = z.object({
   key_important_details: z.string().optional(),
   agent_notes: z.string().optional(),
   additional_fields: z.record(z.any()).optional(),
+  is_quotation: z.boolean().optional(),
+  requires_manual_entry: z.boolean().optional(),
 });
 
 // ─── TEAM ────────────────────────────────────────────────────────

@@ -68,7 +68,7 @@ export default function NewPolicyPage() {
           <div className="pt-4 flex gap-3">
             <Button 
               onClick={() => router.push('/app/policies')}
-              className="bg-slate-900 hover:bg-slate-800 text-white shadow-md"
+              variant="default"
             >
               View All Policies
             </Button>

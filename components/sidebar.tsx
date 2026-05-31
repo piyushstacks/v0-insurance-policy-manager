@@ -72,6 +72,7 @@ export default function Sidebar({ user }: SidebarProps) {
     { name: 'Policies', href: '/app/policies', icon: FileText, exact: false },
     { divider: true },
     { name: 'Customers', href: '/app/customers', icon: Users, exact: false },
+    { name: 'Renewals', href: '/app/renewals', icon: CalendarDays, exact: false },
     { name: 'Reminders', href: '/app/reminders', icon: CalendarDays, exact: false },
     { name: 'Reporting', href: '/app/reporting', icon: PieChart, exact: false, locked: isMember },
     { divider: true },

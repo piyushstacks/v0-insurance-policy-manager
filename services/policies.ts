@@ -378,13 +378,20 @@ export async function getPoliciesExpiringSoon(userId: string, daysAhead: number 
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + daysAhead);
 
+    const teamUserIds = await getTeamUserIds(userId);
+
     const { data, error } = await supabaseAdmin!
       .from('policies')
-      .select('*')
+      .select(`
+        *,
+        customer:customers(name, email, mobile),
+        insurer:insurers(name, contact)
+      `)
+      .in('user_id', teamUserIds)
       .eq('status', 'active')
-      .gte('coverage_end', new Date().toISOString().split('T')[0])
-      .lte('coverage_end', futureDate.toISOString().split('T')[0])
-      .order('coverage_end', { ascending: true });
+      .gte('expiry_date', new Date().toISOString().split('T')[0])
+      .lte('expiry_date', futureDate.toISOString().split('T')[0])
+      .order('expiry_date', { ascending: true });
 
     if (error) throw error;
     return data;

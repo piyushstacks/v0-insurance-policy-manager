@@ -789,14 +789,28 @@ export async function extractDocumentInline(
     const startDate = safeDate(extracted.coverage_start, now);
     const expiryDate = safeDate(extracted.coverage_end, nextYear);
 
+    let agentNotes = extracted.agent_notes || '';
+    if (extracted.is_quotation) {
+      extracted.policy_type = `⚠️ QUOTATION / ILLUSTRATION`;
+      agentNotes = `⚠️ AI FLAG: This document appears to be a Quotation, Proposal, or Benefit Illustration, NOT a final issued policy. Please verify and delete if incorrect.\n\n` + agentNotes;
+    }
+
+    let finalPolicyNumber = extracted.policy_number || `OCR-${Date.now()}`;
+    if (extracted.requires_manual_entry) {
+      finalPolicyNumber = `PENDING_OCR_MANUAL_${Date.now()}`;
+      agentNotes = `⚠️ AI FLAG: Missing required fields (Premium / Sum Assured). Manual entry required.\n\n` + agentNotes;
+      metrics.success = false;
+      metrics.error = "Missing premium amount / sum assured.";
+    }
+
     // ── UPDATE POLICY ──
     const updatePayload: any = {
-      policy_number: extracted.policy_number || `OCR-${Date.now()}`,
+      policy_number: finalPolicyNumber,
       policy_type: extracted.policy_type || 'General Insurance',
       start_date: startDate,
       expiry_date: expiryDate,
       premium_amount: extracted.premium_amount || 0,
-      agent_notes: extracted.agent_notes || null,
+      agent_notes: agentNotes || null,
     };
 
     if (finalCustId) updatePayload.customer_id = finalCustId;

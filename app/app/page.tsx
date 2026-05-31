@@ -13,6 +13,8 @@ import { useTeam } from '@/hooks/use-team';
 
 interface DashboardData {
   totalPremium: number;
+  totalAUM: number;
+  sectorAUM: { name: string; aum: number }[];
   totalPolicies: number;
   activePolicies: number;
   customersCount: number;
@@ -39,6 +41,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'company' | 'customer'>('company');
   const [greeting, setGreeting] = useState('Good morning');
+  const [filter, setFilter] = useState('all');
   const { isMember } = useTeam();
 
   useEffect(() => {
@@ -50,8 +53,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchMetrics() {
+      setIsLoading(true);
       try {
-        const dashRes = await fetch('/api/dashboard');
+        const dashRes = await fetch(`/api/dashboard?filter=${filter}`);
         const json = await dashRes.json();
         if (!dashRes.ok) throw new Error(json.error || 'Failed to load dashboard data');
         
@@ -64,7 +68,7 @@ export default function DashboardPage() {
       }
     }
     fetchMetrics();
-  }, []);
+  }, [filter]);
 
   if (isLoading) {
     return <PageLoader words={['analytics', 'policies', 'customers', 'charts', 'analytics']} label="loading" />;
@@ -90,13 +94,22 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <select 
+              value={filter} 
+              onChange={(e) => setFilter(e.target.value)}
+              className="bg-white border border-slate-200 text-sm rounded-lg px-3 py-1.5 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              <option value="all">All Time</option>
+              <option value="this_year">This Year</option>
+              <option value="prev_fin_year">Prev Fin Year</option>
+            </select>
             <Link href="/app/policies/new">
-              <Button size="sm" className="bg-slate-900 hover:bg-slate-800 text-white shadow-md gap-2">
+              <Button size="sm" variant="default" className="gap-2">
                 <Upload className="w-4 h-4" /> Upload Batch
               </Button>
             </Link>
-            <Link href="/app/policies/new">
-              <Button size="sm" variant="outline" className="shadow-sm gap-2 border-slate-300">
+            <Link href="/app/policies/new" className="hidden sm:inline-flex">
+              <Button size="sm" variant="outline" className="gap-2">
                 <Plus className="w-4 h-4" /> New Policy
               </Button>
             </Link>
@@ -107,16 +120,35 @@ export default function DashboardPage() {
       {/* Dashboard content */}
       <div className="px-4 md:px-8 pb-8">
 
-        {/* KPI Cards — 4 columns on desktop, 2x2 mobile grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 mb-6">
           
-          {/* Total Premium */}
+          {/* Total AUM */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-5 flex flex-col relative overflow-hidden group hover:shadow-md transition-all">
             <div className="absolute -right-3 -top-3 w-12 h-12 bg-emerald-50 rounded-full group-hover:scale-[2] transition-transform duration-700 ease-out" />
             <div className="flex items-center justify-between mb-3 relative z-10">
-              <span className="text-[11px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Premium</span>
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                <IndianRupee className="w-4 h-4 text-emerald-600" />
+               <span className="text-[11px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest">Total AUM</span>
+               <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                 <Building className="w-4 h-4 text-emerald-600" />
+               </div>
+            </div>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 relative z-10 tabular-nums">
+              {isMember ? '***' : `₹${data.totalAUM >= 100000 
+                ? `${(data.totalAUM / 100000).toFixed(1)}L` 
+                : data.totalAUM.toLocaleString('en-IN')}`}
+            </h2>
+            <span className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1 relative z-10">
+              {isMember ? 'Restricted access' : 'Overall Business Portfolio'}
+            </span>
+          </div>
+
+          {/* Annual Premium */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-5 flex flex-col relative overflow-hidden group hover:shadow-md transition-all">
+            <div className="absolute -right-3 -top-3 w-12 h-12 bg-blue-50 rounded-full group-hover:scale-[2] transition-transform duration-700 ease-out" />
+            <div className="flex items-center justify-between mb-3 relative z-10">
+              <span className="text-[11px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest">Annual Premium</span>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <IndianRupee className="w-4 h-4 text-blue-600" />
               </div>
             </div>
             <h2 className="text-2xl md:text-3xl font-black text-slate-900 relative z-10 tabular-nums">
@@ -124,8 +156,8 @@ export default function DashboardPage() {
                 ? `${(data.totalPremium / 100000).toFixed(1)}L` 
                 : data.totalPremium.toLocaleString('en-IN')}`}
             </h2>
-            <span className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1 relative z-10">
-              {isMember ? 'Restricted access' : <><ArrowUpRight className="w-3 h-3" /> +12% vs last month</>}
+            <span className="text-[11px] text-blue-600 font-semibold mt-1 flex items-center gap-1 relative z-10">
+              {isMember ? 'Restricted access' : `For ${filter === 'this_year' ? 'This Year' : filter === 'prev_fin_year' ? 'Prev Year' : 'All Time'}`}
             </span>
           </div>
 
@@ -134,12 +166,12 @@ export default function DashboardPage() {
             <div className="absolute -right-3 -top-3 w-12 h-12 bg-blue-50 rounded-full group-hover:scale-[2] transition-transform duration-700 ease-out" />
             <div className="flex items-center justify-between mb-3 relative z-10">
               <span className="text-[11px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest">Active Policies</span>
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                <FileText className="w-4 h-4 text-blue-600" />
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                <FileText className="w-4 h-4 text-indigo-600" />
               </div>
             </div>
             <h2 className="text-2xl md:text-3xl font-black text-slate-900 relative z-10 tabular-nums">{data.totalPolicies}</h2>
-            <span className="text-[11px] text-blue-600 font-semibold mt-1 relative z-10">
+            <span className="text-[11px] text-indigo-600 font-semibold mt-1 relative z-10">
               {data.activePolicies} active
             </span>
           </div>
@@ -356,6 +388,29 @@ export default function DashboardPage() {
                     </div>
                   ))}
                   {data.companyChartData.length === 0 && (
+                    <div className="text-slate-400 text-[11px]">No data available.</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sector AUM Dark Card */}
+            {!isMember && (
+              <div className="bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 flex flex-col">
+                <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wider">
+                  <BarChart3 className="w-3.5 h-3.5 text-blue-400" /> Sector Wise AUM
+                </h3>
+                <div className="space-y-2.5">
+                  {data.sectorAUM.map((sector, i) => (
+                    <div key={i} className="flex justify-between items-center text-xs">
+                      <div className="flex gap-2 items-center min-w-0">
+                        <span className="w-4 h-4 rounded bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
+                        <span className="text-slate-200 truncate">{sector.name}</span>
+                      </div>
+                      <span className="text-blue-400 font-semibold shrink-0 ml-2 tabular-nums">₹{sector.aum >= 100000 ? (sector.aum / 100000).toFixed(1) + 'L' : sector.aum.toLocaleString('en-IN')}</span>
+                    </div>
+                  ))}
+                  {data.sectorAUM.length === 0 && (
                     <div className="text-slate-400 text-[11px]">No data available.</div>
                   )}
                 </div>

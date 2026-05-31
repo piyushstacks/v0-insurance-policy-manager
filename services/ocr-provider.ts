@@ -127,6 +127,10 @@ class PDFParseProvider implements OCRProvider {
             CONTACT DATA RULES:
             - NEVER invent emails/phones. Only extract if explicitly written in the document. Output null if missing.
 
+            QUOTATION / ILLUSTRATION DETECTION:
+            - Is this a Quotation, Benefit Illustration, Proposal Form, or Premium Calculation instead of an actual issued policy?
+            - Set "is_quotation": true if it is NOT a final issued policy.
+
             Return JSON:
             {
               "policy_number": "exact alphanumeric (e.g. P/141100/01/2025/001234 or 4504111511572315)",
@@ -139,7 +143,8 @@ class PDFParseProvider implements OCRProvider {
               "customer_name": "full name of proposer/policyholder or null",
               "customer_email": "email or null",
               "customer_mobile": "phone number or null",
-              "key_important_details": "HTML <li> list of other key info, or empty string"
+              "key_important_details": "HTML <li> list of other key info, or empty string",
+              "is_quotation": false
             }
 
             RAW DOCUMENT TEXT:
@@ -242,6 +247,14 @@ class PDFParseProvider implements OCRProvider {
              parsed.policy_number = `REVIEW-${Date.now()}`;
           }
 
+          // STRICT CHECK: Premium Amount & Sum Assured
+          const hasPremium = parsed.premium_amount && parsed.premium_amount > 0;
+          const hasSumInsured = parsed.additional_fields?.sum_insured || parsed.sum_insured || parsed.sum_assured || parsed.key_important_details?.toLowerCase().includes('sum insured');
+          
+          if (!hasPremium && !hasSumInsured) {
+             throw new Error("Missing both Premium Amount and Sum Insured. Extraction is weak.");
+          }
+
           console.log(`[v0/AI] ✅ Extraction Success! Customer: ${parsed.customer_name}, Policy: ${parsed.policy_number}`);
           break;
 
@@ -268,6 +281,8 @@ class PDFParseProvider implements OCRProvider {
           customer_email: parsed.customer_email || null,
           customer_mobile: parsed.customer_mobile || null,
           agent_notes: parsed.key_important_details || null,
+          is_quotation: !!parsed.is_quotation,
+          requires_manual_entry: (!parsed.premium_amount || parsed.premium_amount <= 0)
         };
       }
     }
@@ -480,6 +495,8 @@ class PDFParseProvider implements OCRProvider {
       premium_amount: premium,
       insurer_name:   insurer.trim(),
       customer_name:  customer?.trim() ?? undefined,
+      is_quotation:   /\b(?:quote|quotation|illustration|proposal|premium calculation)\b/i.test(text),
+      requires_manual_entry: premium <= 0,
     };
 
     console.log('[v0/OCR] Result:', JSON.stringify(result, null, 2));

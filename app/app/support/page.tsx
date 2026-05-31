@@ -46,8 +46,8 @@ export default function SupportPage() {
             <p className="text-slate-400 mb-8 max-w-lg leading-relaxed font-medium">
               Our technical architects are available to help you with custom API integrations or bulk document migrations.
             </p>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl h-14 px-10 font-bold shadow-2xl shadow-blue-500/20">
-              Schedule a Technical Call
+            <Button variant="primary" size="lg" className="rounded-2xl px-10 shadow-2xl shadow-blue-500/20 w-max">
+              Submit Request
             </Button>
           </div>
         </div>

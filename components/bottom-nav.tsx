@@ -9,7 +9,8 @@ import {
   Users, 
   Bell, 
   Settings,
-  LayoutGrid
+  LayoutGrid,
+  CalendarDays
 } from 'lucide-react';
 
 export default function BottomNav() {
@@ -18,7 +19,7 @@ export default function BottomNav() {
   const navItems = [
     { name: 'Dashboard', href: '/app', icon: LayoutGrid, exact: true },
     { name: 'Policies', href: '/app/policies', icon: FileText, exact: false },
-    { name: 'Customers', href: '/app/customers', icon: Users, exact: false },
+    { name: 'Renewals', href: '/app/renewals', icon: CalendarDays, exact: false },
     { name: 'Reminders', href: '/app/reminders', icon: Bell, exact: false },
     { name: 'Settings', href: '/app/settings', icon: Settings, exact: false },
   ];

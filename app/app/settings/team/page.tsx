@@ -592,8 +592,8 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
              ) : (
                  <div className="flex gap-2">
                     <Button onClick={() => setIsEditingProfile(false)} variant="ghost" size="sm" className="rounded-xl h-8 text-xs">Cancel</Button>
-                    <Button disabled={updatingProfile} onClick={handleUpdateProfile} size="sm" className="rounded-xl h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold">
-                       {updatingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null} Save Changes
+                    <Button disabled={updatingProfile} onClick={handleUpdateProfile} variant="primary" size="sm" className="rounded-xl">
+                      {updatingProfile ? 'Saving...' : 'Save Changes'}
                     </Button>
                  </div>
              )}

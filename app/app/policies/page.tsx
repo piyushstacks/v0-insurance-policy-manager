@@ -62,12 +62,13 @@ export default function PoliciesPage() {
 
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const fetchPolicies = useCallback(async () => {
-    setIsLoading(true);
+  const fetchPolicies = useCallback(async (background = false) => {
+    if (!background) setIsLoading(true);
     try {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         pageSize: pageSize.toString(),
+        _t: Date.now().toString(), // Force bypass cache
       });
       if (searchTerm) params.set('search', searchTerm.trim());
 
@@ -79,12 +80,12 @@ export default function PoliciesPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error loading policies');
     } finally {
-      setIsLoading(false);
+      if (!background) setIsLoading(false);
     }
   }, [currentPage, pageSize, searchTerm]);
 
   useEffect(() => {
-    fetchPolicies();
+    fetchPolicies(false);
   }, [fetchPolicies]);
 
   // --- REALTIME POLLING FALLBACK & SUBSCRIPTION ---
@@ -98,7 +99,7 @@ export default function PoliciesPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'policies' },
         (payload) => {
-          fetchPolicies();
+          fetchPolicies(true);
         }
       )
       .subscribe();
@@ -123,7 +124,7 @@ export default function PoliciesPage() {
     if (!hasPending) return;
 
     const interval = setInterval(() => {
-      fetchPolicies();
+      fetchPolicies(true);
     }, 3000);
 
     return () => clearInterval(interval);
@@ -284,37 +285,39 @@ export default function PoliciesPage() {
               className="pl-9 h-10 rounded-xl bg-slate-50 border-slate-200 w-full"
             />
           </div>
-          <ActionButton 
-             color={showMobileFilters ? "primary" : "secondary"}
-             size="md"
-             onClick={() => setShowMobileFilters(!showMobileFilters)}
-             iconLeading={Filter}
-          >
-            {showMobileFilters ? 'Hide Filters' : 'Show Filters'}
-          </ActionButton>
+          <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+            <ActionButton 
+               color={showMobileFilters ? "primary" : "secondary"}
+               size="md"
+               onClick={() => setShowMobileFilters(!showMobileFilters)}
+               iconLeading={Filter}
+            >
+              {showMobileFilters ? 'Hide Filters' : 'Show Filters'}
+            </ActionButton>
 
-          {selected.size > 0 && (
-            <>
-               <Button variant="secondary" onClick={handleReExtract} disabled={reExtracting || isDeleting} className="bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200">
-                 <RefreshCw className={`w-4 h-4 mr-2 ${reExtracting ? 'animate-spin' : ''}`} />
-                 Re-extract ({selected.size})
-               </Button>
-               <ActionButton 
-                 color="primary-destructive" 
-                 onClick={handleBulkDelete} 
-                 isLoading={isDeleting}
-                 iconLeading={Trash2}
-               >
-                 Delete Selected
-               </ActionButton>
-            </>
-          )}
+            {selected.size > 0 && (
+              <>
+                 <Button variant="secondary" onClick={handleReExtract} disabled={reExtracting || isDeleting} className="shrink-0 bg-amber-100 hover:bg-amber-200 text-amber-800">
+                   <RefreshCw className={`w-4 h-4 mr-2 ${reExtracting ? 'animate-spin' : ''}`} />
+                   Re-extract ({selected.size})
+                 </Button>
+                 <ActionButton 
+                   color="primary-destructive" 
+                   onClick={handleBulkDelete} 
+                   isLoading={isDeleting}
+                   iconLeading={Trash2}
+                 >
+                   Delete Selected
+                 </ActionButton>
+              </>
+            )}
 
-          <Link href="/app/policies/new" className="ml-auto md:ml-0">
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
-              <Plus className="w-4 h-4 mr-2 hidden sm:inline" /> Upload Policies
-            </Button>
-          </Link>
+            <Link href="/app/policies/new" className="ml-auto sm:ml-0 shrink-0">
+              <Button variant="primary">
+                <Plus className="w-4 h-4 mr-2 hidden sm:inline" /> <span className="hidden sm:inline">Upload Policies</span><span className="sm:hidden">Upload</span>
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -391,9 +394,22 @@ export default function PoliciesPage() {
                         <span className="truncate max-w-xs">{docName}</span>
                       </td>
                       <td className="px-4 py-3 text-amber-700 text-xs">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold bg-amber-200/50 uppercase tracking-widest">
-                          Processing OCR...
-                        </span>
+                        {p.policy_number?.includes('MANUAL') ? (
+                          <div className="flex items-center gap-3">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-800 uppercase tracking-widest border border-red-200">
+                              Requires Manual Entry
+                            </span>
+                            <Link href={`/app/policies/${p.id}/edit`}>
+                              <Button variant="outline" size="sm" className="h-7 text-[10px] bg-white hover:bg-slate-50 border-slate-300">
+                                Enter Details
+                              </Button>
+                            </Link>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold bg-amber-200/50 uppercase tracking-widest">
+                            Processing OCR...
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:text-amber-800 hover:bg-amber-100 inline-flex" onClick={(e) => deleteSingle(p.id, e)} title="Cancel upload">
@@ -431,7 +447,7 @@ export default function PoliciesPage() {
                       <option value="100">100</option>
                    </select>
                </div>
-               <div className="hidden sm:block ml-2 px-3 py-1 border-l border-slate-200">
+               <div className="block sm:block ml-0 sm:ml-2 mt-2 sm:mt-0 px-0 sm:px-3 py-1 border-none sm:border-solid sm:border-l border-slate-200 text-[10px] sm:text-xs">
                    Showing <span className="font-bold text-slate-700">{totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> to <span className="font-bold text-slate-700">{(currentPage - 1) * pageSize + filteredPolicies.length}</span> of <span className="font-bold text-slate-700">{totalRecords}</span> entries
                </div>
             </div>

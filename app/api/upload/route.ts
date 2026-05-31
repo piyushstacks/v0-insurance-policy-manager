@@ -45,6 +45,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
+    // --- PRE-UPLOAD VALIDATION ---
+    if (file.type === 'application/pdf') {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const pdfParse = require('pdf-parse');
+        const result = await pdfParse(buffer);
+        const text = result.text?.toLowerCase() || '';
+        
+        // Strict Check: if it explicitly says quotation or proposal, reject it
+        if (text.includes('quotation') || text.includes('quote only') || text.includes('this is a quote') || text.includes('proposal form')) {
+           return NextResponse.json({ error: 'Upload rejected: Document appears to be a quotation or proposal, not an issued policy.' }, { status: 400 });
+        }
+        
+        // Check for basic insurance policy indicators
+        const hasInsuranceKeywords = text.includes('insurance') || text.includes('policy') || text.includes('premium') || text.includes('schedule');
+        if (!hasInsuranceKeywords && text.length > 50) {
+           return NextResponse.json({ error: 'Upload rejected: Document does not appear to be a valid insurance policy.' }, { status: 400 });
+        }
+      } catch (err) {
+        console.warn('[v0] Pre-upload PDF validation failed (corrupt or encrypted PDF). Proceeding with upload...', err);
+      }
+    }
+
     // Auto-create placeholder policy if none was provided
     if (!policyId) {
       if (!supabaseAdmin) {

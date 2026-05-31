@@ -198,6 +198,11 @@ export default function PolicyDetailPage() {
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[policy.status] ?? 'bg-gray-100 text-gray-700'}`}>
             {policy.status}
           </span>
+          <Link href={`/app/policies/${policyId}/edit`}>
+            <Button variant="outline" size="sm" className="bg-white hover:bg-slate-50 border-slate-200 text-slate-700">
+              Edit Policy
+            </Button>
+          </Link>
           <RoleActionButton
             canDirectlyAct={canDirectlyAct}
             requestType="DELETE_POLICY"
@@ -354,8 +359,7 @@ export default function PolicyDetailPage() {
           { label: 'Policy Number', value: policyNumber },
           { label: 'Policy Type', value: policyType },
           { label: 'Plan Name', value: planName },
-          { label: 'Coverage Start', value: coverageStart },
-          { label: 'Coverage End', value: coverageEnd },
+          { label: 'Coverage Period', value: (coverageStart !== '—' || coverageEnd !== '—') ? `${coverageStart} TO ${coverageEnd}`.toUpperCase() : '—' },
           { label: 'Premium Amount', value: premiumAmount },
           { label: 'Sum Insured / Assured', value: sumInsured }
         ];
@@ -419,13 +423,16 @@ export default function PolicyDetailPage() {
         ];
 
         // ── DEDUPLICATE EXTRA EXTRACTED DATA ──
-        const renderedKeys = new Set([
+        const rawRenderedKeys = [
           'policy_number', 'policy_type', 'start_date', 'coverage_start', 'expiry_date', 'coverage_end',
           'premium_amount', 'sum_insured', 'sum_assured', 'nominee', 'nominee_name', 'status',
           'name', 'customer_name', 'mobile', 'customer_mobile', 'email', 'customer_email',
           'insurer_name', 'insurer_contact', 'contact', 'vehicle_number', 'health_ped', 'ped',
-          'plan_name', 'product_name', 'tpa_name', 'tpa', 'copay', 'co_pay', 'room_rent_limit', 'room_rent'
-        ]);
+          'plan_name', 'product_name', 'tpa_name', 'tpa', 'copay', 'co_pay', 'room_rent_limit', 'room_rent',
+          'policy_category', 'policy_sub_category'
+        ];
+        
+        const renderedKeys = new Set(rawRenderedKeys.map(k => k.toLowerCase().replace(/[\s_]/g, '')));
 
         const fieldLabels: Record<string, string> = {
           policy_number: 'Policy Number',
@@ -608,8 +615,8 @@ export default function PolicyDetailPage() {
                 : null;
 
               return (
-                <div key={doc.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
+                <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors gap-4 sm:gap-3">
+                  <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
                     <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
                       <FileText className="w-5 h-5 text-indigo-600" />
                     </div>
@@ -621,7 +628,7 @@ export default function PolicyDetailPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-auto ml-12 sm:ml-0">
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                       doc.extraction_status === 'extracted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                       doc.extraction_status === 'failed'    ? 'bg-red-50 text-red-700 border-red-200' :

@@ -82,7 +82,7 @@ export default function SettingsPage() {
             const Icon = card.icon;
             return (
               <div key={card.id} className={`bg-white rounded-[28px] p-6 border ${card.border} shadow-sm hover:shadow-md transition-shadow`}>
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 ${card.iconBg} rounded-2xl flex items-center justify-center shrink-0`}>
                       <Icon className={`w-6 h-6 ${card.iconColor}`} />
@@ -95,8 +95,8 @@ export default function SettingsPage() {
                       <p className="text-sm text-slate-500 mt-0.5">{card.description}</p>
                     </div>
                   </div>
-                  <Link href={card.href} className="shrink-0">
-                    <Button className={`${card.ctaClass} rounded-xl gap-2 text-sm h-10 px-4 whitespace-nowrap`}>
+                  <Link href={card.href} className="shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+                    <Button className={`${card.ctaClass} w-full sm:w-auto rounded-xl gap-2 text-sm h-10 px-4 whitespace-nowrap`}>
                       {card.cta}
                       <ChevronRight className="w-4 h-4" />
                     </Button>

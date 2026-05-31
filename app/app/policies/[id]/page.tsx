@@ -609,10 +609,8 @@ export default function PolicyDetailPage() {
         ) : (
           <div className="space-y-3">
             {documents.map((doc) => {
-              const baseUrl = process.env.NEXT_PUBLIC_B2_PUBLIC_URL || '';
-              const downloadUrl = doc.file_path
-                ? `${baseUrl}/${doc.file_path}`
-                : null;
+              // Use our secure backend API which dynamically fetches the environment variables at runtime
+              const downloadUrl = doc.id ? `/api/documents/${doc.id}/download` : null;
 
               return (
                 <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors gap-4 sm:gap-3">

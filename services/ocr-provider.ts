@@ -131,6 +131,13 @@ class PDFParseProvider implements OCRProvider {
             - Is this a Quotation, Benefit Illustration, Proposal Form, or Premium Calculation instead of an actual issued policy?
             - Set "is_quotation": true if it is NOT a final issued policy.
 
+            PREMIUM PAYMENT TERM (LIFE INSURANCE ONLY):
+            - Life insurance can be Regular Pay, Limited Pay (e.g. 12 years), or Single Pay.
+            - If it's a Life policy, search for "Premium Payment Term" or "PPT".
+            - If you find a number of years, output "payment_term": N (as an integer).
+            - If "Single Premium" or "Single Pay", output "payment_term": 1.
+            - If "Regular Pay" or not found, output "payment_term": 99.
+
             Return JSON:
             {
               "policy_number": "exact alphanumeric (e.g. P/141100/01/2025/001234 or 4504111511572315)",
@@ -139,6 +146,7 @@ class PDFParseProvider implements OCRProvider {
               "coverage_start": "ISO8601 date (e.g. 2025-04-14T00:00:00Z)",
               "coverage_end": "ISO8601 date",
               "premium_amount": 28955,
+              "payment_term": 99,
               "insurer_name": "insurance company full name",
               "customer_name": "full name of proposer/policyholder or null",
               "customer_email": "email or null",
@@ -253,6 +261,10 @@ class PDFParseProvider implements OCRProvider {
           
           if (!hasPremium && !hasSumInsured) {
              throw new Error("Missing both Premium Amount and Sum Insured. Extraction is weak.");
+          }
+
+          if (finalCat === 'Life' && parsed.payment_term) {
+              finalSubCat += ` | ${parsed.payment_term}-Pay`;
           }
 
           console.log(`[v0/AI] ✅ Extraction Success! Customer: ${parsed.customer_name}, Policy: ${parsed.policy_number}`);

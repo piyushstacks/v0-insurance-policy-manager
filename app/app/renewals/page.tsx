@@ -26,6 +26,10 @@ interface Policy {
   status: string;
   customer?: Customer;
   insurer?: Insurer;
+  calculated_next_due_date?: string;
+  expected_premium?: number;
+  renewal_type?: string;
+  is_health_hike?: boolean;
 }
 
 export default function RenewalsPage() {
@@ -64,10 +68,10 @@ export default function RenewalsPage() {
     }
   };
 
-  const getDaysUntilExpiry = (expiryDate: string) => {
+  const getDaysUntilDue = (dueDate: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const exp = new Date(expiryDate);
+    const exp = new Date(dueDate);
     const diffTime = exp.getTime() - today.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
@@ -133,14 +137,17 @@ export default function RenewalsPage() {
                     <th className="px-4 py-3 min-w-[140px]">Customer</th>
                     <th className="px-4 py-3 min-w-[120px]">Policy No</th>
                     <th className="px-4 py-3 min-w-[120px]">Type / Insurer</th>
-                    <th className="px-4 py-3 min-w-[100px]">Expiry Date</th>
+                    <th className="px-4 py-3 min-w-[120px]">Premium Due</th>
+                    <th className="px-4 py-3 min-w-[100px]">Due Date</th>
                     <th className="px-4 py-3 min-w-[100px]">Status</th>
                     <th className="px-4 py-3 text-right w-32">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {policies.map((p) => {
-                    const days = getDaysUntilExpiry(p.expiry_date);
+                    const dueDate = p.calculated_next_due_date || p.expiry_date;
+                    const days = getDaysUntilDue(dueDate);
+                    const isAnniversary = p.renewal_type === 'Anniversary Premium';
                     
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/50 transition-colors text-sm group">
@@ -152,29 +159,53 @@ export default function RenewalsPage() {
                           <Link href={`/app/policies/${p.id}`} className="font-medium text-blue-600 hover:underline">
                             {p.policy_number}
                           </Link>
+                          {isAnniversary && (
+                            <div className="mt-1">
+                                <span className="inline-block px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[9px] font-bold uppercase rounded border border-purple-200">
+                                    Anniversary
+                                </span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="font-medium text-slate-700 text-xs truncate max-w-[140px] mb-0.5">{p.policy_type?.split(' | ')[0] || '—'}</div>
                           <div className="text-[10px] text-slate-400 uppercase tracking-wide truncate max-w-[140px]">{p.insurer?.name || '—'}</div>
                         </td>
                         <td className="px-4 py-3">
+                            <div className="font-bold text-slate-900">
+                                ₹{(p.expected_premium || p.premium_amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </div>
+                            {p.is_health_hike && (
+                                <div className="text-[9px] font-bold text-rose-600 uppercase mt-0.5 bg-rose-50 px-1 py-0.5 inline-block rounded">
+                                    Est. +10% Hike
+                                </div>
+                            )}
+                        </td>
+                        <td className="px-4 py-3">
                           <div className="font-medium text-slate-900 mb-0.5">
-                            {new Date(p.expiry_date).toLocaleDateString('en-GB')}
+                            {new Date(dueDate).toLocaleDateString('en-GB')}
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-slate-400" />
                             <span className={`text-[10px] font-bold uppercase tracking-wider ${days < 0 ? 'text-red-600' : days <= 15 ? 'text-rose-600' : 'text-amber-600'}`}>
-                              {days < 0 ? `Expired ${Math.abs(days)} days ago` : days === 0 ? 'Expires Today' : `In ${days} days`}
+                              {days < 0 ? `Past Due ${Math.abs(days)}d` : days === 0 ? 'Due Today' : `In ${days} days`}
                             </span>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getBadgeStyle(days)}`}>
-                            {days < 0 ? 'Expired' : 'Expiring Soon'}
+                            {days < 0 ? 'Overdue' : 'Upcoming'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {p.is_health_hike ? (
+                                <Link href={`/app/policies/${p.id}/edit`}>
+                                    <Button variant="outline" size="sm" className="h-8 text-[10px] bg-white border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 px-2" title="Update Exact Renewal Amount">
+                                        Update Amt
+                                    </Button>
+                                </Link>
+                            ) : null}
                             <Link href={`/app/policies/${p.id}`}>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50" title="View Policy">
                                 <Eye className="w-4 h-4" />

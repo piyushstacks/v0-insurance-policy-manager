@@ -375,12 +375,14 @@ export async function getCustomerPoliciesByYearAndCategory(customerId: string) {
  */
 export async function getPoliciesExpiringSoon(userId: string, daysAhead: number = 30) {
   try {
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + daysAhead);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const futureDate = new Date(today);
+    futureDate.setDate(today.getDate() + daysAhead);
 
     const teamUserIds = await getTeamUserIds(userId);
 
-    const { data, error } = await supabaseAdmin!
+    const { data: policies, error } = await supabaseAdmin!
       .from('policies')
       .select(`
         *,
@@ -388,13 +390,80 @@ export async function getPoliciesExpiringSoon(userId: string, daysAhead: number 
         insurer:insurers(name, contact)
       `)
       .in('user_id', teamUserIds)
-      .eq('status', 'active')
-      .gte('expiry_date', new Date().toISOString().split('T')[0])
-      .lte('expiry_date', futureDate.toISOString().split('T')[0])
-      .order('expiry_date', { ascending: true });
+      .eq('status', 'active');
 
     if (error) throw error;
-    return data;
+    if (!policies) return [];
+
+    const upcomingRenewals = [];
+
+    for (const policy of policies) {
+        let nextDueDate: Date | null = null;
+        let expectedPremium = policy.premium_amount || 0;
+        
+        const typeStr = (policy.policy_type || '').toLowerCase();
+        const isHealth = typeStr.includes('health') || typeStr.includes('mediclaim');
+        const isLife = typeStr.includes('life');
+        
+        let renewalType = 'Annual Renewal';
+
+        if (isLife) {
+            // Check for limited pay in policy_type (e.g. Life | Term Plan | 12-Pay)
+            let paymentTerm = 99; // Default regular pay
+            const payMatch = policy.policy_type?.match(/\|\s*(\d+)-Pay/i);
+            if (payMatch) {
+                paymentTerm = parseInt(payMatch[1], 10);
+            }
+
+            const startDate = new Date(policy.coverage_start || policy.start_date || policy.created_at);
+            const yearsSinceStart = today.getFullYear() - startDate.getFullYear();
+
+            // If the policy is fully paid up, skip it
+            if (yearsSinceStart >= paymentTerm) {
+                continue;
+            }
+
+            // Calculate next anniversary relative to today's year
+            nextDueDate = new Date(today.getFullYear(), startDate.getMonth(), startDate.getDate());
+            
+            // If anniversary this year has already passed, the next one is next year
+            if (nextDueDate < today) {
+                nextDueDate.setFullYear(today.getFullYear() + 1);
+            }
+            
+            // Ensure nextDueDate doesn't exceed ultimate expiry_date
+            if (policy.coverage_end || policy.expiry_date) {
+               const expiryDate = new Date(policy.coverage_end || policy.expiry_date);
+               if (nextDueDate > expiryDate) nextDueDate = null;
+            }
+            renewalType = 'Anniversary Premium';
+        } else {
+            // General / Health / Motor renews strictly on expiry_date
+            if (!policy.coverage_end && !policy.expiry_date) continue;
+            nextDueDate = new Date(policy.coverage_end || policy.expiry_date);
+            
+            if (isHealth) {
+                // Apply 10% hike logic for health
+                expectedPremium = expectedPremium * 1.10;
+            }
+        }
+
+        // Only include if due date is within our window
+        if (nextDueDate && nextDueDate >= today && nextDueDate <= futureDate) {
+            upcomingRenewals.push({
+                ...policy,
+                calculated_next_due_date: nextDueDate.toISOString(),
+                expected_premium: expectedPremium,
+                renewal_type: renewalType,
+                is_health_hike: isHealth
+            });
+        }
+    }
+
+    // Sort by nearest calculated date ascending
+    upcomingRenewals.sort((a, b) => new Date(a.calculated_next_due_date).getTime() - new Date(b.calculated_next_due_date).getTime());
+
+    return upcomingRenewals;
   } catch (error) {
     console.error('Failed to fetch expiring policies:', error);
     throw error;

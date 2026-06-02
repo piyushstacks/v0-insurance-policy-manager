@@ -785,9 +785,19 @@ export async function extractDocumentInline(
     };
 
     const now = new Date();
-    const nextYear = new Date(now.getTime() + 31536000000);
     const startDate = safeDate(extracted.coverage_start, now);
-    const expiryDate = safeDate(extracted.coverage_end, nextYear);
+    
+    // Default to 1 year ahead
+    let nextEnd = new Date(new Date(startDate).getTime() + 31536000000);
+    
+    // If Life Insurance explicitly stated a Policy Term (e.g. 40 years), mathematically add it to Start Date
+    if (extracted.policy_term) {
+      const termEnd = new Date(startDate);
+      termEnd.setFullYear(termEnd.getFullYear() + extracted.policy_term);
+      nextEnd = termEnd;
+    }
+    
+    const expiryDate = safeDate(extracted.coverage_end, nextEnd);
 
     let agentNotes = extracted.agent_notes || '';
     if (extracted.is_quotation) {
@@ -866,6 +876,21 @@ export async function extractDocumentInline(
         })
         .eq('id', jobDbId);
     }
+
+    // Fix: Also ensure the document itself is marked as failed so the UI stops showing PENDING
+    await supabaseAdmin!
+      .from('policy_documents')
+      .update({ extraction_status: 'failed' })
+      .eq('id', documentId);
+
+    // Update policy to require manual entry so it doesn't get stuck in UI
+    await supabaseAdmin!
+      .from('policies')
+      .update({ 
+        policy_number: `PENDING_OCR_MANUAL_${Date.now()}`,
+        agent_notes: `⚠️ AI FLAG: OCR extraction failed. Manual entry required.\nError: ${err.message}` 
+      })
+      .eq('id', policyId);
 
     // Don't throw — upload succeeded, extraction is best-effort
     return { success: false, error: err.message };
@@ -1073,6 +1098,28 @@ export async function processExtractionJob(retryAttempt = 0): Promise<any> {
         return processExtractionJob(retryAttempt + 1);
       } else {
         await failJob(job.id, errorMessage);
+        
+        // Update policy to require manual entry so it doesn't get stuck in UI
+        const { data: docData } = await supabaseAdmin!
+          .from('policy_documents')
+          .select('policy_id')
+          .eq('id', job.payload.documentId)
+          .maybeSingle();
+          
+        if (docData?.policy_id) {
+          await supabaseAdmin!
+            .from('policies')
+            .update({ 
+              policy_number: `PENDING_OCR_MANUAL_${Date.now()}`,
+              agent_notes: `⚠️ AI FLAG: OCR extraction failed after retries. Manual entry required.\nError: ${errorMessage}` 
+            })
+            .eq('id', docData.policy_id);
+            
+          await supabaseAdmin!
+            .from('policy_documents')
+            .update({ extraction_status: 'failed' })
+            .eq('id', job.payload.documentId);
+        }
       }
     }
 

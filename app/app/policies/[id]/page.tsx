@@ -256,6 +256,10 @@ export default function PolicyDetailPage() {
                         notes.toLowerCase().includes('chassis') ||
                         notes.toLowerCase().includes('engine no');
 
+        const isLife = policy.policy_type?.toLowerCase().includes('life') ||
+                       extractedData.policy_category?.toLowerCase() === 'life' ||
+                       notes.toLowerCase().includes('sum assured');
+
         const isHealth = policy.policy_type?.toLowerCase().includes('health') ||
                          policy.policy_type?.toLowerCase().includes('medical') ||
                          policy.policy_type?.toLowerCase().includes('mediclaim') ||
@@ -346,8 +350,8 @@ export default function PolicyDetailPage() {
             /(?:Sum\s*(?:Insured|Assured)|Cover\s*Amount|Cover\s*Limit|Coverage\s*Limit|Basic\s*Sum\s*Insured):\s*(?:₹|Rs\.?\s*)?([0-9,]+(?:\.\d{2})?|[^\n<|•]+)/i
           ]);
           if (siVal !== '—') {
-            const num = parseFloat(siVal.replace(/[^\d.]/g, ''));
-            sumInsured = isNaN(num) ? siVal : `₹${num.toLocaleString('en-IN')}`;
+            const num = parseFloat(String(siVal).replace(/[^\d.]/g, ''));
+            sumInsured = isNaN(num) ? String(siVal) : `₹${num.toLocaleString('en-IN')}`;
           }
         }
 
@@ -355,13 +359,20 @@ export default function PolicyDetailPage() {
           /(?:Plan(?:\s*Name)?|Product(?:\s*Name)?|Scheme(?:\s*Name)?):\s*([^\n<|•]+)/i
         ]));
 
+        let policyTerm = extractedData.policy_term ? `${extractedData.policy_term} Years` : '—';
+        let paymentTerm = extractedData.payment_term ? (extractedData.payment_term === 1 ? 'Single Pay' : extractedData.payment_term === 99 ? 'Regular Pay' : `${extractedData.payment_term} Years`) : '—';
+
         const coverageFinancialFields = [
           { label: 'Policy Number', value: policyNumber },
           { label: 'Policy Type', value: policyType },
           { label: 'Plan Name', value: planName },
           { label: 'Coverage Period', value: (coverageStart !== '—' || coverageEnd !== '—') ? `${coverageStart} TO ${coverageEnd}`.toUpperCase() : '—' },
           { label: 'Premium Amount', value: premiumAmount },
-          { label: 'Sum Insured / Assured', value: sumInsured }
+          { label: 'Sum Insured / Assured', value: sumInsured },
+          ...(isLife ? [
+            { label: 'Policy Term', value: policyTerm },
+            { label: 'Payment Term', value: paymentTerm }
+          ] : [])
         ];
 
         // ── MOTOR DETAILS EXTRACTION ──

@@ -138,6 +138,9 @@ class PDFParseProvider implements OCRProvider {
             - If "Single Premium" or "Single Pay", output "payment_term": 1.
             - If "Regular Pay" or not found, output "payment_term": 99.
 
+            POLICY TERM (LIFE INSURANCE ONLY):
+            - If you find "Policy Term" (e.g., 40 years), output "policy_term": 40.
+
             Return JSON:
             {
               "policy_number": "exact alphanumeric (e.g. P/141100/01/2025/001234 or 4504111511572315)",
@@ -146,7 +149,9 @@ class PDFParseProvider implements OCRProvider {
               "coverage_start": "ISO8601 date (e.g. 2025-04-14T00:00:00Z)",
               "coverage_end": "ISO8601 date",
               "premium_amount": 28955,
+              "sum_insured": 5000000,
               "payment_term": 99,
+              "policy_term": 40,
               "insurer_name": "insurance company full name",
               "customer_name": "full name of proposer/policyholder or null",
               "customer_email": "email or null",
@@ -251,13 +256,19 @@ class PDFParseProvider implements OCRProvider {
              parsed.customer_name = null; // Will trigger regex supplementation below
           }
           
+          const parseNum = (val: any) => typeof val === 'number' ? val : parseFloat(String(val || '').replace(/[^\d.]/g, '')) || 0;
+          parsed.premium_amount = parseNum(parsed.premium_amount);
+          parsed.sum_insured = parseNum(parsed.sum_insured || parsed.sum_assured || parsed.additional_fields?.sum_insured);
+          parsed.payment_term = parseNum(parsed.payment_term);
+          parsed.policy_term = parseNum(parsed.policy_term);
+
           if (!parsed.policy_number || parsed.policy_number.length < 4) {
              parsed.policy_number = `REVIEW-${Date.now()}`;
           }
 
           // STRICT CHECK: Premium Amount & Sum Assured
-          const hasPremium = parsed.premium_amount && parsed.premium_amount > 0;
-          const hasSumInsured = parsed.additional_fields?.sum_insured || parsed.sum_insured || parsed.sum_assured || parsed.key_important_details?.toLowerCase().includes('sum insured');
+          const hasPremium = parsed.premium_amount > 0;
+          const hasSumInsured = parsed.sum_insured > 0 || parsed.key_important_details?.toLowerCase().includes('sum insured');
           
           if (!hasPremium && !hasSumInsured) {
              throw new Error("Missing both Premium Amount and Sum Insured. Extraction is weak.");

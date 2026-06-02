@@ -55,9 +55,8 @@ export async function POST(request: NextRequest) {
 
       if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
 
-      const { data: urlData } = supabaseAdmin!.storage
-        .from('policy-documents')
-        .getPublicUrl(doc.file_path);
+      const baseUrl = process.env.B2_PUBLIC_URL || process.env.NEXT_PUBLIC_B2_PUBLIC_URL;
+      const publicUrl = `${baseUrl?.replace(/\/$/, '')}/${doc.file_path}`;
 
       // Reset extraction status
       await supabaseAdmin!
@@ -66,7 +65,7 @@ export async function POST(request: NextRequest) {
         .eq('id', documentId);
 
       // Fire inline extraction (non-blocking)
-      extractDocumentInline(documentId, policyId, urlData.publicUrl).catch(console.error);
+      extractDocumentInline(documentId, policyId, publicUrl).catch(console.error);
 
       return NextResponse.json({ success: true, message: 'Extraction restarted for document' });
     }
@@ -102,10 +101,9 @@ export async function POST(request: NextRequest) {
 
     // Fire all inline extractions (non-blocking)
     for (const doc of docs) {
-      const { data: urlData } = supabaseAdmin!.storage
-        .from('policy-documents')
-        .getPublicUrl(doc.file_path);
-      extractDocumentInline(doc.id, doc.policy_id, urlData.publicUrl).catch(console.error);
+      const baseUrl = process.env.B2_PUBLIC_URL || process.env.NEXT_PUBLIC_B2_PUBLIC_URL;
+      const publicUrl = `${baseUrl?.replace(/\/$/, '')}/${doc.file_path}`;
+      extractDocumentInline(doc.id, doc.policy_id, publicUrl).catch(console.error);
     }
 
     return NextResponse.json({

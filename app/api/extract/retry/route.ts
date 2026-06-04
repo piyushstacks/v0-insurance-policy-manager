@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const { getTeamUserIds } = await import('@/services/team');
+    const teamUserIds = await getTeamUserIds(user.id);
+
     const body = await request.json().catch(() => ({}));
     const { policyIds, documentId, policyId } = body as {
       policyIds?: string[];
@@ -50,10 +53,13 @@ export async function POST(request: NextRequest) {
           )
         `)
         .eq('id', documentId)
-        .eq('policies.user_id', user.id)
+        .in('policies.user_id', teamUserIds)
         .single();
 
-      if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      if (!doc) {
+        console.error('[API/Retry] Document not found! user.id:', user.id, 'documentId:', documentId, 'policyId:', policyId);
+        return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      }
 
       const baseUrl = process.env.B2_PUBLIC_URL || process.env.NEXT_PUBLIC_B2_PUBLIC_URL;
       const publicUrl = `${baseUrl?.replace(/\/$/, '')}/${doc.file_path}`;
@@ -81,7 +87,7 @@ export async function POST(request: NextRequest) {
           user_id
         )
       `)
-      .eq('policies.user_id', user.id);
+      .in('policies.user_id', teamUserIds);
 
     if (policyIds && policyIds.length > 0) {
       query = query.in('policy_id', policyIds);

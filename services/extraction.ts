@@ -429,34 +429,9 @@ export async function findOrCreateCustomer(
       }
     }
 
-    // 4. Check for exact contact match (email or mobile)
-    for (const customer of allCustomers) {
-      const contactMatch = contactsMatch(
-        { email: customer.email, mobile: customer.mobile },
-        {
-          email: extractedData.customer_email,
-          mobile: extractedData.customer_mobile,
-        }
-      );
-
-      if (contactMatch.matched) {
-        console.log(
-          `[Dedup] Found exact ${contactMatch.type} match for customer "${customer.name}"`
-        );
-        
-        const updatedCustomer = await updateCustomerContacts(customer.id, extractedData);
-
-        return {
-          customerId: customer.id,
-          customerName: customer.name,
-          email: updatedCustomer?.email || customer.email,
-          mobile: updatedCustomer?.mobile || customer.mobile,
-          matchScore: CONTACT_MATCH_CONFIDENCE,
-          matchType: 'contact',
-          crossVerified: true,
-        };
-      }
-    }
+    // 4. REMOVED: Do not blindly merge on contact match alone.
+    // Broker/Agent emails appear on many distinct client policies.
+    // If name doesn't match at all, we must create a new customer record.
 
     // 5. No match found, create new customer
     console.log(

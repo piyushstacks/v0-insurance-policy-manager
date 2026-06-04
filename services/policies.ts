@@ -58,6 +58,8 @@ export async function getPolicies(
     customerId?: string;
     insurerId?: string;
     search?: string;
+    excludePending?: boolean;
+    onlyPending?: boolean;
   },
   page = 1,
   pageSize = 20
@@ -82,6 +84,17 @@ export async function getPolicies(
     }
     if (filters?.search) {
       query = query.or(`policy_number.ilike.%${filters.search}%,policy_type.ilike.%${filters.search}%`);
+    }
+    
+    if (filters?.excludePending) {
+       query = query.not('policy_number', 'ilike', 'PENDING_OCR%')
+                    .not('policy_number', 'ilike', 'BULK_OCR%')
+                    .not('policy_number', 'ilike', 'IMG-%')
+                    .not('policy_number', 'ilike', 'doc_%');
+    }
+    
+    if (filters?.onlyPending) {
+       query = query.or('policy_number.ilike.PENDING_OCR%,policy_number.ilike.BULK_OCR%,policy_number.ilike.IMG-%,policy_number.ilike.doc_%');
     }
 
     const { data, error, count } = await query

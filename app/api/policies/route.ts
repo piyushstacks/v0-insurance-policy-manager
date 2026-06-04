@@ -51,8 +51,10 @@ export async function GET(request: NextRequest) {
     const customerId = searchParams.get('customerId') || undefined;
     const insurerId = searchParams.get('insurerId') || undefined;
     const search = searchParams.get('search') || undefined;
+    const excludePending = searchParams.get('excludePending') === 'true';
+    const onlyPending = searchParams.get('onlyPending') === 'true';
 
-    const result = await getPolicies(user.id, { status, customerId, insurerId, search }, page, pageSize);
+    const result = await getPolicies(user.id, { status, customerId, insurerId, search, excludePending, onlyPending }, page, pageSize);
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {

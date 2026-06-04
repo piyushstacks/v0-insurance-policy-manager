@@ -11,6 +11,13 @@ import { Button as ActionButton } from '@/components/base/buttons/button';
 import { Input } from '@/components/ui/input';
 import { PageLoader } from '@/components/ui/loader';
 import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
   Download,
   Filter,
   Plus,
@@ -41,6 +48,7 @@ interface Policy {
 
 export default function PoliciesPage() {
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [pendingPolicies, setPendingPolicies] = useState<Policy[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // UI State
@@ -68,6 +76,7 @@ export default function PoliciesPage() {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         pageSize: pageSize.toString(),
+        excludePending: 'true',
         _t: Date.now().toString(), // Force bypass cache
       });
       if (searchTerm) params.set('search', searchTerm.trim());
@@ -84,9 +93,22 @@ export default function PoliciesPage() {
     }
   }, [currentPage, pageSize, searchTerm]);
 
+  const fetchPending = useCallback(async () => {
+    try {
+      const response = await fetch('/api/policies?onlyPending=true&pageSize=100');
+      if (response.ok) {
+        const data = await response.json();
+        setPendingPolicies(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pending', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPolicies(false);
-  }, [fetchPolicies]);
+    fetchPending();
+  }, [fetchPolicies, fetchPending]);
 
   // --- REALTIME POLLING FALLBACK & SUBSCRIPTION ---
   useEffect(() => {
@@ -100,6 +122,7 @@ export default function PoliciesPage() {
         { event: '*', schema: 'public', table: 'policies' },
         (payload) => {
           fetchPolicies(true);
+          fetchPending();
         }
       )
       .subscribe();
@@ -107,49 +130,28 @@ export default function PoliciesPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, fetchPolicies]);
+  }, [supabase, fetchPolicies, fetchPending]);
 
-  // Bulletproof fallback: If there are pending objects, poll the table every 3 seconds.
-  // This guarantees UI sync even if the user hasn't enabled Supabase Realtime yet!
+  // Bulletproof fallback
   useEffect(() => {
-    // Only derived variables like pendingPolicies.length aren't in scope unless evaluated inside
-    // Because pendingPolicies relies on policies state, we must check policies directly or just use a boolean
-    const hasPending = policies.some(p => 
-      p.policy_number?.startsWith('PENDING_OCR') || 
-      p.policy_number?.startsWith('BULK_OCR') || 
-      p.policy_number?.startsWith('IMG-') ||
-      p.policy_number?.startsWith('doc_')
-    );
-
-    if (!hasPending) return;
+    if (pendingPolicies.length === 0) return;
 
     const interval = setInterval(() => {
       fetchPolicies(true);
+      fetchPending();
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [policies, fetchPolicies]);
+  }, [pendingPolicies.length, fetchPolicies, fetchPending]);
 
 
   // Unique values for dropdowns
   const uniqueProducts = useMemo(() => Array.from(new Set(policies.map(p => p.policy_type).filter(Boolean))), [policies]);
   const uniqueCompanies = useMemo(() => Array.from(new Set(policies.map(p => p.insurer?.name).filter(Boolean))), [policies]);
 
-  const isPending = useCallback((p: Policy) => 
-    p.policy_number?.startsWith('PENDING_OCR') || 
-    p.policy_number?.startsWith('BULK_OCR') || 
-    p.policy_number?.startsWith('IMG-') ||
-    p.policy_number?.startsWith('doc_')
-  , []);
-
-  // Split Data
-  const pendingPolicies = useMemo(() => policies.filter(isPending), [policies, isPending]);
-
   // Derived Filtered Data
   const filteredPolicies = useMemo(() => {
     return policies.filter(p => {
-      if (isPending(p)) return false; // Hide pending from main list
-
       // Search
       const searchStr = `${p.policy_number} ${p.customer?.name} ${p.insurer?.name}`.toLowerCase();
       if (searchTerm && !searchStr.includes(searchTerm.toLowerCase())) return false;
@@ -164,7 +166,7 @@ export default function PoliciesPage() {
       
       return true;
     });
-  }, [policies, searchTerm, filterProduct, filterCompany, dateStart, dateEnd, isPending]);
+  }, [policies, searchTerm, filterProduct, filterCompany, dateStart, dateEnd]);
 
   // Derive Paginated Context
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
@@ -312,6 +314,70 @@ export default function PoliciesPage() {
               </>
             )}
 
+                        <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" className={`ml-auto sm:ml-0 shrink-0 border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 ${pendingPolicies.length === 0 ? 'hidden' : ''}`}>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin opacity-70" /> 
+                  Pending ({pendingPolicies.length})
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto bg-slate-50 p-0 border-l border-slate-200">
+                <SheetHeader className="p-6 bg-white border-b border-slate-200">
+                  <SheetTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
+                    <RefreshCw className="w-5 h-5 text-amber-500 animate-spin" />
+                    Pending Extractions
+                  </SheetTitle>
+                  <p className="text-sm text-slate-500 font-normal">
+                    These policies are currently being processed by the AI or require your manual review.
+                  </p>
+                </SheetHeader>
+                <div className="p-4 flex flex-col gap-3">
+                  {pendingPolicies.length === 0 ? (
+                    <div className="text-center p-8 text-slate-500">No pending extractions.</div>
+                  ) : (
+                    pendingPolicies.map(p => {
+                      const docName = p.documents?.[0]?.file_name || 'Policy Document';
+                      const isManual = p.policy_number?.includes('MANUAL');
+                      return (
+                        <div key={p.id} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col gap-3">
+                          <div className="flex items-start gap-3">
+                            <FileText className="w-8 h-8 text-indigo-100 fill-indigo-500 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                               <p className="font-semibold text-slate-800 truncate text-sm">{docName}</p>
+                               <div className="flex items-center gap-2 mt-1.5">
+                                 {isManual ? (
+                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 uppercase tracking-wide">
+                                     Requires Manual Entry
+                                   </span>
+                                 ) : (
+                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200 uppercase tracking-wide">
+                                     Processing OCR...
+                                   </span>
+                                 )}
+                               </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 pt-3 border-t border-slate-100 justify-end">
+                             {isManual && (
+                               <Link href={`/app/policies/${p.id}/edit`}>
+                                 <Button variant="default" size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
+                                   Enter Details
+                                 </Button>
+                               </Link>
+                             )}
+                             <Button variant="ghost" size="sm" className="h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(e) => deleteSingle(p.id, e)}>
+                               Cancel & Delete
+                             </Button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+
             <Link href="/app/policies/new" className="ml-auto sm:ml-0 shrink-0">
               <Button variant="primary">
                 <Plus className="w-4 h-4 mr-2 hidden sm:inline" /> <span className="hidden sm:inline">Upload Policies</span><span className="sm:hidden">Upload</span>
@@ -366,61 +432,6 @@ export default function PoliciesPage() {
                   </Button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- EXTRACTING QUEUE SECTION --- */}
-      {pendingPolicies.length > 0 && (
-        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="bg-amber-100/50 px-4 py-3 border-b border-amber-200">
-            <h2 className="font-bold text-amber-900 text-sm flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 animate-spin opacity-70" /> 
-              Pending Extractions ({pendingPolicies.length})
-            </h2>
-          </div>
-          <div className="p-0">
-            <table className="w-full text-left text-sm">
-              <tbody className="divide-y divide-amber-100">
-                {pendingPolicies.map(p => {
-                  const docName = p.documents?.[0]?.file_name || 'Policy Document';
-                  return (
-                    <tr key={p.id} className="hover:bg-amber-100/30 transition-colors">
-                      <td className="w-12 px-4 py-3">
-                        <input type="checkbox" className="rounded border-amber-300 accent-amber-600 w-4 h-4 cursor-pointer" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} />
-                      </td>
-                      <td className="px-4 py-3 font-medium text-amber-900 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span className="truncate max-w-xs">{docName}</span>
-                      </td>
-                      <td className="px-4 py-3 text-amber-700 text-xs">
-                        {p.policy_number?.includes('MANUAL') ? (
-                          <div className="flex items-center gap-3">
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-800 uppercase tracking-widest border border-red-200">
-                              Requires Manual Entry
-                            </span>
-                            <Link href={`/app/policies/${p.id}/edit`}>
-                              <Button variant="outline" size="sm" className="h-7 text-[10px] bg-white hover:bg-slate-50 border-slate-300">
-                                Enter Details
-                              </Button>
-                            </Link>
-                          </div>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold bg-amber-200/50 uppercase tracking-widest">
-                            Processing OCR...
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:text-amber-800 hover:bg-amber-100 inline-flex" onClick={(e) => deleteSingle(p.id, e)} title="Cancel upload">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           </div>
         </div>
       )}

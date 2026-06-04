@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { extractDocumentInline } from '@/services/extraction';
+import { getB2PublicUrl } from '@/lib/b2';
 
 export const runtime = 'nodejs';
 
@@ -8,11 +9,11 @@ export async function GET(request: NextRequest) {
   try {
     console.log('Fetching policies for ICICI and Digit...');
     
-    // Find ICICI and Digit insurers
+    // Find ICICI, Digit, and Tata insurers
     const { data: insurers } = await supabaseAdmin!
       .from('insurers')
       .select('id, name')
-      .or('name.ilike.%icici%,name.ilike.%digit%');
+      .or('name.ilike.%icici%,name.ilike.%digit%,name.ilike.%tata%');
 
     if (!insurers || insurers.length === 0) {
       return NextResponse.json({ message: 'No such insurers found.' });
@@ -48,13 +49,17 @@ export async function GET(request: NextRequest) {
     for (const doc of docs) {
       console.log(`Re-extracting document ${doc.id} for policy ${doc.policy_id}...`);
       
-      if (doc.raw_ocr_text && doc.raw_ocr_text.length > 100) {
-         console.log('Using cached OCR text...');
-         await extractDocumentInline(doc.id, doc.policy_id, null, doc.raw_ocr_text);
-         results.push({ id: doc.id, status: 're-extracted inline' });
+      if (doc.file_path) {
+         const fileUrl = getB2PublicUrl(doc.file_path);
+         console.log(`Fetching PDF from B2 to re-extract: ${fileUrl}`);
+         
+         // Trigger inline extraction asynchronously, fire-and-forget so the request doesn't timeout
+         extractDocumentInline(doc.id, doc.policy_id, fileUrl).catch(e => console.error(`[Fix] Error on ${doc.id}:`, e.message));
+         
+         results.push({ id: doc.id, status: 'queued for re-extraction with full PDF' });
       } else {
-         console.log(`No raw text available for document ${doc.id}. Skipping.`);
-         results.push({ id: doc.id, status: 'skipped (no raw text)' });
+         console.log(`No file path available for document ${doc.id}. Skipping.`);
+         results.push({ id: doc.id, status: 'skipped (no file path)' });
       }
     }
 

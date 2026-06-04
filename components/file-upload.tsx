@@ -3,6 +3,8 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, File, AlertCircle, CheckCircle } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 interface FileUploadProps {
   policyId: string;
@@ -16,6 +18,7 @@ export default function FileUpload({ policyId, onUploadComplete, onError }: File
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
+  const [uploadType, setUploadType] = useState<'policy' | 'renewal'>('policy');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleUpload(files: FileList | null) {
@@ -32,6 +35,7 @@ export default function FileUpload({ policyId, onUploadComplete, onError }: File
       formData.append('file', file);
       formData.append('policyId', policyId);
       formData.append('autoExtract', 'true');
+      formData.append('uploadType', uploadType);
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -93,7 +97,33 @@ export default function FileUpload({ policyId, onUploadComplete, onError }: File
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-6">
+      {uploadStatus === 'idle' && (
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">What are you uploading?</Label>
+          <RadioGroup 
+            defaultValue="policy" 
+            value={uploadType} 
+            onValueChange={(val: any) => setUploadType(val)}
+            className="flex gap-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="policy" id="type-policy" />
+              <Label htmlFor="type-policy" className="cursor-pointer">Policy Document</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="renewal" id="type-renewal" />
+              <Label htmlFor="type-renewal" className="cursor-pointer">Renewal Receipt (Life)</Label>
+            </div>
+          </RadioGroup>
+          {uploadType === 'renewal' && (
+            <p className="text-xs text-muted-foreground">
+              We'll extract the customer data and Life Insurance policy details from the receipt. The receipt document will not be stored permanently.
+            </p>
+          )}
+        </div>
+      )}
+
       <div
         className={`
           relative border-2 border-dashed rounded-lg p-8 text-center transition-colors
@@ -118,7 +148,9 @@ export default function FileUpload({ policyId, onUploadComplete, onError }: File
         {uploadStatus === 'idle' && (
           <>
             <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">Upload Policy Document</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              Upload {uploadType === 'policy' ? 'Policy Document' : 'Renewal Receipt'}
+            </h3>
             <p className="text-sm text-muted-foreground mb-4">
               Drag and drop your PDF, JPG, or PNG file here or click to browse
             </p>

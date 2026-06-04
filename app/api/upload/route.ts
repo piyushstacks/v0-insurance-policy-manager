@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null;
     let policyId = (formData.get('policyId') as string) || '';
     const autoExtract = formData.get('autoExtract') !== 'false';
+    const uploadType = (formData.get('uploadType') as string) || 'policy';
+    const storeFile = uploadType !== 'renewal';
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -57,7 +59,8 @@ export async function POST(request: NextRequest) {
         const text = result.text?.toLowerCase() || '';
         
         // Strict Check: if it explicitly says quotation or proposal, reject it
-        if (text.includes('quotation') || text.includes('quote only') || text.includes('this is a quote') || text.includes('proposal form')) {
+        // BUT bypass for renewal receipts since they are essentially quotes/notices for next year
+        if (storeFile && (text.includes('quotation') || text.includes('quote only') || text.includes('this is a quote') || text.includes('proposal form'))) {
            return NextResponse.json({ error: 'Upload rejected: Document appears to be a quotation or proposal, not an issued policy.' }, { status: 400 });
         }
         
@@ -150,7 +153,7 @@ export async function POST(request: NextRequest) {
       policyId = polData.id;
     }
 
-    const result = await uploadPolicyDocument(user.id, policyId, file, autoExtract);
+    const result = await uploadPolicyDocument(user.id, policyId, file, autoExtract, storeFile);
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
     console.error('[v0] Upload API error:', error);

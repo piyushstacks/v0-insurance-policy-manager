@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Upload, File, AlertCircle, CheckCircle, Trash2, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 type ExtractionStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'not_started';
 
@@ -31,6 +33,7 @@ export default function BulkFileUpload({ onUploadComplete, onError, customerId }
   const [isDragging, setIsDragging] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadType, setUploadType] = useState<'policy' | 'renewal'>('policy');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Poll extraction status for queued documents
@@ -97,6 +100,7 @@ export default function BulkFileUpload({ onUploadComplete, onError, customerId }
       const formData = new FormData();
       uploadQueue.forEach(f => formData.append('files', f.file));
       if (customerId) formData.append('customerId', customerId);
+      formData.append('uploadType', uploadType);
 
       const response = await fetch('/api/upload/bulk', {
         method: 'POST',
@@ -219,7 +223,32 @@ export default function BulkFileUpload({ onUploadComplete, onError, customerId }
   }
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-6">
+      {/* Upload Mode Selection */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">What are you uploading?</Label>
+        <RadioGroup 
+          defaultValue="policy" 
+          value={uploadType} 
+          onValueChange={(val: any) => setUploadType(val)}
+          className="flex gap-4"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="policy" id="bulk-type-policy" />
+            <Label htmlFor="bulk-type-policy" className="cursor-pointer">Policy Documents</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="renewal" id="bulk-type-renewal" />
+            <Label htmlFor="bulk-type-renewal" className="cursor-pointer">Renewal Receipts (Life)</Label>
+          </div>
+        </RadioGroup>
+        {uploadType === 'renewal' && (
+          <p className="text-xs text-muted-foreground">
+            We'll extract the customer data and Life Insurance policy details from the receipts. The receipt documents will not be stored permanently.
+          </p>
+        )}
+      </div>
+
       {/* Upload Area */}
       <div
         className={`
@@ -242,7 +271,9 @@ export default function BulkFileUpload({ onUploadComplete, onError, customerId }
         />
 
         <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-        <h3 className="text-lg font-semibold mb-2">Upload Multiple Policy Documents</h3>
+        <h3 className="text-lg font-semibold mb-2">
+          Upload Multiple {uploadType === 'policy' ? 'Policy Documents' : 'Renewal Receipts'}
+        </h3>
         <p className="text-sm text-muted-foreground mb-4">
           Drag and drop multiple PDF, JPG, or PNG files here or click to browse
         </p>

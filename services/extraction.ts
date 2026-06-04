@@ -689,15 +689,16 @@ export async function queueDocumentExtraction(
  * Inline extraction - runs OCR immediately during upload
  */
 export async function extractDocumentInline(
-  documentId: string,
+  documentId: string | null,
   policyId: string,
-  fileUrl: string
+  fileUrl: string | null,
+  rawTextOverride?: string
 ): Promise<{ success: boolean; extracted?: any; metrics?: PolicyExtractionMetrics; error?: string }> {
-  console.log(`[Inline] Starting inline extraction for doc ${documentId}`);
+  console.log(`[Inline] Starting inline extraction for doc ${documentId || 'NO_DOC'}`);
 
   const startTime = Date.now();
   const metrics: PolicyExtractionMetrics = {
-    jobId: documentId,
+    jobId: documentId || 'inline_no_doc',
     success: false,
     duration: 0,
     customerDeduped: false,
@@ -710,14 +711,16 @@ export async function extractDocumentInline(
     },
   };
 
-  // Record extraction job
-  const { data: jobRow } = await supabaseAdmin!
-    .from('extraction_jobs')
-    .insert([{ document_id: documentId, status: 'processing', job_id: `inline-${documentId}` }])
-    .select('id')
-    .single();
-
-  const jobDbId = jobRow?.id;
+  let jobDbId: string | undefined;
+  if (documentId) {
+    // Record extraction job only if we have a documentId
+    const { data: jobRow } = await supabaseAdmin!
+      .from('extraction_jobs')
+      .insert([{ document_id: documentId, status: 'processing', job_id: `inline-${documentId}` }])
+      .select('id')
+      .single();
+    jobDbId = jobRow?.id;
+  }
 
   try {
     // Fetch mapping dependencies
@@ -728,8 +731,14 @@ export async function extractDocumentInline(
     const existingCustomers = dbCusts?.map(c => c.name) || [];
 
     // Run OCR
-    console.log(`[Inline] Extracting text from ${fileUrl.substring(0, 50)}...`);
-    const rawText = await ocrProvider.extractText(fileUrl);
+    let rawText = rawTextOverride || '';
+    if (!rawText && fileUrl) {
+      console.log(`[Inline] Extracting text from ${fileUrl.substring(0, 50)}...`);
+      rawText = await ocrProvider.extractText(fileUrl);
+    } else if (!rawText) {
+      throw new Error("No raw text or fileUrl provided for extraction");
+    }
+
     let extracted = await ocrProvider.extractStructuredData(rawText, existingInsurers, existingCustomers);
 
     // AUTO-CONSENSUS FALLBACK
@@ -813,6 +822,11 @@ export async function extractDocumentInline(
       metrics.error = "Missing premium amount / sum assured.";
     }
 
+    // Force Life policy type if this was a rawTextOverride (which means it's a renewal receipt)
+    if (rawTextOverride && !extracted.policy_type?.toLowerCase().includes('life')) {
+      extracted.policy_type = 'Life | Renewal';
+    }
+
     // ── UPDATE POLICY ──
     const updatePayload: any = {
       policy_number: finalPolicyNumber,
@@ -832,13 +846,15 @@ export async function extractDocumentInline(
       .eq('id', policyId);
 
     // ── MARK DOCUMENT AS EXTRACTED ──
-    await supabaseAdmin!
-      .from('policy_documents')
-      .update({
-        extraction_status: 'extracted',
-        raw_ocr_text: rawText.substring(0, 5000),
-      })
-      .eq('id', documentId);
+    if (documentId) {
+      await supabaseAdmin!
+        .from('policy_documents')
+        .update({
+          extraction_status: 'extracted',
+          raw_ocr_text: rawText.substring(0, 5000),
+        })
+        .eq('id', documentId);
+    }
 
     // ── MARK JOB AS COMPLETED ──
     if (jobDbId) {

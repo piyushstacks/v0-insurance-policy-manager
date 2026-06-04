@@ -16,7 +16,8 @@ export async function uploadPolicyDocument(
   userId: string,
   policyId: string,
   file: File,
-  autoExtract: boolean = true
+  autoExtract: boolean = true,
+  storeFile: boolean = true
 ) {
   try {
     // Validate file
@@ -43,59 +44,75 @@ export async function uploadPolicyDocument(
     console.log(`[v0] Processing file: ${fileName}`);
 
     let uploadBody: Buffer | Uint8Array;
+    let rawTextOverride: string | undefined;
+
     if (file.type === 'application/pdf') {
-      const buffer = Buffer.from(await file.arrayBuffer());
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
       uploadBody = await compressPdf(buffer);
+
+      // If we aren't storing the file, we must extract text here to run inline extraction
+      if (!storeFile) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const pdfParse = require('pdf-parse');
+        const result = await pdfParse(buffer);
+        rawTextOverride = result.text || '';
+      }
     } else {
       uploadBody = Buffer.from(await file.arrayBuffer());
     }
 
-    // Upload to Backblaze B2
-    let fileUrl: string;
-    try {
-      fileUrl = await uploadToB2(fileName, uploadBody, file.type);
-    } catch (uploadError: any) {
-      throw new Error(`Upload failed: ${uploadError.message}`);
+    let fileUrl: string = '';
+    let documentId: string = '';
+
+    if (storeFile) {
+      // Upload to Backblaze B2
+      try {
+        fileUrl = await uploadToB2(fileName, uploadBody, file.type);
+      } catch (uploadError: any) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+
+      // Create document record
+      const { data: docData, error: docError } = await supabaseAdmin!
+        .from('policy_documents')
+        .insert([
+          {
+            policy_id: policyId,
+            file_name: file.name,
+            file_path: fileName, 
+            file_type: file.type === 'application/pdf' ? 'pdf' : (file.type === 'image/jpeg' ? 'jpg' : 'png'),
+            upload_date: new Date().toISOString(),
+          },
+        ])
+        .select('id')
+        .single();
+
+      if (docError) {
+        throw new Error(`Failed to create document record: ${docError.message}`);
+      }
+
+      documentId = docData.id;
+      console.log(`[v0] Document created: ${documentId}`);
     }
-
-    // Create document record
-    const { data: docData, error: docError } = await supabaseAdmin!
-      .from('policy_documents')
-      .insert([
-        {
-          policy_id: policyId,
-          file_name: file.name,
-          file_path: fileName, 
-          file_type: file.type === 'application/pdf' ? 'pdf' : (file.type === 'image/jpeg' ? 'jpg' : 'png'),
-          upload_date: new Date().toISOString(),
-        },
-      ])
-      .select('id')
-      .single();
-
-    if (docError) {
-      throw new Error(`Failed to create document record: ${docError.message}`);
-    }
-
-    const documentId = docData.id;
-    console.log(`[v0] Document created: ${documentId}`);
 
     // Run extraction:
     // autoExtract=true  → inline (synchronous, used by single-file upload)
     // autoExtract=false → caller handles queueing (bulk upload calls queueDocumentExtraction separately)
-    if (autoExtract) {
+    // If storeFile is false, we MUST autoExtract inline
+    if (autoExtract || !storeFile) {
       // Run inline extraction — does NOT block response (fire-and-forget, best-effort)
-      extractDocumentInline(documentId, policyId, fileUrl).catch((e) =>
+      extractDocumentInline(documentId || null, policyId, fileUrl || null, rawTextOverride).catch((e) =>
         console.error('[v0] Inline extraction failed (non-fatal):', e)
       );
     }
 
     return {
       success: true,
-      documentId,
+      documentId: documentId || 'no-document',
       policyId,
       fileName: file.name,
-      fileUrl,
+      fileUrl: fileUrl || 'no-url',
       fileSize: file.size,
     };
   } catch (error) {

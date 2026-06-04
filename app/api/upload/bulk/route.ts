@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
     const customerId = (formData.get('customerId') as string) || '';
+    const uploadType = (formData.get('uploadType') as string) || 'policy';
+    const storeFile = uploadType !== 'renewal';
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'No files provided' }, { status: 400 });
@@ -134,21 +136,23 @@ export async function POST(request: NextRequest) {
 
         const policyId = polData.id;
 
-        // Upload the file
-        const result = await uploadPolicyDocument(user.id, policyId, file, false);
+        // Upload the file (if storeFile is false, it extracts text from buffer inline)
+        const result = await uploadPolicyDocument(user.id, policyId, file, false, storeFile);
 
         // ✅ Fire inline extraction immediately — non-blocking, best-effort
-        // This bypasses Redis queue for guaranteed execution in all environments (local + Vercel)
-        extractDocumentInline(result.documentId, policyId, result.fileUrl).catch((err) =>
-          console.error(`[BulkUpload] Inline extraction failed for ${file.name}:`, err.message)
-        );
+        // If storeFile is false, uploadPolicyDocument already called inline extraction.
+        if (storeFile) {
+          extractDocumentInline(result.documentId, policyId, result.fileUrl).catch((err) =>
+            console.error(`[BulkUpload] Inline extraction failed for ${file.name}:`, err.message)
+          );
+        }
 
         uploadResults.push({
           fileName: file.name,
           policyId,
           documentId: result.documentId,
           status: 'queued',
-          message: 'Queued for background extraction',
+          message: storeFile ? 'Queued for background extraction' : 'Processing renewal receipt in background',
         });
       } catch (err: any) {
         uploadResults.push({

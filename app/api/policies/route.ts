@@ -53,8 +53,15 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || undefined;
     const excludePending = searchParams.get('excludePending') === 'true';
     const onlyPending = searchParams.get('onlyPending') === 'true';
+    const companyName = searchParams.get('companyName') || undefined;
+    const productName = searchParams.get('productName') || undefined;
+    const dateStart = searchParams.get('dateStart') || undefined;
+    const dateEnd = searchParams.get('dateEnd') || undefined;
 
-    const result = await getPolicies(user.id, { status, customerId, insurerId, search, excludePending, onlyPending }, page, pageSize);
+    const result = await getPolicies(user.id, { 
+      status, customerId, insurerId, search, excludePending, onlyPending,
+      companyName, productName, dateStart, dateEnd
+    }, page, pageSize);
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {

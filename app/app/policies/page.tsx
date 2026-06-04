@@ -69,6 +69,8 @@ export default function PoliciesPage() {
   const [dateEnd, setDateEnd] = useState('');
 
   const [totalRecords, setTotalRecords] = useState(0);
+  const [uniqueProducts, setUniqueProducts] = useState<string[]>([]);
+  const [uniqueCompanies, setUniqueCompanies] = useState<string[]>([]);
 
   const fetchPolicies = useCallback(async (background = false) => {
     if (!background) setIsLoading(true);
@@ -80,6 +82,10 @@ export default function PoliciesPage() {
         _t: Date.now().toString(), // Force bypass cache
       });
       if (searchTerm) params.set('search', searchTerm.trim());
+      if (filterProduct) params.set('productName', filterProduct);
+      if (filterCompany) params.set('companyName', filterCompany);
+      if (dateStart) params.set('dateStart', dateStart);
+      if (dateEnd) params.set('dateEnd', dateEnd);
 
       const response = await fetch(`/api/policies?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch');
@@ -91,7 +97,16 @@ export default function PoliciesPage() {
     } finally {
       if (!background) setIsLoading(false);
     }
-  }, [currentPage, pageSize, searchTerm]);
+  }, [currentPage, pageSize, searchTerm, filterProduct, filterCompany, dateStart, dateEnd]);
+
+  useEffect(() => {
+    fetch('/api/policies/filters')
+      .then(r => r.json())
+      .then(data => {
+        if (data.products) setUniqueProducts(data.products);
+        if (data.companies) setUniqueCompanies(data.companies);
+      }).catch(console.error);
+  }, []);
 
   const fetchPending = useCallback(async () => {
     try {
@@ -145,28 +160,8 @@ export default function PoliciesPage() {
   }, [pendingPolicies.length, fetchPolicies, fetchPending]);
 
 
-  // Unique values for dropdowns
-  const uniqueProducts = useMemo(() => Array.from(new Set(policies.map(p => p.policy_type).filter(Boolean))), [policies]);
-  const uniqueCompanies = useMemo(() => Array.from(new Set(policies.map(p => p.insurer?.name).filter(Boolean))), [policies]);
-
-  // Derived Filtered Data
-  const filteredPolicies = useMemo(() => {
-    return policies.filter(p => {
-      // Search
-      const searchStr = `${p.policy_number} ${p.customer?.name} ${p.insurer?.name}`.toLowerCase();
-      if (searchTerm && !searchStr.includes(searchTerm.toLowerCase())) return false;
-      
-      // Selects
-      if (filterProduct && p.policy_type !== filterProduct) return false;
-      if (filterCompany && p.insurer?.name !== filterCompany) return false;
-      
-      // Dates
-      if (dateStart && p.start_date && new Date(p.start_date) < new Date(dateStart)) return false;
-      if (dateEnd && p.start_date && new Date(p.start_date) > new Date(dateEnd)) return false;
-      
-      return true;
-    });
-  }, [policies, searchTerm, filterProduct, filterCompany, dateStart, dateEnd]);
+  // Derived Paginated Context
+  const filteredPolicies = policies;
 
   // Derive Paginated Context
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
@@ -397,7 +392,7 @@ export default function PoliciesPage() {
               <select 
                 className="flex h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={filterProduct} 
-                onChange={e => setFilterProduct(e.target.value)}
+                onChange={e => { setFilterProduct(e.target.value); setCurrentPage(1); }}
               >
                 <option value="">All Categories ({uniqueProducts.length})</option>
                 {uniqueProducts.map(p => <option key={p} value={p}>{p}</option>)}
@@ -410,7 +405,7 @@ export default function PoliciesPage() {
               <select 
                 className="flex h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={filterCompany} 
-                onChange={e => setFilterCompany(e.target.value)}
+                onChange={e => { setFilterCompany(e.target.value); setCurrentPage(1); }}
               >
                 <option value="">All Companies ({uniqueCompanies.length})</option>
                 {uniqueCompanies.map(c => <option key={c} value={c}>{c}</option>)}
@@ -420,13 +415,13 @@ export default function PoliciesPage() {
             {/* Dates */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">From</label>
-              <Input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} className="h-9 text-sm bg-slate-50 border-slate-200" />
+              <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} className="h-9 text-sm bg-slate-50 border-slate-200" />
             </div>
             
             <div className="space-y-1.5 relative">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">To</label>
               <div className="flex gap-2">
-                 <Input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} className="h-9 text-sm bg-slate-50 border-slate-200" />
+                 <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} className="h-9 text-sm bg-slate-50 border-slate-200" />
                   <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-slate-400 hover:text-slate-800 bg-slate-100" onClick={clearFilters} title="Clear Filters">
                     <X className="w-4 h-4" />
                   </Button>

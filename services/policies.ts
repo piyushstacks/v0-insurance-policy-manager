@@ -58,8 +58,13 @@ export async function getPolicies(
     customerId?: string;
     insurerId?: string;
     search?: string;
+    search?: string;
     excludePending?: boolean;
     onlyPending?: boolean;
+    companyName?: string;
+    productName?: string;
+    dateStart?: string;
+    dateEnd?: string;
   },
   page = 1,
   pageSize = 20
@@ -84,6 +89,23 @@ export async function getPolicies(
     }
     if (filters?.search) {
       query = query.or(`policy_number.ilike.%${filters.search}%,policy_type.ilike.%${filters.search}%`);
+    }
+    
+    if (filters?.companyName) {
+      const { data: ins } = await supabaseAdmin!.from('insurers').select('id').eq('name', filters.companyName).single();
+      if (ins) query = query.eq('insurer_id', ins.id);
+    }
+    
+    if (filters?.productName) {
+      query = query.eq('policy_type', filters.productName);
+    }
+    
+    if (filters?.dateStart) {
+      query = query.gte('start_date', filters.dateStart);
+    }
+    
+    if (filters?.dateEnd) {
+      query = query.lte('start_date', filters.dateEnd);
     }
     
     if (filters?.excludePending) {

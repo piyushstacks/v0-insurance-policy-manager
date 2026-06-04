@@ -109,32 +109,28 @@ class PDFParseProvider implements OCRProvider {
             Map extracted names to the EXACT existing string if it is a variant/typo/substring of one above.
 
             CUSTOMER NAME RULES (CRITICAL):
+            - Note that raw text from pdf-parse often separates column labels from column values. The name might be several lines below the label "Name of the Insured". Use logical reasoning to match the label with the value (usually a person's name appearing right before dates or addresses).
             - Extract the ACTUAL human name of the policyholder / proposer / insured.
-            - ICICI Lombard: Look for "Name of the Insured : FULL NAME" ending before "Policy No.". Also "Dear FULL NAME," in Risk Assumption Letter.
-            - Star Health: Look for "Proposer Name : FULL NAME" OR "To,\nFULL NAME," OR "Customer Name : FULL NAME".
-            - Go Digit: Look for "Name\nFULL NAME" in Insured & Policy Details. Business: extract owner after "PROP" keyword.
-            - Tata AIG: Look for "Name\nMr/Mrs/Ms FULL NAME" OR "Insured's Name\nMr/Mrs/Ms FULL NAME" OR "Payer Name: FULL NAME" in receipt section.
+            - ICICI Lombard: Look for "Dear FULL NAME," in Risk Assumption Letter (extremely reliable). Otherwise, look for the name right before the dates "May 22, 2026 to...".
+            - Go Digit: Look for "Name" or "Insured Details" and find the human name below it. Business: extract owner after "PROP" keyword.
+            - Tata AIG: Look for "Name" or "Insured's Name" and find "Mr/Mrs/Ms FULL NAME" further down. Or "Payer Name: FULL NAME".
             - Niva Bupa: Look for "Policyholder Name: MR./MRS. FULL NAME" OR "Dear MR./MRS. FULL NAME,".
-            - New India Assurance: Look for "Name of Insured" in policy schedule table, or proposer block at top.
-            - LIC: Look for "from policyholder Shri/Smt. FULL NAME" in receipt.
-            - HDFC ERGO: Look for "Dear Mr/Ms FULL NAME" OR certificate line with MR./MS. name.
+            - Star Health: Look for "Proposer Name : FULL NAME" OR "To,\nFULL NAME".
             - "Dear Customer" without a following name is NOT valid.
-            - NEVER output labels: "Code", "Client ID", "UIN", "Insured Name", "Person Details", "Name", "Nominee", "Gender".
-            - If not found, output null.
+            - NEVER output labels: "Code", "Client ID", "UIN", "Insured Name", "Name". Output null if not found.
 
             CATEGORY RULES:
             - "policy_category": MUST be exactly one of: "Health", "Motor", "Life", "Travel", "Property", "General", "Business".
-            - Use "Motor" for any vehicle/two-wheeler/car/commercial vehicle/goods carrying vehicle policy.
-            - Use "Business" for shop, office, SME, Bharat Sookshma Udyam, fire+burglary.
-            - Use "Life" for LIC, term, endowment, ULIP, annuity policies.
-            - "policy_sub_category": Short plan name ONLY (e.g. "Commercial Vehicle", "Two-Wheeler OD", "Aspire", "Mediclaim", "Assure", "Care Advantage"). Max 30 chars.
+            - "Motor": Two-wheeler, Car, Commercial vehicle, Goods carrying, Auto Secure.
+            - "Business": Shop, Office, SME, Fire, Burglary, Workmen Compensation.
+            - "policy_sub_category": Extract the EXACT plan name from the top of the policy. (e.g. "Two Wheeler Package Policy", "Comprehensive Package", "Auto Secure Liability", "Health Companion"). Max 50 chars.
 
             PREMIUM RULES:
-            - Extract TOTAL amount paid/payable. Look for: "Total Premium Payable", "Final Premium", "Gross Premium", "Rs. X/-", "Grand Total".
-            - Tata AIG: Use "Total Premium (₹)" from receipt table (e.g. 26138).
-            - Niva Bupa: Use "Gross Premium (INR)" (e.g. 30322).
-            - LIC Receipt: Use "Grand Total (Rs)" (e.g. 16542).
-            - ICICI Lombard: Use "Total Premium Payable In \`X" (e.g. 1615).
+            - Note: The amount is often vertically separated from the label. Look for the largest final number at the bottom of the premium table.
+            - Extract TOTAL amount paid/payable. Look for: "Total Premium Payable", "Final Premium", "Gross Premium", "Total Amount".
+            - ICICI Lombard: "Total Premium Payable In" (e.g. 1565 or 1615).
+            - Tata AIG: "Total Premium (₹)" or "Amount Paid".
+            - Go Digit: "Total Premium" or "Final Premium".
             - Return as plain number (no currency symbol, no commas).
 
             MOTOR POLICY RULES (applies when policy_category = "Motor"):

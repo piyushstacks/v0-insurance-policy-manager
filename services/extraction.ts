@@ -344,13 +344,16 @@ export async function crossVerifyCustomer(
 /**
  * Find or create customer with intelligent deduplication
  */
-export async function findOrCreateCustomer(extractedData: {
-  customer_name?: string | null;
-  customer_email?: string | null;
-  customer_mobile?: string | null;
-  customer_age?: number | null;
-  full_details?: string;
-}): Promise<CustomerDedupeResult | null> {
+export async function findOrCreateCustomer(
+  extractedData: {
+    customer_name?: string | null;
+    customer_email?: string | null;
+    customer_mobile?: string | null;
+    customer_age?: number | null;
+    full_details?: string;
+  },
+  userId?: string | null
+): Promise<CustomerDedupeResult | null> {
   if (!extractedData.customer_name) {
     console.log('[Dedup] No customer name extracted, skipping');
     return null;
@@ -369,7 +372,7 @@ export async function findOrCreateCustomer(extractedData: {
 
     if (!allCustomers || allCustomers.length === 0) {
       console.log('[Dedup] No existing customers, creating new one');
-      return createNewCustomer(extractedData);
+      return createNewCustomer(extractedData, userId);
     }
 
     // 2. Run fuzzy matching against all customers
@@ -459,7 +462,7 @@ export async function findOrCreateCustomer(extractedData: {
     console.log(
       `[Dedup] No match found (best fuzzy score: ${(bestScore * 100).toFixed(1)}%), creating new customer`
     );
-    return createNewCustomer(extractedData);
+    return createNewCustomer(extractedData, userId);
   } catch (error) {
     console.error('[Dedup] Error during customer deduplication:', error);
     return null;
@@ -469,11 +472,14 @@ export async function findOrCreateCustomer(extractedData: {
 /**
  * Create a new customer
  */
-async function createNewCustomer(extractedData: {
-  customer_name?: string | null;
-  customer_email?: string | null;
-  customer_mobile?: string | null;
-}): Promise<CustomerDedupeResult | null> {
+async function createNewCustomer(
+  extractedData: {
+    customer_name?: string | null;
+    customer_email?: string | null;
+    customer_mobile?: string | null;
+  },
+  userId?: string | null
+): Promise<CustomerDedupeResult | null> {
   try {
     const { data: newCustomer, error } = await supabaseAdmin!
       .from('customers')
@@ -482,6 +488,7 @@ async function createNewCustomer(extractedData: {
           name: extractedData.customer_name,
           email: extractedData.customer_email || null,
           mobile: extractedData.customer_mobile || null,
+          user_id: userId || null,
         },
       ])
       .select('id')
@@ -711,7 +718,7 @@ export async function extractDocumentInline(
     },
   };
 
-  let jobDbId: string | undefined;
+    let jobDbId: string | undefined;
   if (documentId) {
     // Record extraction job only if we have a documentId
     const { data: jobRow } = await supabaseAdmin!
@@ -720,6 +727,12 @@ export async function extractDocumentInline(
       .select('id')
       .single();
     jobDbId = jobRow?.id;
+  }
+
+  let policyUserId: string | null = null;
+  if (policyId) {
+    const { data: pol } = await supabaseAdmin!.from('policies').select('user_id').eq('id', policyId).single();
+    if (pol) policyUserId = pol.user_id;
   }
 
   try {
@@ -764,7 +777,7 @@ export async function extractDocumentInline(
       customer_name: extracted.customer_name,
       customer_email: extracted.customer_email,
       customer_mobile: extracted.customer_mobile,
-    });
+    }, policyUserId);
 
     let finalCustId = dedupeResult?.customerId || null;
     metrics.customerDeduped = !!dedupeResult;

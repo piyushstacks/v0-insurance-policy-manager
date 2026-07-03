@@ -44,12 +44,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { policyId, onlyPending } = body;
+    const { policyId, onlyPending, missingDetails } = body;
 
     // 1. Fetch documents and corresponding policies
     let query = supabaseAdmin!
       .from('policy_documents')
-      .select('id, file_path, raw_ocr_text, policy_id, policies!inner(user_id, policy_number)');
+      .select('id, file_path, raw_ocr_text, policy_id, policies!inner(user_id, policy_number, premium_amount, total_premium, sum_insured, insurance_type)');
 
     if (policyId) {
       query = query.eq('policy_id', policyId);
@@ -65,6 +65,16 @@ export async function POST(request: NextRequest) {
         const num = (d.policies as any)?.policy_number || '';
         return num.startsWith('PENDING_OCR') || num.startsWith('BULK_OCR') || num.startsWith('IMG-') || num.startsWith('doc_');
       });
+    } else if (missingDetails) {
+      filteredDocs = filteredDocs.filter(d => {
+        const p = (d.policies as any);
+        if (!p) return false;
+        const hasNoPremium = p.premium_amount === 0 || p.premium_amount === null;
+        const hasNoTotal = p.total_premium === 0 || p.total_premium === null;
+        const hasNoSumInsured = p.sum_insured === null;
+        const hasNoType = p.insurance_type === null || p.insurance_type === 'other';
+        return hasNoPremium || hasNoTotal || hasNoSumInsured || hasNoType;
+      });
     }
 
     if (filteredDocs.length === 0) {
@@ -72,6 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Re-Extract] Starting background direct re-extraction for ${filteredDocs.length} documents...`);
+
 
     // Fire and forget background promise
     (async () => {

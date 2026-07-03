@@ -320,6 +320,18 @@ export default function PolicyDetailPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {documents[0] && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-9 border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 hover:text-indigo-800 transition-colors shadow-sm font-semibold flex items-center gap-1.5" 
+                onClick={() => handleReExtractDoc(documents[0].id)}
+                disabled={reExtractingDoc === documents[0].id}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${reExtractingDoc === documents[0].id ? 'animate-spin' : ''}`} />
+                Re-extract
+              </Button>
+            )}
             <Link href={`/app/policies/${policyId}/edit`}>
               <Button variant="outline" size="sm" className="h-9 border-slate-200 text-slate-700 bg-white hover:bg-slate-50">
                 Edit
@@ -343,6 +355,7 @@ export default function PolicyDetailPage() {
               metadata={{ policy_number: policy.policy_number }}
             />
           </div>
+
         </div>
 
         {/* Quick Summary Chips */}
@@ -808,8 +821,9 @@ export default function PolicyDetailPage() {
                         <a href={`/api/documents/${doc.id}/download`} target="_blank" rel="noreferrer" download={doc.file_name} className="h-7 w-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 text-slate-600 shadow-sm transition-colors">
                           <Download className="w-3.5 h-3.5" />
                         </a>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-indigo-600" onClick={() => handleReExtractDoc(doc.id)} disabled={reExtractingDoc === doc.id}>
-                          <RefreshCw className={`w-3.5 h-3.5 ${reExtractingDoc === doc.id ? 'animate-spin text-indigo-600' : ''}`} />
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs border-indigo-200 text-indigo-700 bg-indigo-50/40 hover:bg-indigo-50 hover:text-indigo-800 shadow-sm font-semibold flex items-center gap-1 transition-colors" onClick={() => handleReExtractDoc(doc.id)} disabled={reExtractingDoc === doc.id}>
+                          <RefreshCw className={`w-3 h-3 ${reExtractingDoc === doc.id ? 'animate-spin text-indigo-650' : ''}`} />
+                          Re-extract
                         </Button>
                       </div>
                     </div>

@@ -12,6 +12,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { ocrProvider } from './ocr-provider';
 import redis, { enqueueExtractionJob, getNextJob, completeJob, failJob } from '@/lib/redis';
 import { ExtractionResultInput } from '@/lib/schemas';
+import { runExtractionPipeline } from './extraction-pipeline';
 import pLimit from 'p-limit';
 
 // ============================================================================
@@ -48,6 +49,86 @@ function isMasked(value: string | null | undefined): boolean {
   const lower = value.toLowerCase();
   return lower.includes('xxxx') || lower.includes('****') || /^[x\*]+$/.test(lower);
 }
+
+export function cleanNumber(val: any): number | null {
+  if (val === undefined || val === null) return null;
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string') {
+    const cleaned = val.replace(/[₹$,\s]/g, '');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? null : num;
+  }
+  return null;
+}
+
+export function normalizeGender(g?: any): 'male' | 'female' | 'other' | null {
+  if (!g) return null;
+  const clean = String(g).toLowerCase().trim();
+  if (clean.includes('female')) return 'female';
+  if (clean.includes('male')) return 'male';
+  if (clean.includes('other')) return 'other';
+  return null;
+}
+
+export function normalizeInsuranceType(t?: any): 'life' | 'health' | 'motor' | 'commercial' | 'other' {
+  if (!t) return 'other';
+  const clean = String(t).toLowerCase().trim();
+  if (clean.includes('life')) return 'life';
+  if (clean.includes('health') || clean.includes('medical') || clean.includes('mediclaim')) return 'health';
+  if (clean.includes('motor') || clean.includes('car') || clean.includes('vehicle') || clean.includes('wheeler')) return 'motor';
+  if (clean.includes('commercial') || clean.includes('business') || clean.includes('liability') || clean.includes('fire')) return 'commercial';
+  return 'other';
+}
+
+export function normalizePremiumFrequency(f?: any): 'annual' | 'half-yearly' | 'quarterly' | 'monthly' | 'single' | null {
+  if (!f) return null;
+  const clean = String(f).toLowerCase().trim();
+  if (clean.includes('annual') || clean.includes('yearly') || clean.includes('annually')) return 'annual';
+  if (clean.includes('half') || clean.includes('semi')) return 'half-yearly';
+  if (clean.includes('quarter')) return 'quarterly';
+  if (clean.includes('month')) return 'monthly';
+  if (clean.includes('single') || clean.includes('one')) return 'single';
+  return null;
+}
+
+export function normalizePaymentMode(m?: any): 'cheque' | 'online' | 'cash' | 'ecs' | 'nach' | null {
+  if (!m) return null;
+  const clean = String(m).toLowerCase().trim();
+  if (clean.includes('cheque') || clean.includes('check')) return 'cheque';
+  if (clean.includes('cash')) return 'cash';
+  if (clean.includes('ecs')) return 'ecs';
+  if (clean.includes('nach')) return 'nach';
+  return 'online'; // Fallback for online link, card, upi, etc.
+}
+
+export function normalizeHealthPolicyType(t?: any): 'individual' | 'floater' | 'group' | null {
+  if (!t) return null;
+  const clean = String(t).toLowerCase().trim();
+  if (clean.includes('floater') || clean.includes('family')) return 'floater';
+  if (clean.includes('group') || clean.includes('corporate')) return 'group';
+  return 'individual';
+}
+
+export function normalizeFuelType(f?: any): 'petrol' | 'diesel' | 'electric' | 'cng' | 'hybrid' | null {
+  if (!f) return null;
+  const clean = String(f).toLowerCase().trim();
+  if (clean.includes('petrol') || clean.includes('gasoline')) return 'petrol';
+  if (clean.includes('diesel')) return 'diesel';
+  if (clean.includes('electric') || clean.includes('ev')) return 'electric';
+  if (clean.includes('cng')) return 'cng';
+  if (clean.includes('hybrid')) return 'hybrid';
+  return null;
+}
+
+export function normalizeMotorPolicyType(t?: any): 'comprehensive' | 'third_party' | 'own_damage' | null {
+  if (!t) return null;
+  const clean = String(t).toLowerCase().trim();
+  if (clean.includes('third party') || clean.includes('tp') || clean.includes('liability') || clean.includes('only third party')) return 'third_party';
+  if (clean.includes('own damage') || clean.includes('od')) return 'own_damage';
+  return 'comprehensive';
+}
+
+
 
 export interface PolicyExtractionMetrics {
   jobId: string;
@@ -727,25 +808,33 @@ export async function extractDocumentInline(
       throw new Error("No raw text or fileUrl provided for extraction");
     }
 
-    let extracted = await ocrProvider.extractStructuredData(rawText, existingInsurers, existingCustomers);
+    // Call 2-stage AI extraction pipeline
+    const pipelineResult = await runExtractionPipeline(rawText, existingInsurers, existingCustomers);
 
-    // AUTO-CONSENSUS FALLBACK
-    if (!extracted.customer_name || extracted.customer_name.toLowerCase().includes('unknown')) {
-      console.log('[Inline] ⚠️ Missing customer name. Triggering Consensus AI Fallback...');
-      extracted = await ocrProvider.consensusExtract(rawText, existingInsurers, existingCustomers);
+    if (!pipelineResult.store) {
+      console.log(`[Inline] Document rejected: ${pipelineResult.reason}`);
+      if (jobDbId) {
+        await supabaseAdmin!.from('extraction_jobs').update({
+          status: 'rejected',
+          error_message: `AI rejected: ${pipelineResult.reason}`,
+          completed_at: new Date().toISOString(),
+        }).eq('id', jobDbId);
+      }
+      if (documentId) {
+        await supabaseAdmin!.from('policy_documents').update({
+          extraction_status: 'rejected',
+          raw_ocr_text: rawText.substring(0, 100000),
+        }).eq('id', documentId);
+      }
+      await supabaseAdmin!.from('policies').update({
+        policy_number: `REJECTED_${Date.now()}`,
+        agent_notes: `⛔ AI FLAG: Document rejected. ${pipelineResult.reason}. Please delete if incorrect.`
+      }).eq('id', policyId);
+
+      return { success: false, error: pipelineResult.reason };
     }
 
-    console.log('[Inline] Extraction result:', {
-      policy_number: extracted.policy_number,
-      customer_name: extracted.customer_name,
-      insurer_name: extracted.insurer_name,
-      premium_amount: extracted.premium_amount,
-    });
-
-    metrics.extractedFields.policy_number = !!extracted.policy_number;
-    metrics.extractedFields.customer_name = !!extracted.customer_name;
-    metrics.extractedFields.insurer_name = !!extracted.insurer_name;
-    metrics.extractedFields.premium_amount = extracted.premium_amount ? extracted.premium_amount > 0 : false;
+    const extracted = pipelineResult.extracted_data;
 
     // ── INTELLIGENT CUSTOMER DEDUPLICATION ──
     const dedupeResult = await findOrCreateCustomer({
@@ -758,20 +847,17 @@ export async function extractDocumentInline(
     metrics.customerDeduped = !!dedupeResult;
 
     // ── SMART CONTACT UNMASKING (ENRICHMENT) ──
-    // If OCR found masked data but we have clean data in DB for this customer, use the clean data
     if (dedupeResult) {
       if (isMasked(extracted.customer_email) && dedupeResult.email && !isMasked(dedupeResult.email)) {
-        console.log(`[Inline] 🛡️ Unmasked Email using history: ${dedupeResult.email}`);
         extracted.customer_email = dedupeResult.email;
       }
       if (isMasked(extracted.customer_mobile) && dedupeResult.mobile && !isMasked(dedupeResult.mobile)) {
-        console.log(`[Inline] 🛡️ Unmasked Mobile using history: ${dedupeResult.mobile}`);
         extracted.customer_mobile = dedupeResult.mobile;
       }
     }
 
     // ── INSURER RESOLUTION ──
-    const insurerId = await findOrCreateInsurer(extracted.insurer_name);
+    const insurerId = await findOrCreateInsurer(extracted.company || extracted.insurer_name);
     metrics.insurerResolved = !!insurerId;
 
     // ── PARSE DATES ──
@@ -782,7 +868,7 @@ export async function extractDocumentInline(
     };
 
     const now = new Date();
-    const startDate = safeDate(extracted.coverage_start, now);
+    const startDate = safeDate(extracted.policy_start_date, now);
     
     // Default to 1 year ahead
     let nextEnd = new Date(new Date(startDate).getTime() + 31536000000);
@@ -794,75 +880,165 @@ export async function extractDocumentInline(
       nextEnd = termEnd;
     }
     
-    const expiryDate = safeDate(extracted.coverage_end, nextEnd);
+    const expiryDate = safeDate(extracted.policy_end_date, nextEnd);
 
-    let agentNotes = extracted.agent_notes || '';
-    if (extracted.is_quotation) {
-      extracted.policy_type = `⚠️ QUOTATION / ILLUSTRATION`;
-      agentNotes = `⚠️ AI FLAG: This document appears to be a Quotation, Proposal, or Benefit Illustration, NOT a final issued policy. Please verify and delete if incorrect.\n\n` + agentNotes;
-    }
-
-    let finalPolicyNumber = extracted.policy_number || `OCR-${Date.now()}`;
+    let agentNotes = extracted.agent_notes || extracted.notes || '';
     if (extracted.requires_manual_entry) {
-      finalPolicyNumber = `PENDING_OCR_MANUAL_${Date.now()}`;
-      agentNotes = `⚠️ AI FLAG: Missing required fields (Premium / Sum Assured). Manual entry required.\n\n` + agentNotes;
+      agentNotes = `⚠️ AI FLAG: Missing critical fields (confidence: ${Math.round((pipelineResult.ai_confidence || 0) * 100)}%). Manual entry required.\n\n` + agentNotes;
       metrics.success = false;
-      metrics.error = "Missing premium amount / sum assured.";
+      metrics.error = "Requires manual review.";
     }
 
-    // Force Life policy type if this was a rawTextOverride (which means it's a renewal receipt)
-    if (rawTextOverride && !extracted.policy_type?.toLowerCase().includes('life')) {
-      extracted.policy_type = 'Life | Renewal';
-    }
-
-    // ── UPDATE POLICY ──
+    // ── UPDATE POLICIES TABLE (common fields) ────────────────────────────────
     const updatePayload: any = {
-      policy_number: finalPolicyNumber,
+      policy_number: extracted.policy_number || `OCR-${Date.now()}`,
       policy_type: extracted.policy_type || 'General Insurance',
+      insurance_type: normalizeInsuranceType(extracted.insurance_type),
+      product_name: extracted.product_name || null,
+      proposal_number: extracted.proposal_number || null,
+      policy_holder_name: extracted.policy_holder_name || null,
+      issue_date: extracted.issue_date || null,
       start_date: startDate,
       expiry_date: expiryDate,
-      premium_amount: extracted.premium_amount || 0,
+      policy_start_date: startDate,
+      policy_end_date: expiryDate,
+      is_renewal: extracted.is_renewal ?? false,
+      premium_amount: cleanNumber(extracted.premium_amount) || 0,
+      gst_amount: cleanNumber(extracted.gst_amount) || null,
+      total_premium: cleanNumber(extracted.total_premium) || cleanNumber(extracted.premium_amount) || 0,
+      sum_insured: cleanNumber(extracted.sum_insured) || null,
+      premium_frequency: normalizePremiumFrequency(extracted.premium_frequency) || null,
+      payment_mode: normalizePaymentMode(extracted.payment_mode) || null,
+      payment_date: extracted.payment_date || null,
+      agent_name: extracted.agent_name || null,
+      agent_code: extracted.agent_code || null,
+      branch: extracted.branch || null,
+      intermediary_code: extracted.intermediary_code || null,
+      ai_confidence: pipelineResult.ai_confidence || null,
+      missing_fields: pipelineResult.missing_fields || null,
+      notes: extracted.notes || agentNotes || null,
       agent_notes: agentNotes || null,
     };
 
     if (finalCustId) updatePayload.customer_id = finalCustId;
     if (insurerId) updatePayload.insurer_id = insurerId;
 
-    await supabaseAdmin!
-      .from('policies')
-      .update(updatePayload)
-      .eq('id', policyId);
+    await supabaseAdmin!.from('policies').update(updatePayload).eq('id', policyId);
 
-    // ── MARK DOCUMENT AS EXTRACTED ──
-    if (documentId) {
-      await supabaseAdmin!
-        .from('policy_documents')
-        .update({
-          extraction_status: 'extracted',
-          raw_ocr_text: rawText.substring(0, 5000),
-        })
-        .eq('id', documentId);
+    // ── UPDATE CUSTOMER EXTENDED FIELDS ──────────────────────────────────
+    if (finalCustId) {
+      const custUpdate: any = {};
+      if (extracted.customer_dob)        custUpdate.dob = extracted.customer_dob;
+      if (extracted.customer_gender)     custUpdate.gender = normalizeGender(extracted.customer_gender);
+      if (extracted.customer_pan)        custUpdate.pan = extracted.customer_pan;
+      if (extracted.customer_aadhaar)    custUpdate.aadhaar = extracted.customer_aadhaar;
+      if (extracted.customer_ckyc)       custUpdate.ckyc_number = extracted.customer_ckyc;
+      if (extracted.customer_eia)        custUpdate.eia_number = extracted.customer_eia;
+      if (extracted.customer_gst)        custUpdate.gst_number = extracted.customer_gst;
+      if (extracted.customer_occupation) custUpdate.occupation = extracted.customer_occupation;
+      if (extracted.company_customer_id) custUpdate.company_customer_id = extracted.company_customer_id;
+      if (extracted.customer_address)    custUpdate.address = extracted.customer_address;
+      if (Object.keys(custUpdate).length > 0) {
+        await supabaseAdmin!.from('customers').update(custUpdate).eq('id', finalCustId);
+      }
     }
 
-    // ── MARK JOB AS COMPLETED ──
+    // ── SAVE TYPE-SPECIFIC DETAIL TABLE ──────────────────────────────────
+    try {
+      if (extracted.insurance_type === 'life' && extracted.life) {
+        const l = extracted.life;
+        const { error: upsertErr } = await supabaseAdmin!.from('life_policies').upsert(
+          { 
+            policy_id: policyId, 
+            ...l, 
+            sum_assured: cleanNumber(l.sum_assured),
+            premium_paying_term: cleanNumber(l.premium_paying_term),
+            policy_term: cleanNumber(l.policy_term),
+            riders: l.riders || [], 
+            nominees: l.nominees || [] 
+          },
+          { onConflict: 'policy_id' }
+        );
+        if (upsertErr) throw upsertErr;
+        console.log('[Inline] life_policies row saved for ' + policyId);
+      } else if (extracted.insurance_type === 'health' && extracted.health) {
+        const h = extracted.health;
+        const { error: upsertErr } = await supabaseAdmin!.from('health_policies').upsert(
+          { 
+            policy_id: policyId, 
+            ...h, 
+            policy_type: normalizeHealthPolicyType(h.policy_type),
+            base_sum_insured: cleanNumber(h.base_sum_insured),
+            total_sum_insured: cleanNumber(h.total_sum_insured),
+            room_rent_limit: cleanNumber(h.room_rent_limit),
+            icu_limit: cleanNumber(h.icu_limit),
+            deductible: cleanNumber(h.deductible),
+            members: h.members || [], 
+            addons: h.addons || {} 
+          },
+          { onConflict: 'policy_id' }
+        );
+        if (upsertErr) throw upsertErr;
+        console.log('[Inline] health_policies row saved for ' + policyId);
+      } else if (extracted.insurance_type === 'motor' && extracted.motor) {
+        const m = extracted.motor;
+        const { error: upsertErr } = await supabaseAdmin!.from('motor_policies').upsert(
+          { 
+            policy_id: policyId, 
+            ...m, 
+            fuel_type: normalizeFuelType(m.fuel_type),
+            policy_type: normalizeMotorPolicyType(m.policy_type),
+            idv: cleanNumber(m.idv),
+            current_ncb_percent: cleanNumber(m.current_ncb_percent),
+            manufacturing_year: cleanNumber(m.manufacturing_year),
+            registration_year: cleanNumber(m.registration_year),
+            covers: m.covers || {} 
+          },
+          { onConflict: 'policy_id' }
+        );
+        if (upsertErr) throw upsertErr;
+        console.log('[Inline] motor_policies row saved for ' + policyId);
+      } else if (extracted.insurance_type === 'commercial' && extracted.commercial) {
+        const c = extracted.commercial;
+        const { error: upsertErr } = await supabaseAdmin!.from('commercial_policies').upsert(
+          { 
+            policy_id: policyId, 
+            ...c, 
+            sum_insured_building: cleanNumber(c.sum_insured_building),
+            sum_insured_stock: cleanNumber(c.sum_insured_stock),
+            sum_insured: c.sum_insured || {}, 
+            covers: c.covers || {} 
+          },
+          { onConflict: 'policy_id' }
+        );
+        if (upsertErr) throw upsertErr;
+        console.log('[Inline] commercial_policies row saved for ' + policyId);
+      }
+    }
+ catch (detailErr: any) {
+      console.error('[Inline] Type-specific table save failed (non-fatal):', detailErr.message);
+    }
+
+    // ── MARK DOCUMENT AS EXTRACTED ────────────────────────────────────────
+    if (documentId) {
+      await supabaseAdmin!.from('policy_documents').update({
+        extraction_status: 'extracted',
+        raw_ocr_text: rawText.substring(0, 100000),
+      }).eq('id', documentId);
+    }
+
+    // ── MARK JOB AS COMPLETED ─────────────────────────────────────────────
     if (jobDbId) {
-      await supabaseAdmin!
-        .from('extraction_jobs')
-        .update({
-          status: 'completed',
-          extracted_data: extracted,
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', jobDbId);
+      await supabaseAdmin!.from('extraction_jobs').update({
+        status: 'completed',
+        extracted_data: extracted,
+        completed_at: new Date().toISOString(),
+      }).eq('id', jobDbId);
     }
 
     metrics.success = true;
     metrics.duration = Date.now() - startTime;
-
-    console.log(
-      `[Inline] ✅ Extraction complete for policy ${policyId} (${metrics.duration}ms)`,
-      metrics
-    );
+    console.log('[Inline] Extraction complete for policy ' + policyId + ' (' + metrics.duration + 'ms)', metrics);
 
     return { success: true, extracted, metrics };
   } catch (err: any) {
@@ -959,34 +1135,41 @@ export async function processExtractionJob(retryAttempt = 0): Promise<any> {
       `[Worker] Found ${existingInsurers.length} insurers and ${existingCustomers.length} customers`
     );
 
-    // ── EXTRACT STRUCTURED DATA ──
-    console.log(`[Worker] Extracting structured data...`);
-    let structuredData = await ocrProvider.extractStructuredData(
-      extractedText,
-      existingInsurers,
-      existingCustomers
-    );
+    // ── EXTRACT STRUCTURED DATA (2-Stage AI Pipeline) ──
+    console.log(`[Worker] Running 2-stage AI extraction pipeline...`);
+    const pipelineResult = await runExtractionPipeline(extractedText, existingInsurers, existingCustomers);
 
-    // ── AUTO-CONSENSUS FALLBACK ──
-    if (!structuredData.customer_name || structuredData.customer_name.toLowerCase().includes('unknown')) {
-      console.log('[Worker] ⚠️ Missing customer name. Triggering Consensus AI Fallback...');
-      structuredData = await ocrProvider.consensusExtract(
-        extractedText,
-        existingInsurers,
-        existingCustomers
-      );
+    if (!pipelineResult.store) {
+      console.log(`[Worker] Document rejected by AI: ${pipelineResult.reason}`);
+      await supabaseAdmin!.from('extraction_jobs').update({
+        status: 'rejected',
+        error_message: `AI rejected: ${pipelineResult.reason}`,
+        completed_at: new Date().toISOString(),
+      }).eq('id', job.id);
+
+      await supabaseAdmin!.from('policy_documents').update({
+        extraction_status: 'rejected',
+        raw_ocr_text: extractedText.substring(0, 100000),
+      }).eq('id', documentId);
+
+      const { data: docData } = await supabaseAdmin!
+        .from('policy_documents')
+        .select('policy_id')
+        .eq('id', documentId)
+        .maybeSingle();
+
+      if (docData?.policy_id) {
+        await supabaseAdmin!.from('policies').update({
+          policy_number: `REJECTED_${Date.now()}`,
+          agent_notes: `⛔ AI FLAG: Document rejected. ${pipelineResult.reason}. Please delete if incorrect.`
+        }).eq('id', docData.policy_id);
+      }
+
+      await failJob(job.id, `AI rejected: ${pipelineResult.reason}`);
+      return { success: false, reason: pipelineResult.reason };
     }
 
-    console.log('[Worker] Structured data:', {
-      customer_name: structuredData.customer_name,
-      policy_number: structuredData.policy_number,
-      insurer_name: structuredData.insurer_name,
-    });
-
-    metrics.extractedFields.policy_number = !!structuredData.policy_number;
-    metrics.extractedFields.customer_name = !!structuredData.customer_name;
-    metrics.extractedFields.insurer_name = !!structuredData.insurer_name;
-    metrics.extractedFields.premium_amount = structuredData.premium_amount ? structuredData.premium_amount > 0 : false;
+    const structuredData = pipelineResult.extracted_data;
 
     // ── INTELLIGENT CUSTOMER DEDUPLICATION ──
     const dedupeResult = await findOrCreateCustomer({
@@ -999,20 +1182,17 @@ export async function processExtractionJob(retryAttempt = 0): Promise<any> {
     metrics.customerDeduped = !!dedupeResult;
 
     // ── SMART CONTACT UNMASKING (ENRICHMENT) ──
-    // If OCR found masked data but we have clean data in DB for this customer, use the clean data
     if (dedupeResult) {
       if (isMasked(structuredData.customer_email) && dedupeResult.email && !isMasked(dedupeResult.email)) {
-        console.log(`[Worker] 🛡️ Unmasked Email using history: ${dedupeResult.email}`);
         structuredData.customer_email = dedupeResult.email;
       }
       if (isMasked(structuredData.customer_mobile) && dedupeResult.mobile && !isMasked(dedupeResult.mobile)) {
-        console.log(`[Worker] 🛡️ Unmasked Mobile using history: ${dedupeResult.mobile}`);
         structuredData.customer_mobile = dedupeResult.mobile;
       }
     }
 
     // ── INSURER RESOLUTION ──
-    const insurerId = await findOrCreateInsurer(structuredData.insurer_name);
+    const insurerId = await findOrCreateInsurer(structuredData.company || structuredData.insurer_name);
     metrics.insurerResolved = !!insurerId;
 
     // ── UPDATE EXTRACTION JOB ──
@@ -1028,35 +1208,161 @@ export async function processExtractionJob(retryAttempt = 0): Promise<any> {
     // ── FETCH POLICY & UPDATE ──
     const { data: docData } = await supabaseAdmin!
       .from('policy_documents')
-      .update({ extraction_status: 'extracted' })
+      .update({
+        extraction_status: 'extracted',
+        raw_ocr_text: extractedText.substring(0, 100000)
+      })
       .eq('id', documentId)
       .select('policy_id')
       .single();
 
     if (docData?.policy_id) {
       const now = new Date();
-      const nextYear = new Date(now.getTime() + 31536000000);
+      const safeDate = (d: any, fallback: Date) => {
+        if (!d) return fallback.toISOString();
+        const parsed = new Date(d);
+        return isNaN(parsed.getTime()) ? fallback.toISOString() : parsed.toISOString();
+      };
+      const startDate = safeDate(structuredData.policy_start_date, now);
+      
+      // Default to 1 year ahead
+      let nextEnd = new Date(new Date(startDate).getTime() + 31536000000);
+      if (structuredData.policy_term) {
+        const termEnd = new Date(startDate);
+        termEnd.setFullYear(termEnd.getFullYear() + structuredData.policy_term);
+        nextEnd = termEnd;
+      }
+      const expiryDate = safeDate(structuredData.policy_end_date, nextEnd);
+
+      let agentNotes = structuredData.agent_notes || structuredData.notes || '';
+      if (structuredData.requires_manual_entry) {
+        agentNotes = `⚠️ AI FLAG: Missing critical fields (confidence: ${Math.round((pipelineResult.ai_confidence || 0) * 100)}%). Manual entry required.\n\n` + agentNotes;
+      }
 
       const updatePayload: any = {
-        policy_number: structuredData.policy_number || `OCR_${Date.now()}`,
+        policy_number: structuredData.policy_number || `OCR-${Date.now()}`,
         policy_type: structuredData.policy_type || 'General Insurance',
-        start_date: structuredData.coverage_start
-          ? new Date(structuredData.coverage_start).toISOString()
-          : now.toISOString(),
-        expiry_date: structuredData.coverage_end
-          ? new Date(structuredData.coverage_end).toISOString()
-          : nextYear.toISOString(),
-        premium_amount: structuredData.premium_amount || 0,
-        status: 'active',
+        insurance_type: normalizeInsuranceType(structuredData.insurance_type),
+        product_name: structuredData.product_name || null,
+        proposal_number: structuredData.proposal_number || null,
+        policy_holder_name: structuredData.policy_holder_name || null,
+        issue_date: structuredData.issue_date || null,
+        start_date: startDate,
+        expiry_date: expiryDate,
+        policy_start_date: startDate,
+        policy_end_date: expiryDate,
+        is_renewal: structuredData.is_renewal ?? false,
+        premium_amount: cleanNumber(structuredData.premium_amount) || 0,
+        gst_amount: cleanNumber(structuredData.gst_amount) || null,
+        total_premium: cleanNumber(structuredData.total_premium) || cleanNumber(structuredData.premium_amount) || 0,
+        sum_insured: cleanNumber(structuredData.sum_insured) || null,
+        premium_frequency: normalizePremiumFrequency(structuredData.premium_frequency) || null,
+        payment_mode: normalizePaymentMode(structuredData.payment_mode) || null,
+        payment_date: structuredData.payment_date || null,
+        agent_name: structuredData.agent_name || null,
+        agent_code: structuredData.agent_code || null,
+        branch: structuredData.branch || null,
+        intermediary_code: structuredData.intermediary_code || null,
+        ai_confidence: pipelineResult.ai_confidence || null,
+        missing_fields: pipelineResult.missing_fields || null,
+        notes: structuredData.notes || agentNotes || null,
+        agent_notes: agentNotes || null,
       };
 
       if (finalCustId) updatePayload.customer_id = finalCustId;
       if (insurerId) updatePayload.insurer_id = insurerId;
 
-      await supabaseAdmin!
-        .from('policies')
-        .update(updatePayload)
-        .eq('id', docData.policy_id);
+      await supabaseAdmin!.from('policies').update(updatePayload).eq('id', docData.policy_id);
+
+      // ── UPDATE CUSTOMER EXTENDED FIELDS ──────────────────────────────────
+      if (finalCustId) {
+        const custUpdate: any = {};
+        if (structuredData.customer_dob)        custUpdate.dob = structuredData.customer_dob;
+        if (structuredData.customer_gender)     custUpdate.gender = normalizeGender(structuredData.customer_gender);
+        if (structuredData.customer_pan)        custUpdate.pan = structuredData.customer_pan;
+        if (structuredData.customer_aadhaar)    custUpdate.aadhaar = structuredData.customer_aadhaar;
+        if (structuredData.customer_ckyc)       custUpdate.ckyc_number = structuredData.customer_ckyc;
+        if (structuredData.customer_eia)        custUpdate.eia_number = structuredData.customer_eia;
+        if (structuredData.customer_gst)        custUpdate.gst_number = structuredData.customer_gst;
+        if (structuredData.customer_occupation) custUpdate.occupation = structuredData.customer_occupation;
+        if (structuredData.company_customer_id) custUpdate.company_customer_id = structuredData.company_customer_id;
+        if (structuredData.customer_address)    custUpdate.address = structuredData.customer_address;
+        if (Object.keys(custUpdate).length > 0) {
+          await supabaseAdmin!.from('customers').update(custUpdate).eq('id', finalCustId);
+        }
+      }
+
+      // ── SAVE TYPE-SPECIFIC DETAIL TABLE ──────────────────────────────────
+      try {
+        if (structuredData.insurance_type === 'life' && structuredData.life) {
+          const l = structuredData.life;
+          const { error: upsertErr } = await supabaseAdmin!.from('life_policies').upsert(
+            { 
+              policy_id: docData.policy_id, 
+              ...l, 
+              sum_assured: cleanNumber(l.sum_assured),
+              premium_paying_term: cleanNumber(l.premium_paying_term),
+              policy_term: cleanNumber(l.policy_term),
+              riders: l.riders || [], 
+              nominees: l.nominees || [] 
+            },
+            { onConflict: 'policy_id' }
+          );
+          if (upsertErr) throw upsertErr;
+        } else if (structuredData.insurance_type === 'health' && structuredData.health) {
+          const h = structuredData.health;
+          const { error: upsertErr } = await supabaseAdmin!.from('health_policies').upsert(
+            { 
+              policy_id: docData.policy_id, 
+              ...h, 
+              policy_type: normalizeHealthPolicyType(h.policy_type),
+              base_sum_insured: cleanNumber(h.base_sum_insured),
+              total_sum_insured: cleanNumber(h.total_sum_insured),
+              room_rent_limit: cleanNumber(h.room_rent_limit),
+              icu_limit: cleanNumber(h.icu_limit),
+              deductible: cleanNumber(h.deductible),
+              members: h.members || [], 
+              addons: h.addons || {} 
+            },
+            { onConflict: 'policy_id' }
+          );
+          if (upsertErr) throw upsertErr;
+        } else if (structuredData.insurance_type === 'motor' && structuredData.motor) {
+          const m = structuredData.motor;
+          const { error: upsertErr } = await supabaseAdmin!.from('motor_policies').upsert(
+            { 
+              policy_id: docData.policy_id, 
+              ...m, 
+              fuel_type: normalizeFuelType(m.fuel_type),
+              policy_type: normalizeMotorPolicyType(m.policy_type),
+              idv: cleanNumber(m.idv),
+              current_ncb_percent: cleanNumber(m.current_ncb_percent),
+              manufacturing_year: cleanNumber(m.manufacturing_year),
+              registration_year: cleanNumber(m.registration_year),
+              covers: m.covers || {} 
+            },
+            { onConflict: 'policy_id' }
+          );
+          if (upsertErr) throw upsertErr;
+        } else if (structuredData.insurance_type === 'commercial' && structuredData.commercial) {
+          const c = structuredData.commercial;
+          const { error: upsertErr } = await supabaseAdmin!.from('commercial_policies').upsert(
+            { 
+              policy_id: docData.policy_id, 
+              ...c, 
+              sum_insured_building: cleanNumber(c.sum_insured_building),
+              sum_insured_stock: cleanNumber(c.sum_insured_stock),
+              sum_insured: c.sum_insured || {}, 
+              covers: c.covers || {} 
+            },
+            { onConflict: 'policy_id' }
+          );
+          if (upsertErr) throw upsertErr;
+        }
+      }
+ catch (detailErr: any) {
+        console.error('[Worker] Type-specific detail table upsert failed:', detailErr.message);
+      }
 
       console.log(`[Worker] Policy ${docData.policy_id} updated successfully`);
     }

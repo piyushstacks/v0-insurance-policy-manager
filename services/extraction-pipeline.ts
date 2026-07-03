@@ -31,7 +31,27 @@ export interface PipelineResult {
   missing_fields?: string[];
 }
 
-const DEFAULT_MODEL = process.env.EXTRACTION_MODEL || "llama-3.3-70b-versatile";
+// Tiered model strategy:
+//   FAST model  (llama-3.1-8b-instant)      → steps 2/3/4: classify, company, type  — 14,400 req/day
+//   SMART model (llama-3.3-70b-versatile)   → step 6: full field extraction          —  1,000 req/day
+// 82 docs × 3 fast calls = 246  |  82 docs × 1 smart call = 82  → both well within limits.
+const GROQ_FAST_MODEL  = process.env.GROQ_FAST_MODEL  || 'llama-3.1-8b-instant';
+const GROQ_SMART_MODEL = process.env.GROQ_SMART_MODEL || 'llama-3.3-70b-versatile';
+const DEFAULT_MODEL    = process.env.EXTRACTION_MODEL || GROQ_SMART_MODEL;
+
+// Groq model name map — translates OpenRouter-style slugs to Groq model IDs
+const GROQ_MODEL_MAP: Record<string, string> = {
+  'openrouter/free'                           : GROQ_SMART_MODEL,
+  'google/gemma-4-31b-it:free'                : GROQ_SMART_MODEL,
+  'meta-llama/llama-3.3-70b-instruct:free'    : 'llama-3.3-70b-versatile',
+  'meta-llama/llama-3.2-3b-instruct:free'     : 'llama-3.1-8b-instant',
+  'llama-3.3-70b-versatile'                   : 'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant'                      : 'llama-3.1-8b-instant',
+  'meta-llama/llama-4-scout-17b-16e-instruct' : 'meta-llama/llama-4-scout-17b-16e-instruct',
+  'qwen/qwen3-32b'                            : 'qwen/qwen3-32b',
+  'qwen/qwen3.6-27b'                          : 'qwen/qwen3.6-27b',
+  'openai/gpt-oss-120b'                       : 'openai/gpt-oss-120b',
+};
 
 // ── Provider detection ───────────────────────────────────────────────────────
 // Priority: Groq (14,400 req/day free) → OpenRouter (50 req/day free)
@@ -59,18 +79,10 @@ async function callLLM(prompt: string, model: string = DEFAULT_MODEL): Promise<a
   const provider = getProvider();
   if (!provider) throw new Error("No LLM API key found. Set GROQ_API_KEY or OPENROUTER_API_KEY in .env.local");
 
-  // Groq uses model IDs like "llama-3.3-70b-versatile", OpenRouter uses "meta-llama/..."
-  // If model still has openrouter-style slug and we're using Groq, remap to Groq model.
+  // Resolve model for the active provider
   let resolvedModel = model;
   if (provider.type === 'groq') {
-    // Map common openrouter slugs → groq model IDs
-    const GROQ_MODEL_MAP: Record<string, string> = {
-      'openrouter/free': 'llama-3.3-70b-versatile',
-      'google/gemma-4-31b-it:free': 'llama-3.3-70b-versatile',
-      'meta-llama/llama-3.3-70b-instruct:free': 'llama-3.3-70b-versatile',
-      'meta-llama/llama-3.2-3b-instruct:free': 'llama-3.2-3b-preview',
-    };
-    resolvedModel = GROQ_MODEL_MAP[model] ?? (model.includes('/') ? 'llama-3.3-70b-versatile' : model);
+    resolvedModel = GROQ_MODEL_MAP[model] ?? (model.includes('/') ? GROQ_SMART_MODEL : model);
   }
 
   const MAX_RETRIES = 3;
@@ -182,10 +194,16 @@ export async function runExtractionPipeline(
   const fullText = pages.map(p => p.text).join('\n');
   const firstPageText = pages[0]?.text || '';
 
+  const provider = getProvider();
+  // Pick model based on provider type
+  const fastModel  = provider?.type === 'groq' ? GROQ_FAST_MODEL  : DEFAULT_MODEL;
+  const smartModel = provider?.type === 'groq' ? GROQ_SMART_MODEL : DEFAULT_MODEL;
+
   // Step 2: Document Classification
-  console.log('[Pipeline] Step 2: Classifying document type...');
+  console.log(`[Pipeline] Step 2: Classifying document type... (model: ${fastModel})`);
   const classResult = await callLLMRateLimited(
-    `${CLASSIFICATION_PROMPT}\n\nDocument Text:\n${fullText.substring(0, 8000)}`
+    `${CLASSIFICATION_PROMPT}\n\nDocument Text:\n${fullText.substring(0, 8000)}`,
+    fastModel
   );
   console.log('[Pipeline] Class result:', classResult);
 
@@ -198,16 +216,18 @@ export async function runExtractionPipeline(
   }
 
   // Step 3: Detect Company (mainly first page)
-  console.log('[Pipeline] Step 3: Detecting company...');
+  console.log(`[Pipeline] Step 3: Detecting company... (model: ${fastModel})`);
   const companyResult = await callLLMRateLimited(
-    `${COMPANY_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 4000)}`
+    `${COMPANY_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 4000)}`,
+    fastModel
   );
   console.log('[Pipeline] Company result:', companyResult);
 
   // Step 4: Detect Policy Type
-  console.log('[Pipeline] Step 4: Detecting policy type...');
+  console.log(`[Pipeline] Step 4: Detecting policy type... (model: ${fastModel})`);
   const policyTypeResult = await callLLMRateLimited(
-    `${POLICY_TYPE_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 4000)}`
+    `${POLICY_TYPE_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 4000)}`,
+    fastModel
   );
   console.log('[Pipeline] Policy type result:', policyTypeResult);
 
@@ -219,12 +239,12 @@ export async function runExtractionPipeline(
   const profileKeywords = COMPANY_PROFILES[detectedCompany] || [];
 
   // Step 6: AI Field Extraction using selected template profile
-  console.log('[Pipeline] Step 6: Running template extraction...');
+  console.log(`[Pipeline] Step 6: Running template extraction... (model: ${smartModel})`);
   const extractionPrompt = EXTRACTION_TEMPLATE_PROMPT
     .replace('${company_profile}', profileKeywords.map(k => `- ${k}`).join('\n')) + 
     `\n\nDetected Company: ${detectedCompany}\nDetected Policy Type: ${detectedType}\n\nDocument Text:\n${fullText.substring(0, 15000)}`;
 
-  const extracted = await callLLMRateLimited(extractionPrompt);
+  const extracted = await callLLMRateLimited(extractionPrompt, smartModel);
 
 
   // Step 7: Validation & Confidence Scoring

@@ -253,13 +253,13 @@ export async function POST(request: NextRequest) {
           // ── SAVE DETAIL TABLE ──
           if (ext.insurance_type === 'life' && ext.life) {
             const l = ext.life;
+            const { policy_term: _pt, ...lifeRest } = l as any;
             const { error: upsertErr } = await supabaseAdmin!.from('life_policies').upsert(
               { 
                 policy_id: policyId, 
-                ...l, 
+                ...lifeRest, 
                 sum_assured: cleanNumber(l.sum_assured),
                 premium_paying_term: cleanNumber(l.premium_paying_term),
-                policy_term: cleanNumber(l.policy_term),
                 riders: l.riders || [], 
                 nominees: l.nominees || [] 
               },
@@ -303,13 +303,17 @@ export async function POST(request: NextRequest) {
             if (upsertErr) throw upsertErr;
           } else if (ext.insurance_type === 'commercial' && ext.commercial) {
             const c = ext.commercial;
+            const { sum_insured_building, sum_insured_stock, ...rest } = c as any;
+            const sumInsured = {
+              ...(c.sum_insured || {}),
+              ...(sum_insured_building != null ? { building: cleanNumber(sum_insured_building) } : {}),
+              ...(sum_insured_stock    != null ? { stock:    cleanNumber(sum_insured_stock)    } : {}),
+            };
             const { error: upsertErr } = await supabaseAdmin!.from('commercial_policies').upsert(
               { 
                 policy_id: policyId, 
-                ...c, 
-                sum_insured_building: cleanNumber(c.sum_insured_building),
-                sum_insured_stock: cleanNumber(c.sum_insured_stock),
-                sum_insured: c.sum_insured || {}, 
+                ...rest,
+                sum_insured: sumInsured,
                 covers: c.covers || {} 
               },
               { onConflict: 'policy_id' }
@@ -342,8 +346,8 @@ export async function POST(request: NextRequest) {
             extraction_status: 'failed'
           }).eq('id', docId);
         } finally {
-          // Sleep to space out requests for OpenRouter free models (5.5s delay maps to 10.9 reqs/min)
-          await new Promise(resolve => setTimeout(resolve, 5500));
+          // Sleep to space out requests for Gemini free models (7.5s delay + processing time = < 8 req/min)
+          await new Promise(resolve => setTimeout(resolve, 7500));
         }
       });
 

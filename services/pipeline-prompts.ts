@@ -103,78 +103,93 @@ Return a JSON object with keys:
 "confidence": number (0-100)
 `;
 
-export const EXTRACTION_TEMPLATE_PROMPT = `
-Extract structured data from the document text based on the detected Company and Policy Type.
+export function getExtractionPrompt(company: string, policyType: string): string {
+  const profileKeywords = COMPANY_PROFILES[company] || [];
+  
+  let typeSpecificSchema = '';
+  if (policyType === 'life') {
+    typeSpecificSchema = `
+  "life": {
+    "plan_name": string,
+    "sum_assured": number,
+    "premium_paying_term": number,
+    "policy_term": number,
+    "risk_commencement_date": string,
+    "maturity_date": string,
+    "riders": array,
+    "nominees": array
+  },`;
+  } else if (policyType === 'health') {
+    typeSpecificSchema = `
+  "health": {
+    "plan": string,
+    "policy_type": "individual" | "floater" | "group",
+    "base_sum_insured": number,
+    "total_sum_insured": number,
+    "room_rent_limit": number,
+    "icu_limit": number,
+    "deductible": number,
+    "members": array
+  },`;
+  } else if (policyType === 'motor') {
+    typeSpecificSchema = `
+  "motor": {
+    "registration_number": string,
+    "engine_number": string,
+    "chassis_number": string,
+    "make": string,
+    "model": string,
+    "variant": string,
+    "fuel_type": string,
+    "idv": number,
+    "current_ncb_percent": number
+  },`;
+  } else if (policyType === 'commercial') {
+    typeSpecificSchema = `
+  "commercial": {
+    "business_name": string,
+    "proprietor": string,
+    "business_gst": string,
+    "business_address": string,
+    "sum_insured_building": number,
+    "sum_insured_stock": number
+  },`;
+  }
+
+  return `
+Extract structured data from the document text based on the detected Company (${company}) and Policy Type (${policyType}).
 Follow these field-level rules and map synonyms to output fields.
 
-For each field, return both the extracted "value" and a "confidence" score (0-100).
-If a field is missing, return null for value and 0 for confidence.
+Return ONLY the extracted values. Do not wrap fields in an object. If a field is missing, return null.
+At the very end of the JSON object, include an "overall_confidence" field (0-100) representing how confident you are in the extraction overall.
 
 SYNONYMS DICTIONARY FOR MAPPING:
 ${JSON.stringify(SYNONYM_DICTIONARY, null, 2)}
 
 COMPANY-SPECIFIC PROFILE KEYWORDS TO SEARCH FOR:
-\${company_profile}
+${profileKeywords.join(', ')}
 
 OUTPUT FORMAT SPECIFICATION:
 Respond ONLY with a valid JSON object matching this schema structure:
 {
-  "policy_number": { "value": string, "confidence": number },
-  "product_name": { "value": string, "confidence": number },
-  "premium_amount": { "value": number, "confidence": number },
-  "sum_insured": { "value": number, "confidence": number },
-  "customer_name": { "value": string, "confidence": number },
-  "customer_mobile": { "value": string, "confidence": number },
-  "customer_email": { "value": string, "confidence": number },
-  "customer_dob": { "value": string, "confidence": number },
-  "customer_gender": { "value": string, "confidence": number },
-  "customer_pan": { "value": string, "confidence": number },
-  "customer_aadhaar": { "value": string, "confidence": number },
-  "policy_start_date": { "value": string, "confidence": number },
-  "policy_end_date": { "value": string, "confidence": number },
-  "payment_mode": { "value": string, "confidence": number },
-  "nominee_name": { "value": string, "confidence": number },
-  "nominee_relationship": { "value": string, "confidence": number },
-  
-  // Detail blocks (provide only if category matches)
-  "life": {
-    "plan_name": { "value": string, "confidence": number },
-    "sum_assured": { "value": number, "confidence": number },
-    "premium_paying_term": { "value": number, "confidence": number },
-    "policy_term": { "value": number, "confidence": number },
-    "risk_commencement_date": { "value": string, "confidence": number },
-    "maturity_date": { "value": string, "confidence": number },
-    "riders": { "value": array, "confidence": number },
-    "nominees": { "value": array, "confidence": number }
-  },
-  "health": {
-    "plan": { "value": string, "confidence": number },
-    "policy_type": { "value": "individual" | "floater" | "group", "confidence": number },
-    "base_sum_insured": { "value": number, "confidence": number },
-    "total_sum_insured": { "value": number, "confidence": number },
-    "room_rent_limit": { "value": number, "confidence": number },
-    "icu_limit": { "value": number, "confidence": number },
-    "deductible": { "value": number, "confidence": number },
-    "members": { "value": array, "confidence": number }
-  },
-  "motor": {
-    "registration_number": { "value": string, "confidence": number },
-    "engine_number": { "value": string, "confidence": number },
-    "chassis_number": { "value": string, "confidence": number },
-    "make": { "value": string, "confidence": number },
-    "model": { "value": string, "confidence": number },
-    "variant": { "value": string, "confidence": number },
-    "fuel_type": { "value": string, "confidence": number },
-    "idv": { "value": number, "confidence": number },
-    "current_ncb_percent": { "value": number, "confidence": number }
-  },
-  "commercial": {
-    "business_name": { "value": string, "confidence": number },
-    "proprietor": { "value": string, "confidence": number },
-    "business_gst": { "value": string, "confidence": number },
-    "business_address": { "value": string, "confidence": number },
-    "sum_insured_building": { "value": number, "confidence": number },
-    "sum_insured_stock": { "value": number, "confidence": number }
-  }
+  "policy_number": string,
+  "product_name": string,
+  "premium_amount": number,
+  "sum_insured": number,
+  "customer_name": string,
+  "customer_mobile": string,
+  "customer_email": string,
+  "customer_dob": string,
+  "customer_gender": string,
+  "customer_pan": string,
+  "customer_aadhaar": string,
+  "policy_start_date": string,
+  "policy_end_date": string,
+  "payment_mode": string,
+  "nominee_name": string,
+  "nominee_relationship": string,
+  ${typeSpecificSchema}
+  "overall_confidence": number
 }
 `;
+}

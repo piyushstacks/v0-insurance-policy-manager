@@ -7,7 +7,7 @@ import {
   CLASSIFICATION_PROMPT,
   COMPANY_DETECTION_PROMPT,
   POLICY_TYPE_DETECTION_PROMPT,
-  EXTRACTION_TEMPLATE_PROMPT,
+  getExtractionPrompt,
   COMPANY_PROFILES,
   VALID_COMPANIES
 } from './pipeline-prompts';
@@ -279,18 +279,14 @@ export async function runExtractionPipeline(
 
   // Step 6: AI Field Extraction using selected template profile
   console.log(`[Pipeline] Step 6: Running template extraction...`);
-  const extractionPrompt = EXTRACTION_TEMPLATE_PROMPT
-    .replace('${company_profile}', profileKeywords.map(k => `- ${k}`).join('\n')) + 
-    `\n\nDetected Company: ${detectedCompany}\nDetected Policy Type: ${detectedType}\n\nDocument Text:\n${fullText.substring(0, 15000)}`;
+  const extractionPrompt = getExtractionPrompt(detectedCompany, detectedType) + 
+    `\n\nDocument Text:\n${fullText.substring(0, 8000)}`;
 
   const extracted = await callLLMRateLimited(extractionPrompt, 'smart');
-
 
   // Step 7: Validation & Confidence Scoring
   console.log('[Pipeline] Step 7: Validating extracted fields...');
   
-  // Calculate average confidence score of filled fields
-  let totalConfidence = 0;
   let filledCount = 0;
   const missingFields: string[] = [];
 
@@ -304,55 +300,35 @@ export async function runExtractionPipeline(
     is_quotation: false
   };
 
+  const finalConfidence = typeof extracted.overall_confidence === 'number' ? extracted.overall_confidence : 80;
+
   // Extract common top-level fields
-  for (const [key, obj] of Object.entries(extracted)) {
-    if (obj && typeof obj === 'object' && 'value' in obj) {
-      const fieldObj = obj as { value: any; confidence: number };
-      flatData[key] = fieldObj.value;
-      if (fieldObj.value !== null && fieldObj.value !== undefined) {
-        totalConfidence += fieldObj.confidence || 50;
-        filledCount++;
-      } else {
-        if (requiredFields.includes(key)) {
-          missingFields.push(key);
-        }
+  for (const [key, value] of Object.entries(extracted)) {
+    if (key === 'overall_confidence' || key === 'life' || key === 'health' || key === 'motor' || key === 'commercial') {
+      continue;
+    }
+
+    flatData[key] = value;
+    if (value !== null && value !== undefined && value !== '') {
+      filledCount++;
+    } else {
+      if (requiredFields.includes(key)) {
+        missingFields.push(key);
       }
     }
   }
 
   // Populate type-specific blocks
   if (detectedType === 'life' && extracted.life) {
-    flatData.life = {};
-    for (const [key, obj] of Object.entries(extracted.life)) {
-      if (obj && typeof obj === 'object' && 'value' in obj) {
-        flatData.life[key] = (obj as any).value;
-      }
-    }
+    flatData.life = { ...extracted.life };
   } else if (detectedType === 'health' && extracted.health) {
-    flatData.health = {};
-    for (const [key, obj] of Object.entries(extracted.health)) {
-      if (obj && typeof obj === 'object' && 'value' in obj) {
-        flatData.health[key] = (obj as any).value;
-      }
-    }
+    flatData.health = { ...extracted.health };
   } else if (detectedType === 'motor' && extracted.motor) {
-    flatData.motor = {};
-    for (const [key, obj] of Object.entries(extracted.motor)) {
-      if (obj && typeof obj === 'object' && 'value' in obj) {
-        flatData.motor[key] = (obj as any).value;
-      }
-    }
+    flatData.motor = { ...extracted.motor };
   } else if (detectedType === 'commercial' && extracted.commercial) {
-    flatData.commercial = {};
-    for (const [key, obj] of Object.entries(extracted.commercial)) {
-      if (obj && typeof obj === 'object' && 'value' in obj) {
-        flatData.commercial[key] = (obj as any).value;
-      }
-    }
+    flatData.commercial = { ...extracted.commercial };
   }
 
-  const finalConfidence = filledCount > 0 ? Math.round(totalConfidence / filledCount) : 0;
-  
   // Determine if manual review required
   // If we're missing critical fields or confidence is low, flag it
   const requiresManual = missingFields.length > 0 || finalConfidence < 70;

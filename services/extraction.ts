@@ -749,6 +749,66 @@ export async function queueDocumentExtraction(
 }
 
 /**
+ * Trigger background document extraction via Upstash QStash (Serverless Queue)
+ * with a fallback to local Node.js promises.
+ */
+export async function triggerExtractionQueue(
+  documentId: string,
+  policyId: string,
+  fileUrl: string,
+  delaySeconds: number = 0
+): Promise<{ success: boolean; qstash: boolean }> {
+  const qstashToken = process.env.QSTASH_TOKEN;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://apexpolicyvault.vercel.app';
+  const workerSecret = process.env.EXTRACTION_WORKER_SECRET || 'test-secret';
+  
+  if (qstashToken) {
+    try {
+      const destination = `${appUrl.replace(/\/$/, '')}/api/extract/qstash-process?secret=${encodeURIComponent(workerSecret)}`;
+      const qstashUrl = `https://qstash.upstash.io/v2/publish/${destination}`;
+      
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${qstashToken}`,
+        'Content-Type': 'application/json',
+      };
+      
+      if (delaySeconds > 0) {
+        headers['Upstash-Delay'] = `${delaySeconds}s`;
+      }
+      
+      console.log(`[QStash] Queueing extraction for doc ${documentId} (delay: ${delaySeconds}s)`);
+      
+      const res = await fetch(qstashUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ documentId, policyId, fileUrl })
+      });
+      
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`QStash publish failed: ${res.status} - ${text}`);
+      }
+      
+      return { success: true, qstash: true };
+    } catch (err: any) {
+      console.error('[QStash] Failed to queue via QStash, falling back to inline background promise:', err.message);
+    }
+  }
+
+  // Fallback to inline background promise (standard Node.js execution)
+  console.log(`[Queue] Running extraction inline in background (delay: ${delaySeconds}s)`);
+  if (delaySeconds > 0) {
+    setTimeout(() => {
+      extractDocumentInline(documentId, policyId, fileUrl).catch(console.error);
+    }, delaySeconds * 1000);
+  } else {
+    extractDocumentInline(documentId, policyId, fileUrl).catch(console.error);
+  }
+  
+  return { success: true, qstash: false };
+}
+
+/**
  * Inline extraction - runs OCR immediately during upload
  */
 export async function extractDocumentInline(

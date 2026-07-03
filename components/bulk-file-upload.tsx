@@ -185,7 +185,7 @@ export default function BulkFileUpload({ onUploadComplete, onError, customerId }
 
     const newFiles: UploadFile[] = Array.from(files)
       .filter(file => {
-        const isValidType = ['application/pdf', 'image/jpeg', 'image/png'].includes(file.type);
+        const isValidType = ['application/pdf'].includes(file.type);
         const isValidSize = file.size <= 10 * 1024 * 1024;
         if (!isValidType) {
           toast.error(`Invalid file type: ${file.name}`);
@@ -262,7 +262,7 @@ export default function BulkFileUpload({ onUploadComplete, onError, customerId }
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,.jpg,.jpeg,.png"
+          accept=".pdf"
           onChange={(e) => handleFileSelect(e.target.files)}
           disabled={isUploading}
           className="hidden"
@@ -275,7 +275,7 @@ export default function BulkFileUpload({ onUploadComplete, onError, customerId }
           Upload Multiple {uploadType === 'policy' ? 'Policy Documents' : 'Renewal Receipts'}
         </h3>
         <p className="text-sm text-muted-foreground mb-4">
-          Drag and drop multiple PDF, JPG, or PNG files here or click to browse
+          Drag and drop multiple PDF files here or click to browse
         </p>
         <Button
           onClick={() => fileInputRef.current?.click()}

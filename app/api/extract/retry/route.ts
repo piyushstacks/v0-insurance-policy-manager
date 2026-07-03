@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabase';
-import { extractDocumentInline } from '@/services/extraction';
+import { extractDocumentInline, triggerExtractionQueue } from '@/services/extraction';
 
 export const runtime = 'nodejs';
 
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         .eq('id', documentId);
 
       // Fire inline extraction (non-blocking)
-      extractDocumentInline(documentId, policyId, publicUrl).catch(console.error);
+      triggerExtractionQueue(documentId, policyId, publicUrl).catch(console.error);
 
       return NextResponse.json({ success: true, message: 'Extraction restarted for document' });
     }
@@ -116,11 +116,13 @@ export async function POST(request: NextRequest) {
       .update({ extraction_status: 'pending' })
       .in('id', docs.map(d => d.id));
 
-    // Fire all inline extractions (non-blocking)
+    // Fire all inline extractions (non-blocking) with staggered delay
+    let docIndex = 0;
     for (const doc of docs) {
       const baseUrl = process.env.B2_PUBLIC_URL || process.env.NEXT_PUBLIC_B2_PUBLIC_URL;
       const publicUrl = `${baseUrl?.replace(/\/$/, '')}/${doc.file_path}`;
-      extractDocumentInline(doc.id, doc.policy_id, publicUrl).catch(console.error);
+      triggerExtractionQueue(doc.id, doc.policy_id, publicUrl, docIndex * 13).catch(console.error);
+      docIndex++;
     }
 
     return NextResponse.json({

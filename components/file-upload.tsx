@@ -138,7 +138,7 @@ export default function FileUpload({ policyId, onUploadComplete, onError }: File
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,.jpg,.jpeg,.png"
+          accept=".pdf"
           onChange={(e) => handleUpload(e.target.files)}
           disabled={isUploading}
           className="hidden"
@@ -152,7 +152,7 @@ export default function FileUpload({ policyId, onUploadComplete, onError }: File
               Upload {uploadType === 'policy' ? 'Policy Document' : 'Renewal Receipt'}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Drag and drop your PDF, JPG, or PNG file here or click to browse
+              Drag and drop your PDF file here or click to browse
             </p>
             <Button
               onClick={() => fileInputRef.current?.click()}

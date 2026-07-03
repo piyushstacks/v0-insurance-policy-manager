@@ -256,6 +256,13 @@ export async function runExtractionPipeline(
 ): Promise<PipelineResult> {
   console.log('[Pipeline] Starting 2-stage AI pipeline processing...');
 
+  if (!ocrText || ocrText.trim().length < 50) {
+    return {
+      store: false,
+      reason: 'Upload rejected: Document appears to be a scanned image or photograph (no readable text). Please upload a digital PDF.',
+    };
+  }
+
   // Step 1: Format OCR text into page structure (if not already formatted)
   // For simplicity, we split by common PDF form feeds or treat as page 1
   const pages: PageText[] = ocrText.split(/\f|\bPage\b/i).map((text, idx) => ({
@@ -314,9 +321,20 @@ export async function runExtractionPipeline(
 
   const finalConfidence = typeof extracted.overall_confidence === 'number' ? extracted.overall_confidence : 80;
 
+  function cleanNumLocal(val: any): number {
+    if (val === undefined || val === null) return 0;
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string') {
+      const cleaned = val.replace(/[₹$,\s]/g, '');
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? 0 : num;
+    }
+    return 0;
+  }
+
   // Extract common top-level fields
   for (const [key, value] of Object.entries(extracted)) {
-    if (key === 'overall_confidence' || key === 'life' || key === 'health' || key === 'motor' || key === 'commercial') {
+    if (key === 'overall_confidence' || key === 'reasoning' || key === 'life' || key === 'health' || key === 'motor' || key === 'commercial') {
       continue;
     }
 
@@ -343,10 +361,43 @@ export async function runExtractionPipeline(
 
   // Determine if manual review required
   // If we're missing critical fields or confidence is low, flag it
-  const requiresManual = missingFields.length > 0 || finalConfidence < 70;
+  const premiumVal = cleanNumLocal(flatData.premium_amount);
+  const gstVal = cleanNumLocal(flatData.gst_amount);
+  const totalVal = cleanNumLocal(flatData.total_premium) || premiumVal;
+
+  let mathMismatch = false;
+  let mathWarning = '';
+
+  if (detectedType === 'life' || detectedType === 'health') {
+    // Life & Health policies don't have GST validation. Premium should equal Total Premium.
+    if (premiumVal > 0 && Math.abs(premiumVal - totalVal) > 1.5) {
+      mathMismatch = true;
+      mathWarning = `⚠️ AI FLAG: Premium mismatch. Premium (${premiumVal}) does not equal Total Premium (${totalVal}).\n\n`;
+    }
+  } else {
+    // Commercial and Motor have GST. Premium + GST should equal Total Premium.
+    if (premiumVal > 0 && Math.abs((premiumVal + gstVal) - totalVal) > 1.5) {
+      mathMismatch = true;
+      mathWarning = `⚠️ AI FLAG: GST math mismatch. Premium (${premiumVal}) + GST (${gstVal}) does not equal Total Premium (${totalVal}).\n\n`;
+    }
+  }
+
+  let finalNotes = '';
+  if (mathWarning) {
+    finalNotes += mathWarning;
+  }
+  if (extracted.reasoning) {
+    finalNotes += `🧠 AI Extraction Reasoning:\n${extracted.reasoning}\n\n`;
+  }
+  if (extracted.agent_notes || extracted.notes) {
+    finalNotes += (extracted.agent_notes || extracted.notes);
+  }
+  flatData.agent_notes = finalNotes;
+
+  const requiresManual = missingFields.length > 0 || finalConfidence < 70 || mathMismatch;
   flatData.requires_manual_entry = requiresManual;
 
-  console.log(`[Pipeline] Extraction finished with confidence ${finalConfidence}%. Requires review: ${requiresManual}`);
+  console.log(`[Pipeline] Extraction finished with confidence ${finalConfidence}%. Requires review: ${requiresManual} (Math mismatch: ${mathMismatch})`);
 
   return {
     store: true,

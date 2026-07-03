@@ -3,7 +3,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { uploadPolicyDocument } from '@/services/upload';
 import { supabaseAdmin } from '@/lib/supabase';
-import { extractDocumentInline } from '@/services/extraction';
+import { extractDocumentInline, triggerExtractionQueue } from '@/services/extraction';
 
 export const runtime = 'nodejs';
 
@@ -103,9 +103,19 @@ export async function POST(request: NextRequest) {
     }
 
     const uploadResults = [];
+    let fileIndex = 0;
 
     // Process each file sequentially
     for (const file of files) {
+      if (file.type !== 'application/pdf') {
+        uploadResults.push({
+          fileName: file.name,
+          status: 'error',
+          error: 'Upload rejected: Only PDF documents are allowed.',
+        });
+        continue;
+      }
+
       try {
         // Create placeholder policy for this file
         const timestamp = Date.now();
@@ -139,12 +149,14 @@ export async function POST(request: NextRequest) {
         // Upload the file (if storeFile is false, it extracts text from buffer inline)
         const result = await uploadPolicyDocument(user.id, policyId, file, false, storeFile);
 
-        // ✅ Fire inline extraction immediately — non-blocking, best-effort
+        // ✅ Fire inline extraction with staggered delay — non-blocking, best-effort
         // If storeFile is false, uploadPolicyDocument already called inline extraction.
         if (storeFile) {
-          extractDocumentInline(result.documentId, policyId, result.fileUrl).catch((err) =>
+          const delaySeconds = fileIndex * 13;
+          triggerExtractionQueue(result.documentId, policyId, result.fileUrl || '', delaySeconds).catch((err) =>
             console.error(`[BulkUpload] Inline extraction failed for ${file.name}:`, err.message)
           );
+          fileIndex++;
         }
 
         uploadResults.push({

@@ -4,7 +4,7 @@
  */
 
 import { supabaseAdmin, storageBucket } from '@/lib/supabase';
-import { extractDocumentInline, queueDocumentExtraction } from './extraction';
+import { extractDocumentInline, queueDocumentExtraction, triggerExtractionQueue } from './extraction';
 import { compressPdf } from './pdf-compression';
 import { uploadToB2, deleteFromB2 } from '@/lib/b2';
 
@@ -101,9 +101,9 @@ export async function uploadPolicyDocument(
     // autoExtract=false → caller handles queueing (bulk upload calls queueDocumentExtraction separately)
     // If storeFile is false, we MUST autoExtract inline
     if (autoExtract || !storeFile) {
-      // Run inline extraction — does NOT block response (fire-and-forget, best-effort)
-      extractDocumentInline(documentId || null, policyId, fileUrl || null, rawTextOverride).catch((e) =>
-        console.error('[v0] Inline extraction failed (non-fatal):', e)
+      // Run extraction via the queue helper (uses QStash if configured, otherwise falls back to a background promise)
+      triggerExtractionQueue(documentId || '', policyId, fileUrl || '').catch((e) =>
+        console.error('[v0] Queue trigger failed:', e)
       );
     }
 

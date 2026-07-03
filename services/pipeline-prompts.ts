@@ -172,6 +172,7 @@ ${profileKeywords.join(', ')}
 OUTPUT FORMAT SPECIFICATION:
 Respond ONLY with a valid JSON object matching this schema structure:
 {
+  "reasoning": string,
   "policy_number": string,
   "product_name": string,
   "premium_amount": number,

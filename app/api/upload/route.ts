@@ -47,6 +47,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
+    if (file.type !== 'application/pdf') {
+      return NextResponse.json({ error: 'Upload rejected: Only PDF documents are allowed.' }, { status: 400 });
+    }
+
     // --- PRE-UPLOAD VALIDATION ---
     if (file.type === 'application/pdf') {
       try {

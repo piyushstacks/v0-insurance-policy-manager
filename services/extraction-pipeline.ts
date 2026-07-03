@@ -134,7 +134,8 @@ async function callLLMWithProvider(
               parts: [{ text: "You are a JSON extraction assistant. Always respond with valid JSON only. No explanation, no markdown, no code fences — just the raw JSON object." }]
             },
             generationConfig: {
-              responseMimeType: "application/json"
+              temperature: 0.1,
+              maxOutputTokens: modelType === 'fast' ? 500 : 8192
             }
           })
         });

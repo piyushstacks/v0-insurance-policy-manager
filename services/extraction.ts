@@ -947,13 +947,13 @@ export async function extractDocumentInline(
     try {
       if (extracted.insurance_type === 'life' && extracted.life) {
         const l = extracted.life;
+        const { policy_term: _pt, ...lifeRest } = l as any;
         const { error: upsertErr } = await supabaseAdmin!.from('life_policies').upsert(
           { 
             policy_id: policyId, 
-            ...l, 
+            ...lifeRest, 
             sum_assured: cleanNumber(l.sum_assured),
             premium_paying_term: cleanNumber(l.premium_paying_term),
-            policy_term: cleanNumber(l.policy_term),
             riders: l.riders || [], 
             nominees: l.nominees || [] 
           },
@@ -1302,13 +1302,13 @@ export async function processExtractionJob(retryAttempt = 0): Promise<any> {
       try {
         if (structuredData.insurance_type === 'life' && structuredData.life) {
           const l = structuredData.life;
+          const { policy_term: _pt, ...lifeRest } = l as any;
           const { error: upsertErr } = await supabaseAdmin!.from('life_policies').upsert(
             { 
               policy_id: docData.policy_id, 
-              ...l, 
+              ...lifeRest, 
               sum_assured: cleanNumber(l.sum_assured),
               premium_paying_term: cleanNumber(l.premium_paying_term),
-              policy_term: cleanNumber(l.policy_term),
               riders: l.riders || [], 
               nominees: l.nominees || [] 
             },

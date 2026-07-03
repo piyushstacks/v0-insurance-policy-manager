@@ -1000,13 +1000,19 @@ export async function extractDocumentInline(
         console.log('[Inline] motor_policies row saved for ' + policyId);
       } else if (extracted.insurance_type === 'commercial' && extracted.commercial) {
         const c = extracted.commercial;
+        // sum_insured_building & sum_insured_stock are nested inside sum_insured JSONB,
+        // they are NOT flat columns in the commercial_policies table.
+        const { sum_insured_building, sum_insured_stock, ...rest } = c as any;
+        const sumInsured = {
+          ...(c.sum_insured || {}),
+          ...(sum_insured_building != null ? { building: cleanNumber(sum_insured_building) } : {}),
+          ...(sum_insured_stock    != null ? { stock:    cleanNumber(sum_insured_stock)    } : {}),
+        };
         const { error: upsertErr } = await supabaseAdmin!.from('commercial_policies').upsert(
           { 
             policy_id: policyId, 
-            ...c, 
-            sum_insured_building: cleanNumber(c.sum_insured_building),
-            sum_insured_stock: cleanNumber(c.sum_insured_stock),
-            sum_insured: c.sum_insured || {}, 
+            ...rest,
+            sum_insured: sumInsured,
             covers: c.covers || {} 
           },
           { onConflict: 'policy_id' }
@@ -1346,13 +1352,17 @@ export async function processExtractionJob(retryAttempt = 0): Promise<any> {
           if (upsertErr) throw upsertErr;
         } else if (structuredData.insurance_type === 'commercial' && structuredData.commercial) {
           const c = structuredData.commercial;
+          const { sum_insured_building, sum_insured_stock, ...rest } = c as any;
+          const sumInsured = {
+            ...(c.sum_insured || {}),
+            ...(sum_insured_building != null ? { building: cleanNumber(sum_insured_building) } : {}),
+            ...(sum_insured_stock    != null ? { stock:    cleanNumber(sum_insured_stock)    } : {}),
+          };
           const { error: upsertErr } = await supabaseAdmin!.from('commercial_policies').upsert(
             { 
               policy_id: docData.policy_id, 
-              ...c, 
-              sum_insured_building: cleanNumber(c.sum_insured_building),
-              sum_insured_stock: cleanNumber(c.sum_insured_stock),
-              sum_insured: c.sum_insured || {}, 
+              ...rest,
+              sum_insured: sumInsured,
               covers: c.covers || {} 
             },
             { onConflict: 'policy_id' }

@@ -164,10 +164,11 @@ async function callLLM(prompt: string, model: string = DEFAULT_MODEL): Promise<a
 
 async function callLLMRateLimited(prompt: string, model: string = DEFAULT_MODEL): Promise<any> {
   const res = await callLLM(prompt, model);
-  // Groq is fast & generous — no inter-step delay needed.
-  // Only throttle for OpenRouter free models.
   const provider = getProvider();
-  if (provider?.type === 'openrouter' && (model.endsWith(':free') || model === 'openrouter/free')) {
+  if (provider?.type === 'groq') {
+    // Space out requests slightly on Groq to prevent triggering TPM (Tokens Per Minute) limit spikes
+    await new Promise(resolve => setTimeout(resolve, 1500));
+  } else if (provider?.type === 'openrouter' && (model.endsWith(':free') || model === 'openrouter/free')) {
     await new Promise(resolve => setTimeout(resolve, 2500));
   }
   return res;
@@ -202,7 +203,7 @@ export async function runExtractionPipeline(
   // Step 2: Document Classification
   console.log(`[Pipeline] Step 2: Classifying document type... (model: ${fastModel})`);
   const classResult = await callLLMRateLimited(
-    `${CLASSIFICATION_PROMPT}\n\nDocument Text:\n${fullText.substring(0, 8000)}`,
+    `${CLASSIFICATION_PROMPT}\n\nDocument Text:\n${fullText.substring(0, 3000)}`,
     fastModel
   );
   console.log('[Pipeline] Class result:', classResult);
@@ -218,7 +219,7 @@ export async function runExtractionPipeline(
   // Step 3: Detect Company (mainly first page)
   console.log(`[Pipeline] Step 3: Detecting company... (model: ${fastModel})`);
   const companyResult = await callLLMRateLimited(
-    `${COMPANY_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 4000)}`,
+    `${COMPANY_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 2500)}`,
     fastModel
   );
   console.log('[Pipeline] Company result:', companyResult);
@@ -226,7 +227,7 @@ export async function runExtractionPipeline(
   // Step 4: Detect Policy Type
   console.log(`[Pipeline] Step 4: Detecting policy type... (model: ${fastModel})`);
   const policyTypeResult = await callLLMRateLimited(
-    `${POLICY_TYPE_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 4000)}`,
+    `${POLICY_TYPE_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 2500)}`,
     fastModel
   );
   console.log('[Pipeline] Policy type result:', policyTypeResult);

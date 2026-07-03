@@ -73,7 +73,12 @@ export default function CustomerProfilePage() {
     currentFY -= 1;
   }
 
-  const currentYearPremium = customer.policies?.reduce((sum, p) => {
+  const activePolicies = (customer.policies || []).filter(p => {
+    const pn = p.policy_number || '';
+    return !pn.startsWith('PENDING_OCR') && !pn.startsWith('BULK_OCR') && !pn.startsWith('IMG-') && !pn.startsWith('doc_');
+  });
+
+  const currentYearPremium = activePolicies.reduce((sum, p) => {
     if (!p.start_date) return sum;
     const pDate = new Date(p.start_date);
     let pFY = pDate.getFullYear();
@@ -243,7 +248,7 @@ export default function CustomerProfilePage() {
              <FileText className="absolute -right-4 -bottom-4 w-24 h-24 opacity-10" />
              <div>
                 <p className="text-sm text-blue-100 font-medium mb-1">Total Maintained Policies</p>
-                <h3 className="text-3xl font-black">{customer.policies?.length || 0}</h3>
+                <h3 className="text-3xl font-black">{activePolicies.length || 0}</h3>
              </div>
            </div>
            <div className="bg-linear-to-br from-slate-800 to-slate-900 rounded-2xl shadow-sm p-6 text-white flex justify-between items-center relative overflow-hidden">
@@ -264,13 +269,13 @@ export default function CustomerProfilePage() {
            </div>
            
            <div className="flex flex-col">
-              {(!customer.policies || customer.policies.length === 0) ? (
+              {activePolicies.length === 0 ? (
                  <div className="p-12 text-center">
                     <Info className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="text-slate-500 text-sm">No policies linked to this customer yet.</p>
                  </div>
               ) : (
-                 <PoliciesGroupedView policies={customer.policies} />
+                 <PoliciesGroupedView policies={activePolicies} />
               )}
            </div>
         </div>

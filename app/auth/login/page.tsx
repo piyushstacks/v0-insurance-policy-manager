@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Shield, Mail, ArrowRight, RefreshCw, Loader2, CheckCircle } from 'lucide-react';
@@ -11,7 +10,6 @@ import { Suspense } from 'react';
 import { emailRegex } from '@/lib/schemas';
 
 function LoginContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get('next') || '/app';
 
@@ -20,6 +18,7 @@ function LoginContent() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [otpError, setOtpError] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -64,54 +63,55 @@ function LoginContent() {
   }
 
   // ── Step 2: Verify OTP ─────────────────────────────────────────
-  async function handleVerifyOTP(e?: React.FormEvent) {
+  async function handleVerifyOTP(e?: React.FormEvent, overrideCode?: string) {
     e?.preventDefault();
-    const code = otp.join('');
-    if (code.length !== 6) { setError('Enter the full 6-digit code.'); return; }
+    const code = overrideCode ?? otp.join('');
+    if (code.length !== 6) {
+      setOtpError('Please enter the full 6-digit code.');
+      return;
+    }
+    setOtpError('');
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/otp/verify', {
+      // Step 1: Verify the OTP code
+      const verifyRes = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp: code, purpose: 'login' }),
       });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Invalid code.'); return; }
+      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok) { setError(verifyData.error || 'Invalid code.'); return; }
 
-      // Sign in via Supabase magic link (passwordless) — OTP already verified server-side
-      // Use signInWithOtp with email so Supabase creates a session
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: false },
-      });
-      // The above sends a magic link email from Supabase; we don't need to wait for it since
-      // we already verified identity via our OTP. Use signInWithPassword fallback — 
-      // instead we'll call a custom session endpoint.
-      // Since Supabase doesn't allow direct password-less session creation from client,
-      // we use the admin API via a server route.
+      // Step 2: Generate a real Supabase session (server-side, admin API)
       const sessionRes = await fetch('/api/auth/otp/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-
       if (!sessionRes.ok) {
         const sData = await sessionRes.json();
         setError(sData.error || 'Failed to create session. Please try again.');
         return;
       }
-
       const { accessToken, refreshToken } = await sessionRes.json();
-      const { error: setErr } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
+
+      // Step 3: Set cookies SERVER-SIDE via createServerClient so middleware
+      // can read them immediately on the next request (client-side setSession
+      // writes to localStorage/browser memory, not the HTTP cookie middleware reads)
+      const cookieRes = await fetch('/api/auth/otp/cookie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken, refreshToken }),
       });
+      if (!cookieRes.ok) {
+        const cData = await cookieRes.json();
+        setError(cData.error || 'Session setup failed. Please try again.');
+        return;
+      }
 
-      if (setErr) { setError(setErr.message); return; }
-
-      router.push(nextUrl);
-      router.refresh();
+      // Step 4: Hard redirect — browser now has the auth cookie set by the server
+      window.location.href = nextUrl;
     } catch {
       setError('Verification failed. Please try again.');
     } finally {
@@ -119,16 +119,21 @@ function LoginContent() {
     }
   }
 
+
   // ── OTP input handler ──────────────────────────────────────────
   function handleOtpChange(index: number, value: string) {
     if (!/^\d*$/.test(value)) return;
     const next = [...otp];
     next[index] = value.slice(-1);
     setOtp(next);
+    if (next.join('').length === 6) {
+      setOtpError('');
+    }
     if (value && index < 5) otpRefs.current[index + 1]?.focus();
     if (next.join('').length === 6) {
-      // Auto-submit
-      setTimeout(() => handleVerifyOTP(), 100);
+      // Auto-submit — pass code directly to avoid stale closure on otp state
+      const fullCode = next.join('');
+      setTimeout(() => handleVerifyOTP(undefined, fullCode), 100);
     }
   }
 
@@ -142,8 +147,9 @@ function LoginContent() {
     const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     if (text.length === 6) {
       setOtp(text.split(''));
+      setOtpError('');
       otpRefs.current[5]?.focus();
-      setTimeout(() => handleVerifyOTP(), 100);
+      setTimeout(() => handleVerifyOTP(undefined, text), 100);
     }
   }
 
@@ -231,15 +237,27 @@ function LoginContent() {
                       onChange={(e) => handleOtpChange(i, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
                       className={`w-12 h-14 text-center text-2xl font-black border-2 rounded-2xl outline-none transition-all
-                        ${digit ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-slate-50 text-slate-900'}
+                        ${
+                          otpError
+                            ? 'border-red-400 bg-red-50 text-red-700'
+                            : digit
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-slate-200 bg-slate-50 text-slate-900'
+                        }
                         focus:border-blue-500 focus:bg-blue-50`}
                     />
                   ))}
                 </div>
+                {otpError && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-2xl -mt-2 font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    {otpError}
+                  </div>
+                )}
 
                 <Button
                   type="submit"
-                  disabled={loading || otp.join('').length !== 6}
+                  disabled={loading}
                   className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold gap-2 shadow-lg shadow-blue-200"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Verify & Sign In</>}

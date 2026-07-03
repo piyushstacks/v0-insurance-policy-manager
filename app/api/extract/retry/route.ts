@@ -41,23 +41,28 @@ export async function POST(request: NextRequest) {
       policyId?: string;
     };
 
+    // Pre-fetch team policies to avoid tricky Supabase PostgREST inner join filters
+    const { data: teamPoliciesData } = await supabaseAdmin!
+      .from('policies')
+      .select('id')
+      .in('user_id', teamUserIds);
+    const validPolicyIds = (teamPoliciesData || []).map(p => p.id);
+
     // --- Single document re-extraction ---
     if (documentId && policyId) {
-      // Get the public file URL
-      const { data: doc } = await supabaseAdmin!
+      if (!validPolicyIds.includes(policyId)) {
+         return NextResponse.json({ error: 'Unauthorized or policy not found' }, { status: 403 });
+      }
+
+      const { data: doc, error: docErr } = await supabaseAdmin!
         .from('policy_documents')
-        .select(`
-          file_path,
-          policies!inner (
-            user_id
-          )
-        `)
+        .select('file_path')
         .eq('id', documentId)
-        .in('policies.user_id', teamUserIds)
+        .eq('policy_id', policyId)
         .single();
 
-      if (!doc) {
-        console.error('[API/Retry] Document not found! user.id:', user.id, 'documentId:', documentId, 'policyId:', policyId);
+      if (docErr || !doc) {
+        console.error('[API/Retry] Document not found or error:', docErr);
         return NextResponse.json({ error: 'Document not found' }, { status: 404 });
       }
 
@@ -77,24 +82,30 @@ export async function POST(request: NextRequest) {
     }
 
     // --- Bulk re-extraction for selected / all policies ---
+    if (validPolicyIds.length === 0) {
+      return NextResponse.json({ success: true, message: 'No policies found for this user/team', count: 0 });
+    }
+
     let query = supabaseAdmin!
       .from('policy_documents')
-      .select(`
-        id, 
-        file_path, 
-        policy_id,
-        policies!inner (
-          user_id
-        )
-      `)
-      .in('policies.user_id', teamUserIds);
+      .select('id, file_path, policy_id');
 
     if (policyIds && policyIds.length > 0) {
-      query = query.in('policy_id', policyIds);
+      const allowedIds = policyIds.filter(id => validPolicyIds.includes(id));
+      if (allowedIds.length === 0) {
+        return NextResponse.json({ success: true, message: 'No valid documents found to re-extract', count: 0 });
+      }
+      query = query.in('policy_id', allowedIds);
+    } else {
+      query = query.in('policy_id', validPolicyIds);
     }
 
     const { data: docs, error: docsErr } = await query;
-    if (docsErr) throw docsErr;
+    if (docsErr) {
+       console.error('[API/Retry] Bulk docs error:', docsErr);
+       throw docsErr;
+    }
+    
     if (!docs || docs.length === 0) {
       return NextResponse.json({ success: true, message: 'No documents found to re-extract', count: 0 });
     }
@@ -117,10 +128,10 @@ export async function POST(request: NextRequest) {
       message: `Re-extraction started for ${docs.length} document(s)`,
       count: docs.length,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[v0] Re-extraction error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Re-extraction failed' },
+      { error: error?.message || String(error) },
       { status: 500 }
     );
   }

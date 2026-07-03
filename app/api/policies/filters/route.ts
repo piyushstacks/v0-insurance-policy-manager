@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       .not('policy_number', 'ilike', 'PENDING_OCR%');
 
     const uniqueCompanies = Array.from(new Set(
-      (insurersData || []).map(p => p.insurer?.name).filter(Boolean)
+      (insurersData || []).map((p: any) => p.insurer?.name || (Array.isArray(p.insurer) ? p.insurer[0]?.name : null)).filter(Boolean)
     ));
 
     return NextResponse.json({ products: uniqueProducts, companies: uniqueCompanies }, { status: 200 });

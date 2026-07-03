@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
          mobile,
          policies (
            id,
+           policy_number,
            premium_amount,
            policy_type,
            expiry_date
@@ -72,10 +73,20 @@ export async function GET(request: NextRequest) {
     
     // Process top-level metrics for each customer safely
     const formatted = customers.map(c => {
-       const userPolicies = Array.isArray(c.policies) ? c.policies : (c.policies ? [c.policies] : []);
-       const totalPremium = userPolicies.reduce((acc: number, p: any) => acc + (p.premium_amount || 0), 0);
+       const allPolicies = Array.isArray(c.policies) ? c.policies : (c.policies ? [c.policies] : []);
        
-       const upcomingRenewals = userPolicies
+       // Exclude pending extractions from totals and counts
+       const activePolicies = allPolicies.filter((p: any) => {
+         const pn = p.policy_number || '';
+         return !pn.startsWith('PENDING_OCR') && 
+                !pn.startsWith('BULK_OCR') && 
+                !pn.startsWith('IMG-') && 
+                !pn.startsWith('doc_');
+       });
+
+       const totalPremium = activePolicies.reduce((acc: number, p: any) => acc + (p.premium_amount || 0), 0);
+       
+       const upcomingRenewals = activePolicies
          .map((p: any) => p.expiry_date)
          .filter((date: string | null) => date && new Date(date) >= new Date())
          .sort((a: any, b: any) => new Date(a).getTime() - new Date(b).getTime());
@@ -85,7 +96,7 @@ export async function GET(request: NextRequest) {
           name: c.name,
           email: c.email,
           mobile: c.mobile,
-          policiesCount: userPolicies.length,
+          policiesCount: activePolicies.length,
           totalPremium,
           nextRenewal: upcomingRenewals.length > 0 ? upcomingRenewals[0] : null
        };

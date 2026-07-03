@@ -46,7 +46,13 @@ export async function GET(request: NextRequest) {
        .in('user_id', teamUserIds);
 
      if (error) throw error;
-     const allPolicies = policies || [];
+     const allPolicies = (policies || []).filter(p => {
+       const pn = p.policy_number || '';
+       return !pn.startsWith('PENDING_OCR') && 
+              !pn.startsWith('BULK_OCR') && 
+              !pn.startsWith('IMG-') && 
+              !pn.startsWith('doc_');
+     });
      
      // Determine date ranges for filters
      const now = new Date();

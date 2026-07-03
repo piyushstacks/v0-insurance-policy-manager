@@ -58,7 +58,6 @@ export async function getPolicies(
     customerId?: string;
     insurerId?: string;
     search?: string;
-    search?: string;
     excludePending?: boolean;
     onlyPending?: boolean;
     companyName?: string;
@@ -145,8 +144,12 @@ export async function getPolicyWithDocuments(policyId: string, userId: string) {
       .from('policies')
       .select(`
         *,
-        customer:customers(name, email, mobile),
-        insurer:insurers(name, contact)
+        customer:customers(*),
+        insurer:insurers(*),
+        life:life_policies(*),
+        health:health_policies(*),
+        motor:motor_policies(*),
+        commercial:commercial_policies(*)
       `)
       .eq('id', policyId)
       .in('user_id', await getTeamUserIds(userId))

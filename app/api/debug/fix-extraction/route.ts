@@ -123,8 +123,82 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (action === 're-extract-all') {
+      // 1. Fetch all documents
+      const { data: docs, error: selectError } = await supabaseAdmin!
+        .from('policy_documents')
+        .select('id, file_path, policy_id, policies(user_id)');
+
+      if (selectError) throw selectError;
+
+      if (!docs || docs.length === 0) {
+        return NextResponse.json({
+          success: true,
+          message: 'No policy documents found to re-extract.',
+          enqueuedCount: 0,
+        });
+      }
+
+      // Helper to generate public B2 URL
+      const getB2PublicUrl = (fileName: string) => {
+        const b2Bucket = process.env.B2_BUCKET_NAME || '';
+        const b2PublicUrl = process.env.NEXT_PUBLIC_B2_PUBLIC_URL || '';
+        if (b2PublicUrl) {
+          const baseUrl = b2PublicUrl.endsWith('/') ? b2PublicUrl.slice(0, -1) : b2PublicUrl;
+          return `${baseUrl}/${fileName}`;
+        }
+        return `https://f000.backblazeb2.com/file/${b2Bucket}/${fileName}`;
+      };
+
+      let enqueuedCount = 0;
+      for (const doc of docs) {
+        if (!doc.file_path) continue;
+
+        const fileUrl = getB2PublicUrl(doc.file_path);
+        const policyUserId = (doc.policies as any)?.user_id || 'system';
+        const jobId = `extraction-${doc.id}`;
+
+        // Reset document status to pending
+        await supabaseAdmin!
+          .from('policy_documents')
+          .update({ extraction_status: 'pending' })
+          .eq('id', doc.id);
+
+        // Delete any existing job for this document
+        await supabaseAdmin!
+          .from('extraction_jobs')
+          .delete()
+          .eq('document_id', doc.id);
+
+        // Create new queued job record
+        const { data: jobRow } = await supabaseAdmin!
+          .from('extraction_jobs')
+          .insert([
+            {
+              document_id: doc.id,
+              status: 'queued',
+              job_id: jobId,
+            },
+          ])
+          .select('id')
+          .single();
+
+        if (jobRow) {
+          // Push job onto Upstash Redis queue
+          await enqueueExtractionJob(jobRow.id, doc.id, policyUserId, fileUrl);
+          enqueuedCount++;
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Successfully reset and enqueued ${enqueuedCount} documents for re-extraction.`,
+        enqueuedCount,
+      });
+    }
+
     return NextResponse.json(
-      { error: 'Unknown action. Use: reset-processing, retry-failed, or clear-errors' },
+      { error: 'Unknown action. Use: reset-processing, retry-failed, clear-errors, or re-extract-all' },
       { status: 400 }
     );
   } catch (error) {

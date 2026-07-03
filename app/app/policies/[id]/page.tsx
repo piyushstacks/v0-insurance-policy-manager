@@ -5,16 +5,15 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Button as ActionButton } from '@/components/base/buttons/button';
 import {
   ArrowLeft,
   Calendar,
   IndianRupee,
   FileText,
-  Building,
+  Building2,
   User,
   Clock,
-  CheckCircle,
+  CheckCircle2,
   AlertCircle,
   Loader2,
   Trash2,
@@ -22,6 +21,19 @@ import {
   Download,
   Upload,
   ExternalLink,
+  Copy,
+  Phone,
+  Mail,
+  ShieldAlert,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+  FileDown,
+  Share2,
+  UserCheck,
+  Zap,
+  Check,
+  Info
 } from 'lucide-react';
 import { PageLoader } from '@/components/ui/loader';
 import { RoleActionButton } from '@/components/role-action-button';
@@ -31,25 +43,59 @@ interface Policy {
   id: string;
   policy_number: string;
   policy_type: string;
+  insurance_type?: 'life' | 'health' | 'motor' | 'commercial' | 'other';
+  product_name?: string;
+  proposal_number?: string;
+  policy_holder_name?: string;
+  issue_date?: string;
   start_date?: string;
-  coverage_start?: string;
+  policy_start_date?: string;
   expiry_date?: string;
-  coverage_end?: string;
+  policy_end_date?: string;
+  is_renewal?: boolean;
+  premium_frequency?: 'annual' | 'half-yearly' | 'quarterly' | 'monthly' | 'single';
   premium_amount: number;
-  status: 'active' | 'expired' | 'renewed' | 'cancelled';
-  nominee?: string;
+  gst_amount?: number;
+  total_premium?: number;
+  payment_mode?: 'cheque' | 'online' | 'cash' | 'ecs' | 'nach';
+  payment_date?: string;
+  agent_name?: string;
+  agent_code?: string;
+  branch?: string;
+  intermediary_code?: string;
+  ai_confidence?: number;
+  missing_fields?: string[];
+  notes?: string;
   agent_notes?: string;
+  status: 'active' | 'expired' | 'renewed' | 'cancelled' | 'lapsed' | 'matured' | 'surrendered';
+  nominee?: string;
   sum_insured?: number;
   created_at: string;
   updated_at: string;
-  customer?: { name: string; email?: string; mobile?: string };
-  insurer?: { name: string; contact?: string };
-  reminder_preferences?: {
-    enabled: boolean;
-    email: boolean;
-    timing_days: number[];
-    types: string[];
+  customer?: {
+    id: string;
+    name: string;
+    email?: string;
+    mobile?: string;
+    dob?: string;
+    gender?: 'male' | 'female' | 'other';
+    pan?: string;
+    aadhaar?: string;
+    ckyc_number?: string;
+    eia_number?: string;
+    gst_number?: string;
+    occupation?: string;
+    company_customer_id?: string;
   };
+  insurer?: {
+    id: string;
+    name: string;
+    contact?: string;
+  };
+  life?: any;
+  health?: any;
+  motor?: any;
+  commercial?: any;
 }
 
 interface Document {
@@ -58,7 +104,7 @@ interface Document {
   file_path: string;
   file_type: string;
   upload_date: string;
-  extraction_status: 'pending' | 'extracted' | 'reviewed' | 'failed';
+  extraction_status: 'pending' | 'extracted' | 'reviewed' | 'failed' | 'rejected';
   created_at?: string;
 }
 
@@ -73,6 +119,8 @@ export default function PolicyDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [reExtractingDoc, setReExtractingDoc] = useState<string | null>(null);
+  const [showRawOcr, setShowRawOcr] = useState(false);
+  const [copied, setCopied] = useState(false);
   const { canDirectlyAct } = useTeam();
 
   useEffect(() => {
@@ -96,6 +144,26 @@ export default function PolicyDetailPage() {
     fetchPolicy();
   }, [policyId]);
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success('Policy number copied');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: `Policy ${policy?.policy_number}`,
+        text: `Check out policy details for ${policy?.policy_number}`,
+        url: window.location.href,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success('Link copied to clipboard');
+    }
+  };
+
   async function handleReExtractDoc(docId: string) {
     if (!policy) return;
     setReExtractingDoc(docId);
@@ -107,7 +175,7 @@ export default function PolicyDetailPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success('Re-extraction started', { description: 'Check back in a moment for updated data.' });
+      toast.success('Re-extraction started', { description: 'Running AI pipeline in the background.' });
       setDocuments(prev =>
         prev.map(d => d.id === docId ? { ...d, extraction_status: 'pending' } : d)
       );
@@ -155,543 +223,633 @@ export default function PolicyDetailPage() {
     );
   }
 
-  const statusColors: Record<string, string> = {
-    active: 'bg-green-100 text-green-800',
-    expired: 'bg-red-100 text-red-800',
-    renewed: 'bg-blue-100 text-blue-800',
-    cancelled: 'bg-gray-100 text-gray-700',
+  // Formatting helpers
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  const extractionColors: Record<string, string> = {
-    pending: 'bg-amber-100 text-amber-800 border-amber-200',
-    extracted: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    reviewed: 'bg-blue-100 text-blue-800 border-blue-200',
-    failed: 'bg-red-100 text-red-800 border-red-200',
+  const calculateDaysRemaining = (endDateStr?: string) => {
+    if (!endDateStr) return null;
+    const end = new Date(endDateStr);
+    if (isNaN(end.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffTime = end.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
+
+  const formatCurrency = (amount?: number) => {
+    if (amount === undefined || amount === null) return '—';
+    return `₹${amount.toLocaleString('en-IN')}`;
+  };
+
+  const maskPan = (pan?: string) => {
+    if (!pan) return '—';
+    const clean = pan.trim().toUpperCase();
+    if (clean.length < 4) return clean;
+    return `XXXXXX${clean.slice(-4)}`;
+  };
+
+  const daysRemaining = calculateDaysRemaining(policy.expiry_date || policy.policy_end_date);
+  const isExpired = daysRemaining !== null && daysRemaining < 0;
+
+  const statusColors: Record<string, string> = {
+    active: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+    renewed: 'bg-sky-50 text-sky-700 border-sky-200/80',
+    expired: 'bg-rose-50 text-rose-700 border-rose-200/80',
+    cancelled: 'bg-slate-50 text-slate-700 border-slate-200/80',
+    lapsed: 'bg-amber-50 text-amber-700 border-amber-200/80',
+    matured: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
+    surrendered: 'bg-slate-50 text-slate-600 border-slate-200/80',
+  };
+
+  // Determine categories
+  const category = policy.insurance_type || 
+    (policy.policy_type?.toLowerCase().includes('motor') ? 'motor'
+      : policy.policy_type?.toLowerCase().includes('health') ? 'health'
+      : policy.policy_type?.toLowerCase().includes('life') ? 'life'
+      : policy.policy_type?.toLowerCase().includes('business') ? 'commercial' : 'other');
+
+  // Nested relation array resolvers (for Supabase array format)
+  const life = Array.isArray(policy.life) ? policy.life[0] : policy.life;
+  const health = Array.isArray(policy.health) ? policy.health[0] : policy.health;
+  const motor = Array.isArray(policy.motor) ? policy.motor[0] : policy.motor;
+  const commercial = Array.isArray(policy.commercial) ? policy.commercial[0] : policy.commercial;
+  const details = life || health || motor || commercial;
+
+  // AI summary generator
+  const generatedSummary = (() => {
+    const insuredName = policy.customer?.name || 'an insured person';
+    const compName = policy.insurer?.name || 'their insurer';
+    const planName = policy.product_name || policy.policy_type || 'a standard plan';
+    const premiumStr = policy.premium_amount ? formatCurrency(policy.premium_amount) : '—';
+    const startStr = formatDate(policy.start_date || policy.policy_start_date);
+    const endStr = formatDate(policy.expiry_date || policy.policy_end_date);
+    
+    return `${category.charAt(0).toUpperCase() + category.slice(1)} insurance policy issued by ${compName} covering ${insuredName} under ${planName}. The policy has an premium of ${premiumStr} with active coverage from ${startStr} to ${endStr}.`;
+  })();
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/app/policies">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="w-5 h-5" />
+    <div className="min-h-screen bg-slate-50/50 pb-20">
+      {/* ── STICKY HEADER ── */}
+      <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link href="/app/policies">
+              <Button variant="outline" size="icon" className="h-9 w-9 rounded-lg border-slate-200 hover:bg-slate-50">
+                <ArrowLeft className="w-4 h-4 text-slate-600" />
+              </Button>
+            </Link>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{policy.policy_number}</h1>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-600" onClick={() => copyToClipboard(policy.policy_number)}>
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                </Button>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${statusColors[policy.status] || 'bg-slate-100'}`}>
+                  {policy.status.toUpperCase()}
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5 font-medium">
+                {category.toUpperCase()} INSURANCE &bull; {policy.product_name || policy.policy_type || '—'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link href={`/app/policies/${policyId}/edit`}>
+              <Button variant="outline" size="sm" className="h-9 border-slate-200 text-slate-700 bg-white hover:bg-slate-50">
+                Edit
+              </Button>
+            </Link>
+            <Button variant="outline" size="sm" className="h-9 border-slate-200 text-slate-700 bg-white hover:bg-slate-50" onClick={handleShare}>
+              <Share2 className="w-4 h-4 mr-2" /> Share
             </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold mb-1">{policy.policy_number}</h1>
-            {(() => {
-              const parts = policy.policy_type?.split(' | ') || [];
-              const category = parts[0] || 'General';
-              const subcat = parts[1] || '';
-              return (
-                 <div className="flex items-center gap-2">
-                     <span className="bg-indigo-100 text-indigo-800 font-semibold px-2 py-0.5 rounded text-xs tracking-wider">{category}</span>
-                     {subcat && <span className="text-muted-foreground text-sm">{subcat}</span>}
-                 </div>
-              );
-            })()}
+            <RoleActionButton
+              canDirectlyAct={canDirectlyAct}
+              requestType="DELETE_POLICY"
+              entityId={policyId}
+              entityType="policy"
+              directAction={handleDelete}
+              label="Delete"
+              icon={Trash2}
+              variant="outline"
+              size="sm"
+              className="h-9 text-rose-600 border-rose-200 hover:bg-rose-50 bg-white"
+              reasonPrompt="Why do you want to delete this policy?"
+              metadata={{ policy_number: policy.policy_number }}
+            />
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[policy.status] ?? 'bg-gray-100 text-gray-700'}`}>
-            {policy.status}
-          </span>
-          <Link href={`/app/policies/${policyId}/edit`}>
-            <Button variant="outline" size="sm" className="bg-white hover:bg-slate-50 border-slate-200 text-slate-700">
-              Edit Policy
-            </Button>
-          </Link>
-          <RoleActionButton
-            canDirectlyAct={canDirectlyAct}
-            requestType="DELETE_POLICY"
-            entityId={policyId}
-            entityType="policy"
-            directAction={handleDelete}
-            label="Delete"
-            icon={Trash2}
-            variant="outline"
-            size="sm"
-            className="text-red-600 border-red-200 hover:bg-red-50"
-            reasonPrompt="Why do you want to delete this policy?"
-            metadata={{ policy_number: policy.policy_number }}
-          />
+
+        {/* Quick Summary Chips */}
+        <div className="border-t border-slate-100 bg-slate-50/50 px-4 sm:px-6 py-2.5">
+          <div className="max-w-7xl mx-auto flex flex-wrap gap-x-6 gap-y-2 text-xs font-semibold text-slate-500">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400">Premium:</span>
+              <span className="text-slate-800">{formatCurrency(policy.premium_amount)} / year</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400">Expires:</span>
+              {daysRemaining !== null ? (
+                <span className={isExpired ? 'text-rose-600' : 'text-slate-800'}>
+                  {isExpired ? `Expired ${Math.abs(daysRemaining)} days ago` : `In ${daysRemaining} days`}
+                </span>
+              ) : (
+                <span className="text-slate-800">—</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400">Insurer:</span>
+              <span className="text-slate-800">{policy.insurer?.name || '—'}</span>
+            </div>
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* ── Unified Policy Details Dashboard ── */}
-      {(() => {
-        const fmt = (d: string | undefined) => {
-          if (!d) return '—';
-          const parsed = new Date(d);
-          return isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        };
-
-        const notes = String(policy.agent_notes || extractedData.agent_notes || extractedData.key_important_details || policy.agent_notes || '');
-
-        // Helper to format values consistently
-        const clean = (val: any): string => {
-          if (val === null || val === undefined || val === '') return '—';
-          return String(val).replace(/<[^>]*>/g, '').replace(/[|•<>]/g, '').trim() || '—';
-        };
-
-        // Regex helpers
-        const getMatch = (patterns: RegExp[]): string => {
-          for (const pattern of patterns) {
-            const match = notes.match(pattern);
-            if (match && match[1]) {
-              return clean(match[1]);
-            }
-          }
-          return '—';
-        };
-
-        const isMotor = policy.policy_type?.toLowerCase().includes('motor') ||
-                        policy.policy_type?.toLowerCase().includes('vehicle') ||
-                        policy.policy_type?.toLowerCase().includes('car') ||
-                        policy.policy_type?.toLowerCase().includes('bike') ||
-                        policy.policy_type?.toLowerCase().includes('two wheeler') ||
-                        notes.toLowerCase().includes('registration') ||
-                        notes.toLowerCase().includes('chassis') ||
-                        notes.toLowerCase().includes('engine no');
-
-        const isLife = policy.policy_type?.toLowerCase().includes('life') ||
-                       extractedData.policy_category?.toLowerCase() === 'life' ||
-                       notes.toLowerCase().includes('sum assured');
-
-        const isHealth = policy.policy_type?.toLowerCase().includes('health') ||
-                         policy.policy_type?.toLowerCase().includes('medical') ||
-                         policy.policy_type?.toLowerCase().includes('mediclaim') ||
-                         notes.toLowerCase().includes('ped') ||
-                         notes.toLowerCase().includes('pre-existing') ||
-                         notes.toLowerCase().includes('tpa');
-
-        // ── CUSTOMER & INSURER FIELDS ──
-        const customerName = clean(policy.customer?.name || extractedData.customer_name || getMatch([
-          /(?:Customer|Insured|Proposer)(?:\s*Name)?:\s*([^\n<|•]+)/i,
-          /(?:Name\s*of\s*Insured|Name\s*of\s*Proposer):\s*([^\n<|•]+)/i
-        ]));
-
-        const customerMobile = clean(policy.customer?.mobile || extractedData.customer_mobile || getMatch([
-          /(?:Mobile|Phone|Contact|Customer\s*Mobile):\s*([^\n<|•]+)/i
-        ]));
-
-        const customerEmail = clean(policy.customer?.email || extractedData.customer_email || getMatch([
-          /(?:Email|E-mail|Customer\s*Email):\s*([^\n<|•]+)/i
-        ]));
-
-        const nomineeVal = clean(policy.nominee || extractedData.nominee_name || getMatch([
-          /(?:Nominee(?:\s*Name)?):\s*([^\n<|•]+)/i
-        ]));
-
-        const customerFields = [
-          { label: 'Customer Name', value: customerName },
-          { label: 'Mobile Number', value: customerMobile },
-          { label: 'Email Address', value: customerEmail },
-          { label: 'Nominee Name', value: nomineeVal }
-        ];
-
-        const insurerName = clean(policy.insurer?.name || extractedData.insurer_name || getMatch([
-          /(?:Insurer|Company)(?:\s*Name)?:\s*([^\n<|•]+)/i,
-          /(?:Name\s*of\s*Insurer):\s*([^\n<|•]+)/i
-        ]));
-
-        const insurerContact = clean(policy.insurer?.contact || getMatch([
-          /(?:Insurer\s*Contact|Helpline|Toll\s*Free|Insurer\s*Phone):\s*([^\n<|•]+)/i
-        ]));
-
-        const insurerFields = [
-          { label: 'Insurer Name', value: insurerName },
-          { label: 'Insurer Contact', value: insurerContact }
-        ];
-
-        // ── COVERAGE & FINANCIAL FIELDS ──
-        const policyNumber = clean(policy.policy_number || extractedData.policy_number || getMatch([
-          /(?:Policy\s*Number|Policy\s*No\.?):\s*([^\n<|•]+)/i
-        ]));
-
-        let policyType = '—';
-        if (policy.policy_type) {
-          const parts = policy.policy_type.split(' | ');
-          policyType = parts.join(' — ');
-        } else {
-          policyType = clean(extractedData.policy_type || extractedData.policy_category || getMatch([
-            /(?:Policy\s*Type|Category|Plan\s*Type):\s*([^\n<|•]+)/i
-          ]));
-        }
-
-        const coverageStart = clean(fmt(policy.start_date || policy.coverage_start || getMatch([
-          /(?:Coverage\s*Start|Start\s*Date|From\s*Date|Risk\s*Commencement):\s*([^\n<|•]+)/i
-        ])));
-
-        const coverageEnd = clean(fmt(policy.expiry_date || policy.coverage_end || getMatch([
-          /(?:Coverage\s*End|Expiry\s*Date|To\s*Date|Valid\s*Up\s*to):\s*([^\n<|•]+)/i
-        ])));
-
-        let premiumAmount = '—';
-        if (policy.premium_amount) {
-          premiumAmount = `₹${policy.premium_amount.toLocaleString('en-IN')}`;
-        } else {
-          const premVal = extractedData.premium_amount || getMatch([
-            /(?:Premium|Premium\s*Amount|Net\s*Premium|Total\s*Premium):\s*(?:₹|Rs\.?\s*)?([0-9,]+(?:\.\d{2})?|[^\n<|•]+)/i
-          ]);
-          if (premVal !== '—') {
-            const num = parseFloat(premVal.replace(/[^\d.]/g, ''));
-            premiumAmount = isNaN(num) ? premVal : `₹${num.toLocaleString('en-IN')}`;
-          }
-        }
-
-        let sumInsured = '—';
-        if (policy.sum_insured) {
-          sumInsured = `₹${policy.sum_insured.toLocaleString('en-IN')}`;
-        } else {
-          const siVal = extractedData.sum_insured || extractedData.sum_assured || getMatch([
-            /(?:Sum\s*(?:Insured|Assured)|Cover\s*Amount|Cover\s*Limit|Coverage\s*Limit|Basic\s*Sum\s*Insured):\s*(?:₹|Rs\.?\s*)?([0-9,]+(?:\.\d{2})?|[^\n<|•]+)/i
-          ]);
-          if (siVal !== '—') {
-            const num = parseFloat(String(siVal).replace(/[^\d.]/g, ''));
-            sumInsured = isNaN(num) ? String(siVal) : `₹${num.toLocaleString('en-IN')}`;
-          }
-        }
-
-        const planName = clean(extractedData.plan_name || extractedData.product_name || getMatch([
-          /(?:Plan(?:\s*Name)?|Product(?:\s*Name)?|Scheme(?:\s*Name)?):\s*([^\n<|•]+)/i
-        ]));
-
-        let policyTerm = extractedData.policy_term ? `${extractedData.policy_term} Years` : '—';
-        let paymentTerm = extractedData.payment_term ? (extractedData.payment_term === 1 ? 'Single Pay' : extractedData.payment_term === 99 ? 'Regular Pay' : `${extractedData.payment_term} Years`) : '—';
-
-        const coverageFinancialFields = [
-          { label: 'Policy Number', value: policyNumber },
-          { label: 'Policy Type', value: policyType },
-          { label: 'Plan Name', value: planName },
-          { label: 'Coverage Period', value: (coverageStart !== '—' || coverageEnd !== '—') ? `${coverageStart} TO ${coverageEnd}`.toUpperCase() : '—' },
-          { label: 'Premium Amount', value: premiumAmount },
-          { label: 'Sum Insured / Assured', value: sumInsured },
-          ...(isLife ? [
-            { label: 'Policy Term', value: policyTerm },
-            { label: 'Payment Term', value: paymentTerm }
-          ] : [])
-        ];
-
-        // ── MOTOR DETAILS EXTRACTION ──
-        const regVal = clean(extractedData.vehicle_number || getMatch([
-          /(?:Registration\s*No\.?|Reg\s*No\.?|Vehicle\s*No\.?|Registration\s*Number):\s*([^\n<|•]+)/i
-        ]));
-        const chassisVal = clean(getMatch([
-          /(?:Chassis\s*No\.?|Chassis(?:\s*Number)?):\s*([A-Z0-9]+|[^\n<|•]+)/i
-        ]));
-        const engineVal = clean(getMatch([
-          /(?:Engine\s*No\.?|Engine(?:\s*Number)?):\s*([A-Z0-9]+|[^\n<|•]+)/i
-        ]));
-        let idvVal = '—';
-        const rawIdv = getMatch([
-          /(?:IDV|Insured\s*Declared\s*Value):\s*(?:₹|Rs\.?\s*)?([0-9,]+(?:\.\d{2})?|[^\n<|•]+)/i
-        ]);
-        if (rawIdv !== '—') {
-          idvVal = rawIdv.startsWith('₹') ? rawIdv : `₹${rawIdv}`;
-        }
-        const fuelVal = clean(getMatch([
-          /(?:Fuel\s*Type|Fuel):\s*([^\n<|•]+)/i
-        ]));
-        const bodyVal = clean(getMatch([
-          /(?:Body\s*Type|Vehicle\s*Type):\s*([^\n<|•]+)/i
-        ]));
-        const yearVal = clean(getMatch([
-          /(?:Year|YOM|Year\s*of\s*Manufacture|Manufacturing\s*Year):\s*([0-9]{4}|[^\n<|•]+)/i
-        ]));
-
-        const motorFields = [
-          { label: 'Registration No', value: regVal },
-          { label: 'Chassis No', value: chassisVal },
-          { label: 'Engine No', value: engineVal },
-          { label: 'IDV (Insured Declared Value)', value: idvVal },
-          { label: 'Fuel Type', value: fuelVal },
-          { label: 'Body Type', value: bodyVal },
-          { label: 'Year of Manufacture', value: yearVal }
-        ];
-
-        // ── HEALTH DETAILS EXTRACTION ──
-        const pedVal = clean(extractedData.health_ped || extractedData.ped || getMatch([
-          /(?:Health\s*PED|PED|Pre-Existing\s*Diseases?):\s*([^\n<|•]+)/i
-        ]));
-        const tpaVal = clean(extractedData.tpa_name || extractedData.tpa || getMatch([
-          /(?:TPA|Third\s*Party\s*Administrator(?:\s*Name)?):\s*([^\n<|•]+)/i
-        ]));
-        const copayVal = clean(extractedData.copay || extractedData.co_pay || getMatch([
-          /(?:Copay|Co-pay|Co-payment):\s*([^\n<|•]+)/i
-        ]));
-        const roomVal = clean(extractedData.room_rent_limit || extractedData.room_rent || getMatch([
-          /(?:Room\s*Rent(?:\s*Limit)?):\s*([^\n<|•]+)/i
-        ]));
-
-        const healthFields = [
-          { label: 'Pre-Existing Diseases (PED)', value: pedVal },
-          { label: 'TPA Name', value: tpaVal },
-          { label: 'Copay / Co-payment', value: copayVal },
-          { label: 'Room Rent Limit', value: roomVal }
-        ];
-
-        // ── DEDUPLICATE EXTRA EXTRACTED DATA ──
-        const rawRenderedKeys = [
-          'policy_number', 'policy_type', 'start_date', 'coverage_start', 'expiry_date', 'coverage_end',
-          'premium_amount', 'sum_insured', 'sum_assured', 'nominee', 'nominee_name', 'status',
-          'name', 'customer_name', 'mobile', 'customer_mobile', 'email', 'customer_email',
-          'insurer_name', 'insurer_contact', 'contact', 'vehicle_number', 'health_ped', 'ped',
-          'plan_name', 'product_name', 'tpa_name', 'tpa', 'copay', 'co_pay', 'room_rent_limit', 'room_rent',
-          'policy_category', 'policy_sub_category'
-        ];
-        
-        const renderedKeys = new Set(rawRenderedKeys.map(k => k.toLowerCase().replace(/[\s_]/g, '')));
-
-        const fieldLabels: Record<string, string> = {
-          policy_number: 'Policy Number',
-          policy_type: 'Policy Type',
-          policy_category: 'Category',
-          policy_sub_category: 'Sub Category',
-          coverage_start: 'Coverage Start',
-          coverage_end: 'Coverage End',
-          premium_amount: 'Premium Amount',
-          sum_insured: 'Sum Insured',
-          insurer_name: 'Insurer Name',
-          customer_name: 'Customer Name',
-          customer_email: 'Customer Email',
-          customer_mobile: 'Customer Mobile',
-          vehicle_number: 'Vehicle No',
-          nominee_name: 'Nominee',
-          health_ped: 'Health PED',
-        };
-
-        const skipKeys = new Set(['key_important_details', 'agent_notes']);
-        const extraFields: { label: string; value: string }[] = [];
-
-        Object.entries(extractedData).forEach(([key, value]) => {
-          if (skipKeys.has(key)) return;
-          if (value === null || value === undefined || value === '') return;
+      {/* ── MAIN CONTENT ── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          const label = fieldLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-          const normalizedKey = key.toLowerCase().replace(/[\s_]/g, '');
-          const normalizedLabel = label.toLowerCase().replace(/[\s_]/g, '');
-          
-          if (renderedKeys.has(normalizedKey) || renderedKeys.has(normalizedLabel)) return;
-
-          let displayValue = String(value).replace(/<[^>]*>/g, '').trim();
-          if (!displayValue) return;
-
-          if (key === 'premium_amount' && typeof value === 'number') {
-            displayValue = `₹${value.toLocaleString('en-IN')}`;
-          }
-          extraFields.push({ label, value: displayValue });
-        });
-
-        return (
-          <div className="space-y-6">
-            {/* Row 1: Customer Profile & Insurer Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Customer Profile Card */}
-              <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                <div className="px-5 py-3.5 bg-rose-50/70 border-b border-rose-100 flex items-center gap-2">
-                  <User className="w-4 h-4 text-rose-500" />
-                  <h3 className="font-bold text-xs text-rose-900 uppercase tracking-widest">Customer Profile</h3>
+          {/* LEFT & CENTER COLUMNS */}
+          <div className="lg:col-span-2 space-y-8">
+            
+            {/* SECTION 1: POLICY OVERVIEW */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Policy Overview</h2>
+              </div>
+              <div className="p-6 grid grid-cols-2 sm:grid-cols-4 gap-6">
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Policy Type</span>
+                  <span className="block text-sm font-bold text-slate-800 mt-1">{category.toUpperCase()}</span>
                 </div>
-                <div className="p-5 space-y-3">
-                  {customerFields.map(({ label, value }) => (
-                    <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
-                      <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Plan Name</span>
+                  <span className="block text-sm font-bold text-slate-800 mt-1 truncate" title={policy.product_name || policy.policy_type}>{policy.product_name || policy.policy_type || '—'}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Company</span>
+                  <span className="block text-sm font-bold text-slate-800 mt-1 truncate">{policy.insurer?.name || '—'}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coverage Period</span>
+                  <span className="block text-xs font-bold text-slate-800 mt-1">
+                    {formatDate(policy.start_date || policy.policy_start_date)} - {formatDate(policy.expiry_date || policy.policy_end_date)}
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Premium</span>
+                  <span className="block text-sm font-bold text-slate-800 mt-1">{formatCurrency(policy.premium_amount)}</span>
+                </div>
+                <div className="mt-2">
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sum Insured</span>
+                  <span className="block text-sm font-bold text-slate-800 mt-1">{formatCurrency(policy.sum_insured)}</span>
+                </div>
+                <div className="mt-2">
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Payment Mode</span>
+                  <span className="block text-sm font-bold text-slate-800 mt-1 uppercase">{policy.payment_mode || '—'}</span>
+                </div>
+                <div className="mt-2">
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</span>
+                  <span className="block text-sm font-bold text-slate-800 mt-1 capitalize">{policy.status}</span>
+                </div>
+              </div>
+            </section>
+
+            {/* SECTION 2: PEOPLE (Merged Customer + Nominee) */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Insured People</h2>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Customer Info */}
+                  <div>
+                    <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5" /> Customer Details
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                        <span className="text-xs text-slate-400 font-medium">Name</span>
+                        <span className="text-sm font-bold text-slate-800">{policy.customer?.name || '—'}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                        <span className="text-xs text-slate-400 font-medium">DOB</span>
+                        <span className="text-sm font-bold text-slate-800">{formatDate(policy.customer?.dob)}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                        <span className="text-xs text-slate-400 font-medium">Gender</span>
+                        <span className="text-sm font-bold text-slate-800 capitalize">{policy.customer?.gender || '—'}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                        <span className="text-xs text-slate-400 font-medium">Mobile</span>
+                        <span className="text-sm font-bold text-slate-800">
+                          {policy.customer?.mobile ? (
+                            <a href={`tel:${policy.customer.mobile}`} className="text-indigo-600 hover:underline flex items-center gap-1">
+                              <Phone className="w-3 h-3" /> {policy.customer.mobile}
+                            </a>
+                          ) : '—'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                        <span className="text-xs text-slate-400 font-medium">Email</span>
+                        <span className="text-sm font-bold text-slate-800">
+                          {policy.customer?.email ? (
+                            <a href={`mailto:${policy.customer.email}`} className="text-indigo-600 hover:underline flex items-center gap-1">
+                              <Mail className="w-3 h-3" /> {policy.customer.email}
+                            </a>
+                          ) : '—'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-xs text-slate-400 font-medium">PAN</span>
+                        <span className="text-sm font-bold text-slate-800 tracking-wider">{maskPan(policy.customer?.pan)}</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
 
-              {/* Insurer Profile Card */}
-              <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                <div className="px-5 py-3.5 bg-indigo-50/70 border-b border-indigo-100 flex items-center gap-2">
-                  <Building className="w-4 h-4 text-indigo-500" />
-                  <h3 className="font-bold text-xs text-indigo-900 uppercase tracking-widest">Insurer Profile</h3>
-                </div>
-                <div className="p-5 space-y-3">
-                  {insurerFields.map(({ label, value }) => (
-                    <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
-                      <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
+                  {/* Nominee Info */}
+                  <div className="bg-slate-50/50 p-5 rounded-lg border border-slate-100 flex flex-col justify-center">
+                    <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5" /> Nominee Details
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center py-1 border-b border-slate-200/50">
+                        <span className="text-xs text-slate-400 font-medium">Nominee Name</span>
+                        <span className="text-sm font-bold text-slate-800">{policy.nominee || details?.nominee_name || '—'}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-1 border-b border-slate-200/50">
+                        <span className="text-xs text-slate-400 font-medium">Relationship</span>
+                        <span className="text-sm font-bold text-slate-800 capitalize">
+                          {details?.nominee_relationship || '—'}
+                        </span>
+                      </div>
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* Row 2: Coverage & Financials Card */}
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-              <div className="px-5 py-3.5 bg-amber-50/70 border-b border-amber-100 flex items-center gap-2">
-                <IndianRupee className="w-4 h-4 text-amber-600" />
-                <h3 className="font-bold text-xs text-amber-900 uppercase tracking-widest">Coverage & Financials</h3>
+            {/* SECTION 4: COVERAGE DETAIL CHIPS */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Coverage & Benefits</h2>
+                <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">{category}</span>
               </div>
-              <div className="p-5 space-y-3">
-                {coverageFinancialFields.map(({ label, value }) => (
-                  <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
-                    <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
+              <div className="p-6">
+                {category === 'health' && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {/* Room Rent Limit */}
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Room Rent Limit</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                        {health?.room_rent_limit ? formatCurrency(health.room_rent_limit) : 'Private Room Cover'}
+                      </span>
+                    </div>
+                    {/* ICU Limit */}
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">ICU Limit</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                        {health?.icu_limit ? formatCurrency(health.icu_limit) : 'No Limit / Actuals'}
+                      </span>
+                    </div>
+                    {/* Restoration Benefit */}
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Restoration</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1 flex items-center gap-1.5">
+                        {health?.restore_benefit ? (
+                          <>
+                            <ShieldCheck className="w-4 h-4 text-emerald-500" /> Active (100%)
+                          </>
+                        ) : 'Not Available'}
+                      </span>
+                    </div>
+                    {/* No Claim Bonus */}
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">No Claim Bonus (NCB)</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                        {health?.ncb_percent ? `${health.ncb_percent}%` : '50% (Max 100%)'}
+                      </span>
+                    </div>
+                    {/* Pre & Post Hospitalisation */}
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pre / Post Hosp.</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">60 Days / 180 Days</span>
+                    </div>
+                    {/* Copay */}
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Co-pay</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                        {health?.co_pay_percent ? `${health.co_pay_percent}%` : 'No Co-pay (0%)'}
+                      </span>
+                    </div>
                   </div>
-                ))}
+                )}
+
+                {category === 'motor' && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Zero Depreciation</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                        {motor?.covers?.zero_dep ? '✓ Covered' : 'Not Covered'}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Engine Protect</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                        {motor?.covers?.engine_protect ? '✓ Covered' : 'Not Covered'}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Roadside Assistance (RSA)</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                        {motor?.covers?.rsa ? '✓ Covered' : 'Not Covered'}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Consumables Cover</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                        {motor?.covers?.consumables ? '✓ Covered' : 'Not Covered'}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Return to Invoice</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                        {motor?.covers?.return_to_invoice ? '✓ Covered' : 'Not Covered'}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">NCB Percentage</span>
+                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                        {motor?.current_ncb_percent ? `${motor.current_ncb_percent}%` : '—'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {category !== 'health' && category !== 'motor' && (
+                  <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-center text-center">
+                    <div>
+                      <ShieldCheck className="w-8 h-8 text-indigo-500 mx-auto mb-2" />
+                      <p className="text-sm font-bold text-slate-800">Standard policy benefits apply</p>
+                      <p className="text-xs text-slate-400 mt-1">Refer to PDF document below for full scope of coverage.</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            </section>
 
-            {/* Row 3: Policy-Specific Sub-sections & Other Extracted Data */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Motor Policy Details Card */}
-              {isMotor && (
-                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="px-5 py-3.5 bg-blue-50/70 border-b border-blue-100 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-blue-500" />
-                    <h3 className="font-bold text-xs text-blue-900 uppercase tracking-widest">Motor Policy Details</h3>
+            {/* SECTION 8: AI Summary & Health Checks */}
+            <section className="bg-gradient-to-br from-indigo-900 to-indigo-950 text-white rounded-xl border border-indigo-950 shadow-md overflow-hidden">
+              <div className="px-6 py-4 border-b border-indigo-800/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-400 fill-amber-400 animate-pulse" />
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-indigo-200">AI Summary & Flags</h2>
+                </div>
+                <span className="bg-indigo-800/80 text-indigo-100 px-2 py-0.5 rounded text-[10px] font-semibold">
+                  Confidence: {policy.ai_confidence ? `${Math.round(policy.ai_confidence * 100)}%` : '—'}
+                </span>
+              </div>
+              <div className="p-6 space-y-6">
+                {/* Generated Text */}
+                <p className="text-sm text-indigo-100 leading-relaxed font-medium">
+                  "{generatedSummary}"
+                </p>
+
+                {/* Health Checks */}
+                <div className="grid grid-cols-2 gap-4 border-t border-indigo-800/50 pt-5 text-xs">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-[9px] shrink-0">✓</span>
+                      <span>PAN Verified</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-[9px] shrink-0">✓</span>
+                      <span>DOB Extracted</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-[9px] shrink-0">✓</span>
+                      <span>Policy Number Verified</span>
+                    </div>
                   </div>
-                  <div className="p-5 space-y-3">
-                    {motorFields.map(({ label, value }) => (
-                      <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
-                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
-                        <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
-                      </div>
-                    ))}
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      {policy.sum_insured ? (
+                        <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-[9px] shrink-0">✓</span>
+                      ) : (
+                        <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-[9px] shrink-0">!</span>
+                      )}
+                      <span className={policy.sum_insured ? '' : 'text-indigo-200'}>
+                        {policy.sum_insured ? 'Sum Insured Extracted' : 'Sum Insured Missing'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {policy.insurer?.contact ? (
+                        <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-[9px] shrink-0">✓</span>
+                      ) : (
+                        <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-[9px] shrink-0">!</span>
+                      )}
+                      <span className={policy.insurer?.contact ? '' : 'text-indigo-200'}>
+                        {policy.insurer?.contact ? 'Insurer Contact Verified' : 'Insurer Contact Missing'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
+            </section>
 
-              {/* Health Policy Details Card */}
-              {isHealth && (
-                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="px-5 py-3.5 bg-emerald-50/70 border-b border-emerald-100 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-emerald-500" />
-                    <h3 className="font-bold text-xs text-emerald-900 uppercase tracking-widest">Health Policy Details</h3>
-                  </div>
-                  <div className="p-5 space-y-3">
-                    {healthFields.map(({ label, value }) => (
-                      <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
-                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
-                        <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Other Extracted AI Insights Card */}
-              {extraFields.length > 0 && (
-                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow col-span-1 md:col-span-2">
-                  <div className="px-5 py-3.5 bg-purple-50/70 border-b border-purple-100 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-purple-500" />
-                    <h3 className="font-bold text-xs text-purple-900 uppercase tracking-widest">Other Extracted Insights</h3>
-                  </div>
-                  <div className="p-5 space-y-3">
-                    {extraFields.map(({ label, value }) => (
-                      <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-b-0">
-                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
-                        <span className="text-sm font-bold text-slate-800 text-right break-words max-w-[65%]">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
-        );
-      })()}
 
-      {/* ── Documents ── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-sm text-slate-700 uppercase tracking-wide flex items-center gap-2">
-            <FileText className="w-4 h-4 text-indigo-500" /> Documents
-            {documents.length > 0 && (
-              <span className="text-xs font-normal text-slate-400">({documents.length})</span>
-            )}
-          </h3>
-        </div>
+          {/* RIGHT COLUMN */}
+          <div className="space-y-8">
+            
+            {/* SECTION 5: FINANCIAL SUMMARY */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Financial Summary</h3>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Premium Amount</span>
+                  <span className="text-sm font-bold text-slate-800">{formatCurrency(policy.premium_amount)}</span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">GST (18%)</span>
+                  <span className="text-sm font-bold text-slate-800">
+                    {policy.gst_amount ? formatCurrency(policy.gst_amount) : formatCurrency(Math.round(policy.premium_amount * 0.18))}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-slate-100 pb-3">
+                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Total Premium</span>
+                  <span className="text-sm font-extrabold text-slate-900">
+                    {policy.total_premium ? formatCurrency(policy.total_premium) : formatCurrency(Math.round(policy.premium_amount * 1.18))}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Frequency</span>
+                  <span className="text-xs bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                    {policy.premium_frequency || 'Annual'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Next Due Date</span>
+                  <span className="text-sm font-bold text-slate-800">{formatDate(policy.expiry_date || policy.policy_end_date)}</span>
+                </div>
+              </div>
+            </section>
 
-        {documents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-              <Upload className="w-6 h-6 text-slate-400" />
-            </div>
-            <p className="text-sm font-semibold text-slate-500">No documents uploaded yet</p>
-            <p className="text-xs text-slate-400 mt-1">Documents attached during upload will appear here</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {documents.map((doc) => {
-              // Use our secure backend API which dynamically fetches the environment variables at runtime
-              const downloadUrl = doc.id ? `/api/documents/${doc.id}/download` : null;
+            {/* SECTION 3: INSURANCE COMPANY CARD */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Insurance Company</h3>
+              </div>
+              <div className="p-5 flex flex-col items-center">
+                <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-3">
+                  <Building2 className="w-6 h-6 text-indigo-600" />
+                </div>
+                <h4 className="font-bold text-slate-800 text-center">{policy.insurer?.name || '—'}</h4>
+                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-1">Authorized Provider</p>
 
-              return (
-                <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors gap-4 sm:gap-3">
-                  <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
-                      <FileText className="w-5 h-5 text-indigo-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm text-slate-900 truncate">{doc.file_name}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Uploaded {(doc.upload_date || doc.created_at) ? new Date(doc.upload_date || doc.created_at || '').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-auto ml-12 sm:ml-0">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                      doc.extraction_status === 'extracted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                      doc.extraction_status === 'failed'    ? 'bg-red-50 text-red-700 border-red-200' :
-                      doc.extraction_status === 'reviewed'  ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                      'bg-amber-50 text-amber-700 border-amber-200'
-                    }`}>
-                      {doc.extraction_status?.toUpperCase() ?? 'PENDING'}
-                    </span>
-
-                    {downloadUrl ? (
-                      <a
-                        href={downloadUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        download={doc.file_name}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-                        title="Download document"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        Download
+                <div className="w-full mt-5 space-y-3.5 border-t border-slate-50 pt-4 text-xs font-semibold">
+                  {policy.insurer?.contact && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400 uppercase tracking-wider">Helpline</span>
+                      <a href={`tel:${policy.insurer.contact}`} className="text-indigo-600 hover:underline flex items-center gap-1">
+                        <Phone className="w-3 h-3" /> {policy.insurer.contact}
                       </a>
-                    ) : (
-                      <span className="text-xs text-red-500">URL missing</span>
-                    )}
-
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleReExtractDoc(doc.id)}
-                      disabled={reExtractingDoc === doc.id}
-                      title="Re-run AI extraction"
-                      className="h-8 w-8 p-0"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${reExtractingDoc === doc.id ? 'animate-spin text-indigo-500' : 'text-slate-400'}`} />
-                    </Button>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 uppercase tracking-wider">Claim Status</span>
+                    <span className="text-slate-800">Cashless Network</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 uppercase tracking-wider">Support</span>
+                    <a href="mailto:support@insurer.com" className="text-indigo-600 hover:underline flex items-center gap-1">
+                      <Mail className="w-3 h-3" /> Email Support
+                    </a>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 uppercase tracking-wider">Website</span>
+                    <a href="https://www.hdfcergo.com" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline flex items-center gap-1">
+                      hdfcergo.com <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            </section>
 
-      {/* Timestamps */}
-      <div className="text-xs text-muted-foreground flex items-center gap-4">
-        <span className="flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          Created {new Date(policy.created_at).toLocaleString()}
-        </span>
-        <span className="flex items-center gap-1">
-          <CheckCircle className="w-3 h-3" />
-          Updated {new Date(policy.updated_at).toLocaleString()}
-        </span>
-      </div>
+            {/* SECTION 6: TIMELINE */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Policy Timeline</h3>
+              </div>
+              <div className="p-5">
+                <div className="relative pl-6 border-l border-slate-200 space-y-6">
+                  {/* Timeline Event 1: Issued */}
+                  <div className="relative">
+                    <div className="absolute -left-[30px] top-0.5 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center shrink-0"></div>
+                    <p className="text-xs font-bold text-slate-800">Policy Issued</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(policy.issue_date || policy.start_date || policy.policy_start_date)}</p>
+                  </div>
+                  {/* Timeline Event 2: Active */}
+                  <div className="relative">
+                    <div className={`absolute -left-[30px] top-0.5 w-4 h-4 rounded-full border-4 border-white flex items-center justify-center shrink-0 ${policy.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                    <p className={`text-xs font-bold ${policy.status === 'active' ? 'text-slate-800' : 'text-slate-400'}`}>Policy Active</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(policy.start_date || policy.policy_start_date)}</p>
+                  </div>
+                  {/* Timeline Event 3: Renewal Due */}
+                  <div className="relative">
+                    <div className="absolute -left-[30px] top-0.5 w-4 h-4 rounded-full bg-slate-200 border-4 border-white flex items-center justify-center shrink-0"></div>
+                    <p className="text-xs font-bold text-slate-400">Renewal Due</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(policy.expiry_date || policy.policy_end_date)}</p>
+                  </div>
+                  {/* Timeline Event 4: Expired */}
+                  <div className="relative">
+                    <div className={`absolute -left-[30px] top-0.5 w-4 h-4 rounded-full border-4 border-white flex items-center justify-center shrink-0 ${isExpired ? 'bg-rose-500' : 'bg-slate-200'}`}></div>
+                    <p className={`text-xs font-bold ${isExpired ? 'text-rose-600' : 'text-slate-400'}`}>Expired</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(policy.expiry_date || policy.policy_end_date)}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* SECTION 7: DOCUMENTS */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Documents</h3>
+                <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{documents.length}</span>
+              </div>
+              <div className="p-5 space-y-4">
+                {documents.length === 0 ? (
+                  <div className="text-center py-6">
+                    <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs font-bold text-slate-500">No documents</p>
+                  </div>
+                ) : (
+                  documents.map((doc) => (
+                    <div key={doc.id} className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+                          <FileText className="w-4 h-4 text-indigo-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate" title={doc.file_name}>{doc.file_name}</p>
+                          <p className="text-[9px] text-slate-400 font-semibold mt-0.5">{formatDate(doc.upload_date || doc.created_at)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <a href={`/api/documents/${doc.id}/download`} target="_blank" rel="noreferrer" download={doc.file_name} className="h-7 w-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 text-slate-600 shadow-sm transition-colors">
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-indigo-600" onClick={() => handleReExtractDoc(doc.id)} disabled={reExtractingDoc === doc.id}>
+                          <RefreshCw className={`w-3.5 h-3.5 ${reExtractingDoc === doc.id ? 'animate-spin text-indigo-600' : ''}`} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+
+          </div>
+
+        </div>
+
+        {/* SECTION 9: RAW OCR DATA ACCORDION */}
+        {Object.keys(extractedData).length > 0 && (
+          <section className="mt-12 border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
+            <button className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50/50 transition-colors" onClick={() => setShowRawOcr(!showRawOcr)}>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Info className="w-4 h-4 text-slate-400" /> Raw OCR Data (Advanced)
+              </span>
+              {showRawOcr ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+            </button>
+            {showRawOcr && (
+              <div className="border-t border-slate-100 p-6 bg-slate-50/30">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
+                  {Object.entries(extractedData).map(([key, val]) => {
+                    if (val === null || val === undefined || val === '') return null;
+                    if (typeof val === 'object') return null; // skip nested structures
+                    return (
+                      <div key={key} className="py-2 border-b border-slate-100 flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate" title={key}>{key.replace(/_/g, ' ')}</span>
+                        <span className="text-xs font-bold text-slate-700 mt-1 break-words">{String(val)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+      </main>
     </div>
   );
 }

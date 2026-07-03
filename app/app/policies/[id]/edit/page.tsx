@@ -99,6 +99,11 @@ export default function PolicyEditPage() {
   if (isLoading) return <PageLoader words={['policy', 'data']} label="loading" />;
 
   const isManualEntry = policy?.policy_number?.includes('MANUAL');
+  const policyType = (policy?.policy_type || '').toLowerCase();
+  const isMotor = policyType.includes('motor') || policyType.includes('vehicle');
+  const isLife = policyType.includes('life');
+  
+  const sumInsuredLabel = isMotor ? 'IDV (Insured Declared Value) (₹)' : isLife ? 'Sum Assured (₹)' : 'Sum Insured / Assured (₹)';
 
   return (
     <div className="flex-1 flex flex-col p-4 md:p-8 max-w-3xl mx-auto w-full">
@@ -112,7 +117,7 @@ export default function PolicyEditPage() {
           </h1>
           <p className="text-slate-500 mt-2 text-sm max-w-2xl">
             {isManualEntry 
-              ? 'The AI extraction could not confidently identify the premium or sum assured. Please verify the document and enter the missing details below to finalize the policy.'
+              ? `The AI extraction could not confidently identify the premium or ${isMotor ? 'IDV' : isLife ? 'sum assured' : 'sum insured'}. Please verify the document and enter the missing details below to finalize the policy.`
               : 'Update the core financial details for this policy.'}
           </p>
         </div>
@@ -123,7 +128,7 @@ export default function PolicyEditPage() {
           <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <div>
             <h3 className="text-sm font-bold text-red-900">Missing Required Fields</h3>
-            <p className="text-xs text-red-700 mt-1">Please open the uploaded document, find the exact Premium Amount and Sum Assured, and enter them below.</p>
+            <p className="text-xs text-red-700 mt-1">Please open the uploaded document, find the exact Premium Amount and {isMotor ? 'IDV' : isLife ? 'Sum Assured' : 'Sum Insured'}, and enter them below.</p>
           </div>
         </div>
       )}
@@ -156,7 +161,7 @@ export default function PolicyEditPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Sum Insured / Assured (₹)</label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{sumInsuredLabel}</label>
               <Input 
                 type="number"
                 value={formData.sum_insured}
@@ -184,7 +189,7 @@ export default function PolicyEditPage() {
             disabled={isSaving}
             className="min-w-[140px]"
           >
-            {isSaving ? <PageLoader words={[]} label="" className="h-5 w-5" /> : (
+            {isSaving ? <PageLoader words={[]} label="" /> : (
               <>
                 <Save className="w-4 h-4 mr-2" />
                 {isManualEntry ? 'Finalize Policy' : 'Save Changes'}

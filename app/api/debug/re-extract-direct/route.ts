@@ -44,12 +44,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { policyId } = body;
+    const { policyId, onlyPending } = body;
 
     // 1. Fetch documents and corresponding policies
     let query = supabaseAdmin!
       .from('policy_documents')
-      .select('id, file_path, raw_ocr_text, policy_id, policies(user_id)');
+      .select('id, file_path, raw_ocr_text, policy_id, policies!inner(user_id, policy_number)');
 
     if (policyId) {
       query = query.eq('policy_id', policyId);
@@ -59,23 +59,31 @@ export async function POST(request: NextRequest) {
 
     if (selectError) throw selectError;
 
-    if (!docs || docs.length === 0) {
+    let filteredDocs = docs || [];
+    if (onlyPending) {
+      filteredDocs = filteredDocs.filter(d => {
+        const num = (d.policies as any)?.policy_number || '';
+        return num.startsWith('PENDING_OCR') || num.startsWith('BULK_OCR') || num.startsWith('IMG-') || num.startsWith('doc_');
+      });
+    }
+
+    if (filteredDocs.length === 0) {
       return NextResponse.json({ success: true, message: 'No documents found.' });
     }
 
-    console.log(`[Re-Extract] Starting background direct re-extraction for ${docs.length} documents...`);
+    console.log(`[Re-Extract] Starting background direct re-extraction for ${filteredDocs.length} documents...`);
 
     // Fire and forget background promise
     (async () => {
       const ocrProviderModule = await import('@/services/ocr-provider');
       const ocrProvider = ocrProviderModule.ocrProvider;
 
-      const tasks = docs.map((doc, idx) => async () => {
+      const tasks = filteredDocs.map((doc, idx) => async () => {
         const docId = doc.id;
         const policyId = doc.policy_id;
         const policyUserId = (doc.policies as any)?.user_id || 'system';
 
-        console.log(`[Re-Extract] [${idx + 1}/${docs.length}] Processing doc: ${docId} (policy: ${policyId})`);
+        console.log(`[Re-Extract] [${idx + 1}/${filteredDocs.length}] Processing doc: ${docId} (policy: ${policyId})`);
 
         try {
           // Reset job record to processing

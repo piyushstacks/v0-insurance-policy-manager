@@ -5,6 +5,7 @@
  */
 
 import { ExtractionResultInput } from '@/lib/schemas';
+import { MASTER_EXTRACTION_PROMPT } from '@/lib/ai-prompt';
 import { DocumentProcessorServiceClient } from '@google-cloud/documentai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -56,7 +57,7 @@ class PDFParseProvider implements OCRProvider {
   }
 
   async extractStructuredData(text: string, existingInsurers: string[] = [], existingCustomers: string[] = []): Promise<ExtractionResultInput> {
-    console.log('[v0/OCR] Running AI extraction with Entity Resolution Maps...');
+    console.log('[v0/OCR] Running AI extraction with Master Prompt...');
 
     const now = new Date();
     const nextYear = new Date(now);
@@ -64,14 +65,13 @@ class PDFParseProvider implements OCRProvider {
 
     if (text === 'IMAGE_UPLOAD_NO_TEXT_EXTRACTED' || text === 'SCANNED_PDF_NO_TEXT_EXTRACTED') {
       return {
+        store: true,
+        insurance_type: 'other',
         policy_number: `IMG-${Date.now()}`,
-        policy_type: 'Unknown (Scanned Upload)',
-        coverage_start: now.toISOString(),
-        coverage_end: nextYear.toISOString(),
-        premium_amount: 0,
-        insurer_name: 'Unknown Insurer',
-        customer_name: 'Unknown Customer',
-      };
+        customer_name: null,
+        notes: 'Scanned/image PDF — no embedded text extracted. Manual entry required.',
+        requires_manual_entry: true,
+      } as any;
     }
 
     // ── GEN AI INJECTION — OpenRouter API with free model fallback chain ──
@@ -98,93 +98,17 @@ class PDFParseProvider implements OCRProvider {
           const modelName = models[attempt];
           console.log(`[v0/AI] Attempt ${attempt + 1} using openrouter model ${modelName}...`);
 
-          const prompt = `
-            You are an expert insurance document analyst specializing in Indian insurance policies (Star Health, HDFC Ergo, LIC, ICICI Lombard, Go Digit, Tata AIG, New India Assurance, Niva Bupa, Care Health, etc.).
-            I am providing you with raw OCR text from a scanned policy schedule document.
-            Extract all required fields carefully. Output EXCLUSIVELY a single pure JSON object — NO markdown, NO backticks, NO explanation.
+          // Build prompt: master prompt + entity resolution context + raw text
+          const prompt = `${MASTER_EXTRACTION_PROMPT}
 
-            ENTITY RESOLUTION (prevent duplicates):
-            - Existing Insurers in DB: [${existingInsurers.join(', ')}]
-            - Existing Customers in DB: [${existingCustomers.join(', ')}]
-            Map extracted names to the EXACT existing string if it is a variant/typo/substring of one above.
+ENTITY RESOLUTION CONTEXT (use these to normalize company/customer names):
+- Known Insurers in DB: [${existingInsurers.join(', ')}]
+- Known Customers in DB: [${existingCustomers.join(', ')}]
 
-            CUSTOMER NAME RULES (CRITICAL):
-            - Note that raw text from pdf-parse often separates column labels from column values. The name might be several lines below the label "Name of the Insured". Use logical reasoning to match the label with the value (usually a person's name appearing right before dates or addresses).
-            - Extract the ACTUAL human name of the policyholder / proposer / insured.
-            - ICICI Lombard: Look for "Dear FULL NAME," in Risk Assumption Letter (extremely reliable). Otherwise, look for the name right before the dates "May 22, 2026 to...".
-            - Go Digit: Look for "Name" or "Insured Details" and find the human name below it. Business: extract owner after "PROP" keyword.
-            - Tata AIG: Look for "Name" or "Insured's Name" and find "Mr/Mrs/Ms FULL NAME" further down. Or "Payer Name: FULL NAME".
-            - Niva Bupa: Look for "Policyholder Name: MR./MRS. FULL NAME" OR "Dear MR./MRS. FULL NAME,".
-            - Star Health: Look for "Proposer Name : FULL NAME" OR "To,\nFULL NAME".
-            - "Dear Customer" without a following name is NOT valid.
-            - NEVER output labels: "Code", "Client ID", "UIN", "Insured Name", "Name". Output null if not found.
+RAW DOCUMENT TEXT (first 15000 chars):
+${text.substring(0, 15000)}
 
-            CATEGORY RULES:
-            - "policy_category": MUST be exactly one of: "Health", "Motor", "Life", "Travel", "Property", "General", "Business".
-            - "Motor": Two-wheeler, Car, Commercial vehicle, Goods carrying, Auto Secure.
-            - "Business": Shop, Office, SME, Fire, Burglary, Workmen Compensation.
-            - "policy_sub_category": Extract the EXACT plan name from the top of the policy. (e.g. "Two Wheeler Package Policy", "Comprehensive Package", "Auto Secure Liability", "Health Companion"). Max 50 chars.
-
-            PREMIUM RULES:
-            - Note: The amount is often vertically separated from the label. Look for the largest final number at the bottom of the premium table.
-            - Extract TOTAL amount paid/payable. Look for: "Total Premium Payable", "Final Premium", "Gross Premium", "Total Amount".
-            - ICICI Lombard: "Total Premium Payable In" (e.g. 1565 or 1615).
-            - Tata AIG: "Total Premium (₹)" or "Amount Paid".
-            - Go Digit: "Total Premium" or "Final Premium".
-            - Return as plain number (no currency symbol, no commas).
-
-            MOTOR POLICY RULES (applies when policy_category = "Motor"):
-            - "vehicle_idv": Total Insured Declared Value. For Tata AIG: the IDV columns are concatenated — the LAST 6-digit segment of the Total IDV string is the Vehicle IDV. Use the value from "Total Own Damage Premium" context, or look for the last distinct number in the IDV row. Return as number.
-            - "ncb_percentage": Look for "No claim bonus (X%)", "NCB % (Current Policy) X%", "NCB: X". Return as number (e.g. 20).
-            - "vehicle_registration_no": e.g. "GJ18BW2687". Look for "Registration No." label.
-            - "vehicle_make_model": e.g. "MAHINDRA SUPRO PROFITTRUCK", "HONDA ACTIVA 3G".
-
-            BUSINESS POLICY RULES:
-            - "sum_insured": Total sum insured across all sections.
-
-            HEALTH POLICY RULES:
-            - "sum_insured": Extract "Base Sum Insured", "Sum Insured", "Cover Amount" as number.
-            - Niva Bupa: "Base Sum Insured INR10,00,000" → 1000000.
-            - New India: Sum Insured from policy schedule table.
-
-            RENEWAL LETTER / RECEIPT DETECTION:
-            - Renewal Notice / Renewal Letter / Renewal Invite: is_quotation=true (NOT a policy).
-            - LIC Renewal Premium Receipt: is_quotation=false (IS valid for Life — extract policy nos + sum assured).
-            - Care renewal letter with "Renewing your policy" text: is_quotation=true.
-
-            CONTACT DATA RULES:
-            - NEVER invent. Only extract if explicitly written. Masked values ("XXXXXX3059", "97******09") → output null.
-
-            LIFE INSURANCE TERMS:
-            - payment_term: Single Pay=1, Limited Pay=N years, Regular Pay=99.
-            - policy_term: Extract "Policy Term" or "Term (yr)" in years.
-
-            Return JSON:
-            {
-              "policy_number": "exact alphanumeric — Tata AIG: 6304056633/00/00, LIC: first policy no from table",
-              "policy_category": "Health|Motor|Life|Travel|Property|General|Business",
-              "policy_sub_category": "short plan name, max 30 chars",
-              "coverage_start": "ISO8601 date",
-              "coverage_end": "ISO8601 date",
-              "premium_amount": 26138,
-              "sum_insured": 1000000,
-              "vehicle_idv": 0,
-              "ncb_percentage": 0,
-              "vehicle_registration_no": null,
-              "vehicle_make_model": null,
-              "payment_term": 99,
-              "policy_term": 25,
-              "insurer_name": "insurance company full name",
-              "customer_name": "full name of proposer/policyholder or null",
-              "customer_email": "email or null",
-              "customer_mobile": "phone number or null",
-              "key_important_details": "HTML <li> list of other key info, or empty string",
-              "is_quotation": false
-            }
-
-            RAW DOCUMENT TEXT:
-            ${text.substring(0, 15000)}
-          `;
+Respond with ONLY valid JSON — no markdown, no explanation.`;
 
           // API call to OpenRouter with reasoning enabled
           const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -201,7 +125,8 @@ class PDFParseProvider implements OCRProvider {
                   "content": prompt
                 }
               ],
-              "reasoning": {"enabled": true}
+              "reasoning": {"enabled": true},
+              "max_tokens": 3000
             })
           });
           
@@ -233,7 +158,8 @@ class PDFParseProvider implements OCRProvider {
                         "reasoning_details": assistantMessage.reasoning_details
                     },
                     { "role": "user", "content": "You did not output the final JSON requested. Are you sure? Think carefully and output strictly the final JSON."}
-                  ]
+                  ],
+                  "max_tokens": 3000
                 })
               });
               if (res2.ok) {
@@ -247,9 +173,44 @@ class PDFParseProvider implements OCRProvider {
           if (!jsonMatch) throw new Error('No JSON object found in AI response');
           rawContent = jsonMatch[0];
           
-          parsed = JSON.parse(rawContent);
-          
-          // --- Validation ---
+      // Parse the JSON response — handle both new rich schema and legacy flat schema
+      parsed = JSON.parse(rawContent);
+
+      // ── Handle rejection (store: false) ────────────────────────────────────
+      if (parsed.store === false) {
+        console.log(`[v0/AI] Document rejected: ${parsed.reason}`);
+        return parsed as ExtractionResultInput;
+      }
+
+      // ── New rich schema (store: true) ───────────────────────────────────────
+      if (parsed.store === true) {
+        // Map insurance_type from new schema to legacy policy_type for backwards compat
+        const typeMap: Record<string, string> = {
+          life: 'Life', health: 'Health', motor: 'Motor', commercial: 'Business', other: 'General'
+        };
+        const cat = typeMap[parsed.insurance_type] || 'General';
+        const productName = parsed.product_name || '';
+        parsed.policy_type = productName ? `${cat} | ${productName.substring(0, 35)}` : cat;
+        parsed.insurer_name = parsed.company || parsed.insurer_name;
+        parsed.coverage_start = parsed.policy_start_date || now.toISOString();
+        parsed.coverage_end = parsed.policy_end_date || nextYear.toISOString();
+
+        // Extract sum_insured from type-specific block
+        if (parsed.insurance_type === 'health' && parsed.health?.base_sum_insured) {
+          parsed.sum_insured = parsed.health.base_sum_insured;
+        } else if (parsed.insurance_type === 'motor' && parsed.motor?.idv) {
+          parsed.sum_insured = parsed.motor.idv;
+          parsed.vehicle_number = parsed.motor?.registration_number;
+        } else if (parsed.insurance_type === 'life' && parsed.life?.sum_assured) {
+          parsed.sum_insured = parsed.life.sum_assured;
+        }
+
+        console.log(`[v0/AI] ✅ Rich extraction success! Type: ${parsed.insurance_type}, Policy: ${parsed.policy_number}`);
+        return parsed as ExtractionResultInput;
+      }
+
+      // ── Legacy flat schema fallback ─────────────────────────────────────────
+      // (old prompt response format — keep for safety)
           const cName = (parsed.customer_name || '').trim();
           const cNameLower = cName.toLowerCase();
           const invalidTerms = ['details', 'gender', 'nominee', 'unknown', 'insured name', 'code', 'client id', 'uin', 'person', 'name'];
@@ -360,7 +321,7 @@ class PDFParseProvider implements OCRProvider {
           },
           is_quotation: !!parsed.is_quotation,
           requires_manual_entry: (!parsed.premium_amount || parsed.premium_amount <= 0)
-        };
+        } as any;
       }
     }
 
@@ -377,8 +338,8 @@ class PDFParseProvider implements OCRProvider {
       this.extractStructuredData(text, existingInsurers, existingCustomers) 
     ]);
 
-    const val1 = res1.status === 'fulfilled' ? res1.value : null;
-    const val2 = res2.status === 'fulfilled' ? res2.value : null;
+    const val1 = res1.status === 'fulfilled' ? res1.value as any : null;
+    const val2 = res2.status === 'fulfilled' ? res2.value as any : null;
 
     if (!val1 && !val2) throw new Error('Consensus failed: Both extraction attempts failed.');
     if (!val1) return val2!;
@@ -416,7 +377,8 @@ class PDFParseProvider implements OCRProvider {
         headers: { "Authorization": `Bearer ${openRouterKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "openai/gpt-4o-mini", // Use a fast but smart arbiter
-          messages: [{ role: "user", content: arbiterPrompt }]
+          messages: [{ role: "user", content: arbiterPrompt }],
+          max_tokens: 2000
         })
       });
       if (res.ok) {
@@ -693,25 +655,28 @@ class PDFParseProvider implements OCRProvider {
     }
 
     const result: ExtractionResultInput = {
+      store: true,
+      insurance_type: policyType.includes('Motor') ? 'motor'
+        : policyType.includes('Life') ? 'life'
+        : policyType.includes('Health') ? 'health'
+        : policyType.includes('Business') ? 'commercial' : 'other',
       policy_number:  policyNumber,
-      policy_type:    policyType.trim(),
-      coverage_start: coverageStart,
-      coverage_end:   coverageEnd,
+      product_name:   policyType.trim(),
+      policy_start_date: coverageStart,
+      policy_end_date:   coverageEnd,
       premium_amount: premium,
-      sum_insured:    idv > 0 ? idv : undefined,  // Use IDV as sum_insured for motor
-      vehicle_number: vehicleReg ?? undefined,
-      insurer_name:   insurer.trim(),
-      customer_name:  customer?.trim() ?? undefined,
-      agent_notes:    motorNotes || undefined,
-      additional_fields: {
-        ...(idv > 0 ? { idv } : {}),
-        ...(ncb > 0 ? { ncb_percentage: ncb } : {}),
-      },
-      is_quotation:   (!/Renewal Premium Receipt/i.test(text) && /\b(?:quote|quotation|illustration|proposal|premium calculation|renewal notice|renewing your policy|renewal letter)\b/i.test(text) && premium <= 0),
-      requires_manual_entry: premium <= 0,
-    };
+      company:        insurer.trim(),
+      customer_name:  customer?.trim() ?? null,
+      notes:          motorNotes || null,
+      // Motor detail block
+      motor: policyType.includes('Motor') ? {
+        idv: idv > 0 ? idv : null,
+        current_ncb_percent: ncb > 0 ? ncb : null,
+        registration_number: vehicleReg,
+      } as any : undefined,
+    } as any;
 
-    console.log('[v0/OCR] Result:', JSON.stringify(result, null, 2));
+    console.log('[v0/OCR] Regex Result:', JSON.stringify({ policy_number: (result as any).policy_number, customer_name: (result as any).customer_name }, null, 2));
     return result;
   }
 }

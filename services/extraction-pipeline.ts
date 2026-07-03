@@ -32,12 +32,11 @@ export interface PipelineResult {
 }
 
 // Tiered model strategy:
-//   FAST model  (llama-3.1-8b-instant)      → steps 2/3/4: classify, company, type  — 14,400 req/day
-//   SMART model (llama-3.3-70b-versatile)   → step 6: full field extraction          —  1,000 req/day
-// 82 docs × 3 fast calls = 246  |  82 docs × 1 smart call = 82  → both well within limits.
-const GROQ_FAST_MODEL  = process.env.GROQ_FAST_MODEL  || 'llama-3.1-8b-instant';
-const GROQ_SMART_MODEL = process.env.GROQ_SMART_MODEL || 'llama-3.3-70b-versatile';
-const DEFAULT_MODEL    = process.env.EXTRACTION_MODEL || GROQ_SMART_MODEL;
+//   FAST model  (llama-3.1-8b-instant on Groq)   → steps 2/3/4: classify, company, type
+//   SMART model (gemini-2.5-flash on Google API)  → step 6: full field extraction
+const GROQ_FAST_MODEL  = 'llama-3.1-8b-instant';
+const GROQ_SMART_MODEL = 'llama-3.3-70b-versatile';
+const GEMINI_MODEL     = 'gemini-2.5-flash';
 
 // Groq model name map — translates OpenRouter-style slugs to Groq model IDs
 const GROQ_MODEL_MAP: Record<string, string> = {
@@ -47,73 +46,118 @@ const GROQ_MODEL_MAP: Record<string, string> = {
   'meta-llama/llama-3.2-3b-instruct:free'     : 'llama-3.1-8b-instant',
   'llama-3.3-70b-versatile'                   : 'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant'                      : 'llama-3.1-8b-instant',
-  'meta-llama/llama-4-scout-17b-16e-instruct' : 'meta-llama/llama-4-scout-17b-16e-instruct',
-  'qwen/qwen3-32b'                            : 'qwen/qwen3-32b',
-  'qwen/qwen3.6-27b'                          : 'qwen/qwen3.6-27b',
-  'openai/gpt-oss-120b'                       : 'openai/gpt-oss-120b',
 };
 
 // ── Provider detection ───────────────────────────────────────────────────────
-// Priority: Groq (14,400 req/day free) → OpenRouter (50 req/day free)
-function getProvider(): { endpoint: string; key: string; type: 'groq' | 'openrouter' } | null {
-  if (process.env.GROQ_API_KEY) {
+// Priority: Google Gemini API (Direct) → Groq → OpenRouter
+function getProvider(modelType: 'fast' | 'smart'): { endpoint: string; key: string; type: 'gemini' | 'groq' | 'openrouter' } | null {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+  const orKey = process.env.OPENROUTER_API_KEY;
+
+  // Groq 8B is perfect for fast metadata checks if we have a Groq key
+  if (modelType === 'fast' && groqKey) {
     return {
       type: 'groq',
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-      key: process.env.GROQ_API_KEY,
+      key: groqKey,
     };
   }
-  const orKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
-  if (orKey) {
+
+  // If we have a Google AI Studio key, use Gemini 2.5 Flash directly
+  if (geminiKey && geminiKey.startsWith('AIzaSy')) {
+    return {
+      type: 'gemini',
+      endpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
+      key: geminiKey,
+    };
+  }
+
+  // Fallback to Groq if key is present
+  if (groqKey) {
+    return {
+      type: 'groq',
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+      key: groqKey,
+    };
+  }
+
+  // Fallback to OpenRouter as last resort
+  const activeOrKey = orKey || (geminiKey && geminiKey.startsWith('sk-or-') ? geminiKey : null);
+  if (activeOrKey) {
     return {
       type: 'openrouter',
       endpoint: 'https://openrouter.ai/api/v1/chat/completions',
-      key: orKey,
+      key: activeOrKey,
     };
   }
+
   return null;
 }
 
-// LLM caller — with 3-attempt retry + exponential backoff
-async function callLLM(prompt: string, model: string = DEFAULT_MODEL): Promise<any> {
-  const provider = getProvider();
-  if (!provider) throw new Error("No LLM API key found. Set GROQ_API_KEY or OPENROUTER_API_KEY in .env.local");
-
-  // Resolve model for the active provider
-  let resolvedModel = model;
-  if (provider.type === 'groq') {
-    resolvedModel = GROQ_MODEL_MAP[model] ?? (model.includes('/') ? GROQ_SMART_MODEL : model);
-  }
-
+// Unified LLM Caller supporting both Google generateContent & OpenAI formats
+async function callLLMWithProvider(
+  prompt: string,
+  modelType: 'fast' | 'smart',
+  provider: { endpoint: string; key: string; type: 'gemini' | 'groq' | 'openrouter' }
+): Promise<any> {
   const MAX_RETRIES = 3;
   let lastError: Error | null = null;
 
+  // Resolve model name
+  let modelName = '';
+  if (provider.type === 'gemini') {
+    modelName = GEMINI_MODEL;
+  } else if (provider.type === 'groq') {
+    modelName = modelType === 'fast' ? GROQ_FAST_MODEL : GROQ_SMART_MODEL;
+  } else {
+    modelName = process.env.EXTRACTION_MODEL || 'google/gemma-4-31b-it:free';
+  }
+
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const body: any = {
-        model: resolvedModel,
-        messages: [
-          {
-            role: "system",
-            content: "You are a JSON extraction assistant. Always respond with valid JSON only. No explanation, no markdown, no code fences — just the raw JSON object."
+      let response: Response;
+
+      if (provider.type === 'gemini') {
+        const url = `${provider.endpoint}/${modelName}:generateContent?key=${provider.key}`;
+        response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
           },
-          { role: "user", content: prompt }
-        ],
-        max_tokens: 4500,
-        temperature: 0.1,
-      };
-
-      // Only OpenRouter supports response_format for some models; skip for Groq
-      // (Groq enforces JSON via system prompt above)
-
-      const response = await fetch(provider.endpoint, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${provider.key}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }]
+            }],
+            systemInstruction: {
+              parts: [{ text: "You are a JSON extraction assistant. Always respond with valid JSON only. No explanation, no markdown, no code fences — just the raw JSON object." }]
+            },
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
+          })
+        });
+      } else {
+        response = await fetch(provider.endpoint, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${provider.key}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              {
+                role: "system",
+                content: "You are a JSON extraction assistant. Always respond with valid JSON only. No explanation, no markdown, no code fences — just the raw JSON object."
+              },
+              { role: "user", content: prompt }
+            ],
+            max_tokens: 4500,
+            temperature: 0.1
+          })
+        });
+      }
 
       if (!response.ok) {
         const errText = await response.text();
@@ -129,7 +173,13 @@ async function callLLM(prompt: string, model: string = DEFAULT_MODEL): Promise<a
       }
 
       const result = await response.json();
-      const rawContent = result?.choices?.[0]?.message?.content;
+      let rawContent = '';
+
+      if (provider.type === 'gemini') {
+        rawContent = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      } else {
+        rawContent = result?.choices?.[0]?.message?.content || '';
+      }
 
       if (!rawContent || rawContent.trim() === '') {
         lastError = new Error("Empty response from LLM");
@@ -162,17 +212,24 @@ async function callLLM(prompt: string, model: string = DEFAULT_MODEL): Promise<a
   throw lastError ?? new Error("LLM call failed after max retries.");
 }
 
-async function callLLMRateLimited(prompt: string, model: string = DEFAULT_MODEL): Promise<any> {
-  const res = await callLLM(prompt, model);
-  const provider = getProvider();
-  if (provider?.type === 'groq') {
-    // Space out requests slightly on Groq to prevent triggering TPM (Tokens Per Minute) limit spikes
+async function callLLMRateLimited(prompt: string, modelType: 'fast' | 'smart'): Promise<any> {
+  const provider = getProvider(modelType);
+  if (!provider) {
+    throw new Error("No LLM provider configured. Please set GEMINI_API_KEY or GROQ_API_KEY in env.");
+  }
+  const res = await callLLMWithProvider(prompt, modelType, provider);
+  
+  // Throttle slightly to keep within safe request limits
+  if (provider.type === 'gemini') {
+    await new Promise(resolve => setTimeout(resolve, 800));
+  } else if (provider.type === 'groq') {
     await new Promise(resolve => setTimeout(resolve, 1500));
-  } else if (provider?.type === 'openrouter' && (model.endsWith(':free') || model === 'openrouter/free')) {
+  } else if (provider.type === 'openrouter') {
     await new Promise(resolve => setTimeout(resolve, 2500));
   }
   return res;
 }
+
 
 
 /**
@@ -195,16 +252,11 @@ export async function runExtractionPipeline(
   const fullText = pages.map(p => p.text).join('\n');
   const firstPageText = pages[0]?.text || '';
 
-  const provider = getProvider();
-  // Pick model based on provider type
-  const fastModel  = provider?.type === 'groq' ? GROQ_FAST_MODEL  : DEFAULT_MODEL;
-  const smartModel = provider?.type === 'groq' ? GROQ_SMART_MODEL : DEFAULT_MODEL;
-
   // Step 2: Document Classification
-  console.log(`[Pipeline] Step 2: Classifying document type... (model: ${fastModel})`);
+  console.log(`[Pipeline] Step 2: Classifying document type...`);
   const classResult = await callLLMRateLimited(
     `${CLASSIFICATION_PROMPT}\n\nDocument Text:\n${fullText.substring(0, 3000)}`,
-    fastModel
+    'fast'
   );
   console.log('[Pipeline] Class result:', classResult);
 
@@ -217,18 +269,18 @@ export async function runExtractionPipeline(
   }
 
   // Step 3: Detect Company (mainly first page)
-  console.log(`[Pipeline] Step 3: Detecting company... (model: ${fastModel})`);
+  console.log(`[Pipeline] Step 3: Detecting company...`);
   const companyResult = await callLLMRateLimited(
     `${COMPANY_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 2500)}`,
-    fastModel
+    'fast'
   );
   console.log('[Pipeline] Company result:', companyResult);
 
   // Step 4: Detect Policy Type
-  console.log(`[Pipeline] Step 4: Detecting policy type... (model: ${fastModel})`);
+  console.log(`[Pipeline] Step 4: Detecting policy type...`);
   const policyTypeResult = await callLLMRateLimited(
     `${POLICY_TYPE_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 2500)}`,
-    fastModel
+    'fast'
   );
   console.log('[Pipeline] Policy type result:', policyTypeResult);
 
@@ -240,12 +292,12 @@ export async function runExtractionPipeline(
   const profileKeywords = COMPANY_PROFILES[detectedCompany] || [];
 
   // Step 6: AI Field Extraction using selected template profile
-  console.log(`[Pipeline] Step 6: Running template extraction... (model: ${smartModel})`);
+  console.log(`[Pipeline] Step 6: Running template extraction...`);
   const extractionPrompt = EXTRACTION_TEMPLATE_PROMPT
     .replace('${company_profile}', profileKeywords.map(k => `- ${k}`).join('\n')) + 
     `\n\nDetected Company: ${detectedCompany}\nDetected Policy Type: ${detectedType}\n\nDocument Text:\n${fullText.substring(0, 15000)}`;
 
-  const extracted = await callLLMRateLimited(extractionPrompt, smartModel);
+  const extracted = await callLLMRateLimited(extractionPrompt, 'smart');
 
 
   // Step 7: Validation & Confidence Scoring

@@ -31,14 +31,46 @@ export interface PipelineResult {
   missing_fields?: string[];
 }
 
-const DEFAULT_MODEL = process.env.EXTRACTION_MODEL || "google/gemini-2.5-flash:free";
+const DEFAULT_MODEL = process.env.EXTRACTION_MODEL || "llama-3.3-70b-versatile";
 
-// OpenRouter LLM Helper — with 3-attempt retry + exponential backoff
+// ── Provider detection ───────────────────────────────────────────────────────
+// Priority: Groq (14,400 req/day free) → OpenRouter (50 req/day free)
+function getProvider(): { endpoint: string; key: string; type: 'groq' | 'openrouter' } | null {
+  if (process.env.GROQ_API_KEY) {
+    return {
+      type: 'groq',
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+      key: process.env.GROQ_API_KEY,
+    };
+  }
+  const orKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
+  if (orKey) {
+    return {
+      type: 'openrouter',
+      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      key: orKey,
+    };
+  }
+  return null;
+}
+
+// LLM caller — with 3-attempt retry + exponential backoff
 async function callLLM(prompt: string, model: string = DEFAULT_MODEL): Promise<any> {
-  const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
+  const provider = getProvider();
+  if (!provider) throw new Error("No LLM API key found. Set GROQ_API_KEY or OPENROUTER_API_KEY in .env.local");
 
-  if (!openRouterKey) {
-    throw new Error("Missing OpenRouter / Gemini API Key in environment.");
+  // Groq uses model IDs like "llama-3.3-70b-versatile", OpenRouter uses "meta-llama/..."
+  // If model still has openrouter-style slug and we're using Groq, remap to Groq model.
+  let resolvedModel = model;
+  if (provider.type === 'groq') {
+    // Map common openrouter slugs → groq model IDs
+    const GROQ_MODEL_MAP: Record<string, string> = {
+      'openrouter/free': 'llama-3.3-70b-versatile',
+      'google/gemma-4-31b-it:free': 'llama-3.3-70b-versatile',
+      'meta-llama/llama-3.3-70b-instruct:free': 'llama-3.3-70b-versatile',
+      'meta-llama/llama-3.2-3b-instruct:free': 'llama-3.2-3b-preview',
+    };
+    resolvedModel = GROQ_MODEL_MAP[model] ?? (model.includes('/') ? 'llama-3.3-70b-versatile' : model);
   }
 
   const MAX_RETRIES = 3;
@@ -46,34 +78,37 @@ async function callLLM(prompt: string, model: string = DEFAULT_MODEL): Promise<a
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      const body: any = {
+        model: resolvedModel,
+        messages: [
+          {
+            role: "system",
+            content: "You are a JSON extraction assistant. Always respond with valid JSON only. No explanation, no markdown, no code fences — just the raw JSON object."
+          },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 4500,
+        temperature: 0.1,
+      };
+
+      // Only OpenRouter supports response_format for some models; skip for Groq
+      // (Groq enforces JSON via system prompt above)
+
+      const response = await fetch(provider.endpoint, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${openRouterKey}`,
+          "Authorization": `Bearer ${provider.key}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            {
-              role: "system",
-              content: "You are a JSON extraction assistant. Always respond with valid JSON only. No explanation, no markdown, no code fences — just the raw JSON object."
-            },
-            { role: "user", content: prompt }
-          ],
-          // NOTE: response_format is intentionally omitted — many free models
-          // return empty content when forced into json_object mode.
-          max_tokens: 4500
-        })
+        body: JSON.stringify(body)
       });
 
       if (!response.ok) {
         const errText = await response.text();
-        const err = new Error(`OpenRouter API error ${response.status}: ${errText}`);
-        // Retry on 429 rate limit or 5xx server errors
+        const err = new Error(`[${provider.type}] API error ${response.status}: ${errText}`);
         if (response.status === 429 || response.status >= 500) {
           lastError = err;
-          const delay = attempt * 4000; // 4s, 8s, 12s
+          const delay = attempt * 4000;
           console.warn(`[LLM] Attempt ${attempt}/${MAX_RETRIES} failed (${response.status}). Retrying in ${delay}ms...`);
           await new Promise(r => setTimeout(r, delay));
           continue;
@@ -85,7 +120,6 @@ async function callLLM(prompt: string, model: string = DEFAULT_MODEL): Promise<a
       const rawContent = result?.choices?.[0]?.message?.content;
 
       if (!rawContent || rawContent.trim() === '') {
-        // Empty response — free model overloaded, retry
         lastError = new Error("Empty response from LLM");
         console.warn(`[LLM] Attempt ${attempt}/${MAX_RETRIES} returned empty content. Retrying in ${attempt * 4000}ms...`);
         await new Promise(r => setTimeout(r, attempt * 4000));
@@ -93,7 +127,6 @@ async function callLLM(prompt: string, model: string = DEFAULT_MODEL): Promise<a
       }
 
       const rawText = rawContent.trim();
-      // Strip markdown code fences if present: ```json ... ``` or ``` ... ```
       const stripped = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
       const jsonMatch = stripped.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
@@ -119,7 +152,10 @@ async function callLLM(prompt: string, model: string = DEFAULT_MODEL): Promise<a
 
 async function callLLMRateLimited(prompt: string, model: string = DEFAULT_MODEL): Promise<any> {
   const res = await callLLM(prompt, model);
-  if (model.endsWith(':free') || model === 'openrouter/free') {
+  // Groq is fast & generous — no inter-step delay needed.
+  // Only throttle for OpenRouter free models.
+  const provider = getProvider();
+  if (provider?.type === 'openrouter' && (model.endsWith(':free') || model === 'openrouter/free')) {
     await new Promise(resolve => setTimeout(resolve, 2500));
   }
   return res;

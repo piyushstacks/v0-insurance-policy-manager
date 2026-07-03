@@ -153,7 +153,7 @@ async function callLLMWithProvider(
               },
               { role: "user", content: prompt }
             ],
-            max_tokens: 4500,
+            max_tokens: modelType === 'fast' ? 500 : 4500,
             temperature: 0.1
           })
         });

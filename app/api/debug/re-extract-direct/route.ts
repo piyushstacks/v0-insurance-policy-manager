@@ -342,10 +342,11 @@ export async function POST(request: NextRequest) {
             extraction_status: 'failed'
           }).eq('id', docId);
         } finally {
-          // Sleep to space out requests for OpenRouter free models
-          await new Promise(resolve => setTimeout(resolve, 2500));
+          // Sleep to space out requests for OpenRouter free models (5.5s delay maps to 10.9 reqs/min)
+          await new Promise(resolve => setTimeout(resolve, 5500));
         }
       });
+
 
       // Process 1 task at a time (sequential) with a sleep delay to prevent 429 rate limits
       await limit(1, tasks);

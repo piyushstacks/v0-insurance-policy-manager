@@ -3,6 +3,7 @@
  */
 
 import {
+  METADATA_DETECTION_PROMPT,
   CLASSIFICATION_PROMPT,
   COMPANY_DETECTION_PROMPT,
   POLICY_TYPE_DETECTION_PROMPT,
@@ -252,40 +253,24 @@ export async function runExtractionPipeline(
   const fullText = pages.map(p => p.text).join('\n');
   const firstPageText = pages[0]?.text || '';
 
-  // Step 2: Document Classification
-  console.log(`[Pipeline] Step 2: Classifying document type...`);
-  const classResult = await callLLMRateLimited(
-    `${CLASSIFICATION_PROMPT}\n\nDocument Text:\n${fullText.substring(0, 3000)}`,
+  // Step 2: Document Classification & Metadata Detection
+  console.log(`[Pipeline] Step 2: Detecting document type, company, and category...`);
+  const metaResult = await callLLMRateLimited(
+    `${METADATA_DETECTION_PROMPT}\n\nDocument Text:\n${firstPageText.substring(0, 3000)}`,
     'fast'
   );
-  console.log('[Pipeline] Class result:', classResult);
+  console.log('[Pipeline] Metadata result:', metaResult);
 
-  if (!classResult.is_policy) {
+  if (!metaResult.is_policy) {
     return {
       store: false,
-      reason: `Document classified as '${classResult.document_type || 'Unknown'}'. Only final issued policies are stored. Reason: ${classResult.reason}`,
-      document_type: classResult.document_type
+      reason: `Document classified as '${metaResult.document_type || 'Unknown'}'. Only final issued policies are stored. Reason: ${metaResult.reason}`,
+      document_type: metaResult.document_type
     };
   }
 
-  // Step 3: Detect Company (mainly first page)
-  console.log(`[Pipeline] Step 3: Detecting company...`);
-  const companyResult = await callLLMRateLimited(
-    `${COMPANY_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 2500)}`,
-    'fast'
-  );
-  console.log('[Pipeline] Company result:', companyResult);
-
-  // Step 4: Detect Policy Type
-  console.log(`[Pipeline] Step 4: Detecting policy type...`);
-  const policyTypeResult = await callLLMRateLimited(
-    `${POLICY_TYPE_DETECTION_PROMPT}\n\nFirst Page Text:\n${firstPageText.substring(0, 2500)}`,
-    'fast'
-  );
-  console.log('[Pipeline] Policy type result:', policyTypeResult);
-
-  const detectedCompany = companyResult.company || 'Other';
-  const detectedType = (policyTypeResult.policy_type || 'Other').toLowerCase();
+  const detectedCompany = metaResult.company || 'Other';
+  const detectedType = (metaResult.policy_type || 'Other').toLowerCase();
 
   // Step 5: Template selection
   console.log(`[Pipeline] Step 5: Template selection for ${detectedCompany} + ${detectedType}`);
@@ -376,7 +361,7 @@ export async function runExtractionPipeline(
 
   return {
     store: true,
-    document_type: classResult.document_type,
+    document_type: metaResult.document_type,
     company: detectedCompany,
     policy_type: detectedType as any,
     extracted_data: flatData,

@@ -121,6 +121,7 @@ export default function PolicyDetailPage() {
   const [reExtractingDoc, setReExtractingDoc] = useState<string | null>(null);
   const [showRawOcr, setShowRawOcr] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const { canDirectlyAct } = useTeam();
 
   useEffect(() => {
@@ -151,13 +152,24 @@ export default function PolicyDetailPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
+    if (isSharing) return;
+    
     if (navigator.share) {
-      navigator.share({
-        title: `Policy ${policy?.policy_number}`,
-        text: `Check out policy details for ${policy?.policy_number}`,
-        url: window.location.href,
-      }).catch(console.error);
+      setIsSharing(true);
+      try {
+        await navigator.share({
+          title: `Policy ${policy?.policy_number}`,
+          text: `Check out policy details for ${policy?.policy_number}`,
+          url: window.location.href,
+        });
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Error sharing:', err);
+        }
+      } finally {
+        setIsSharing(false);
+      }
     } else {
       navigator.clipboard.writeText(window.location.href);
       toast.success('Link copied to clipboard');

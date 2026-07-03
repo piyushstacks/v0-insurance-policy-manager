@@ -346,8 +346,8 @@ export async function POST(request: NextRequest) {
             extraction_status: 'failed'
           }).eq('id', docId);
         } finally {
-          // Sleep to space out requests for Gemini free models (7.5s delay + processing time = < 8 req/min)
-          await new Promise(resolve => setTimeout(resolve, 7500));
+          // Sleep to space out requests for Groq free models (13s delay + processing time = < 4 req/min to protect 12K TPM limit)
+          await new Promise(resolve => setTimeout(resolve, 13000));
         }
       });
 

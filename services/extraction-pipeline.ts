@@ -56,21 +56,12 @@ function getProvider(modelType: 'fast' | 'smart'): { endpoint: string; key: stri
   const groqKey = process.env.GROQ_API_KEY;
   const orKey = process.env.OPENROUTER_API_KEY;
 
-  // Groq 8B is perfect for fast metadata checks if we have a Groq key
-  if (modelType === 'fast' && groqKey) {
+  // Force Groq usage as requested by user
+  if (groqKey) {
     return {
       type: 'groq',
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
       key: groqKey,
-    };
-  }
-
-  // If we have a Google AI Studio key, use Gemini 2.5 Flash directly
-  if (geminiKey && geminiKey.startsWith('AIzaSy')) {
-    return {
-      type: 'gemini',
-      endpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
-      key: geminiKey,
     };
   }
 
@@ -166,8 +157,29 @@ async function callLLMWithProvider(
         const err = new Error(`[${provider.type}] API error ${response.status}: ${errText}`);
         if (response.status === 429 || response.status >= 500) {
           lastError = err;
-          const delay = attempt * 4000;
-          console.warn(`[LLM] Attempt ${attempt}/${MAX_RETRIES} failed (${response.status}). Retrying in ${delay}ms...`);
+          let delay = attempt * 4000;
+          
+          // Parse Google's exact requested retry delay (e.g., "retry in 43.2s")
+          if (response.status === 429 && provider.type === 'gemini') {
+            const match = errText.match(/retry in (\d+(?:\.\d+)?)s/i);
+            if (match && match[1]) {
+              const requestedSeconds = parseFloat(match[1]);
+              delay = (requestedSeconds * 1000) + 1500; // Add 1.5s buffer
+              console.log(`[LLM] Gemini API requested exact backoff: ${requestedSeconds}s`);
+            }
+          }
+          
+          // Parse Groq's exact requested retry delay (e.g., "Please try again in 14.53s")
+          if (response.status === 429 && provider.type === 'groq') {
+            const match = errText.match(/try again in (\d+(?:\.\d+)?)s/i);
+            if (match && match[1]) {
+              const requestedSeconds = parseFloat(match[1]);
+              delay = (requestedSeconds * 1000) + 1500; // Add 1.5s buffer
+              console.log(`[LLM] Groq API requested exact backoff: ${requestedSeconds}s`);
+            }
+          }
+
+          console.warn(`[LLM] Attempt ${attempt}/${MAX_RETRIES} failed (${response.status}). Retrying in ${Math.round(delay)}ms...`);
           await new Promise(r => setTimeout(r, delay));
           continue;
         }

@@ -14,6 +14,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const pdfParse: (buf: Buffer) => Promise<{ text: string; numpages: number }> =
   require('pdf-parse');
 
+const DEFAULT_MODEL = process.env.EXTRACTION_MODEL || "google/gemini-2.5-flash:free";
+
+
 export interface OCRProvider {
   name: string;
   extractText(fileUrl: string): Promise<string>;
@@ -376,7 +379,8 @@ Respond with ONLY valid JSON — no markdown, no explanation.`;
         method: "POST",
         headers: { "Authorization": `Bearer ${openRouterKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "openai/gpt-4o-mini", // Use a fast but smart arbiter
+          model: DEFAULT_MODEL, // Use a fast but smart arbiter
+
           messages: [{ role: "user", content: arbiterPrompt }],
           max_tokens: 2000
         })

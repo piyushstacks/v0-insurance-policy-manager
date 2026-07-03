@@ -329,9 +329,9 @@ export async function POST(request: NextRequest) {
             extraction_status: 'extracted'
           }).eq('id', docId);
 
-          console.log(`[Re-Extract] [${idx + 1}/${docs.length}] \u001b[32m✔ Success!\u001b[39m`);
+          console.log(`[Re-Extract] [${idx + 1}/${filteredDocs.length}] \u001b[32m✔ Success!\u001b[39m`);
         } catch (taskErr: any) {
-          console.error(`[Re-Extract] [${idx + 1}/${docs.length}] \u001b[31m❌ Failed:\u001b[39m`, taskErr.message);
+          console.error(`[Re-Extract] [${idx + 1}/${filteredDocs.length}] \u001b[31m❌ Failed:\u001b[39m`, taskErr.message);
           await supabaseAdmin!.from('extraction_jobs').update({
             status: 'failed',
             error_message: taskErr.message,
@@ -341,15 +341,19 @@ export async function POST(request: NextRequest) {
           await supabaseAdmin!.from('policy_documents').update({
             extraction_status: 'failed'
           }).eq('id', docId);
+        } finally {
+          // Sleep to space out requests for OpenRouter free models
+          await new Promise(resolve => setTimeout(resolve, 2500));
         }
       });
 
-      // Process 3 tasks at a time to prevent OpenRouter rate limits
-      await limit(3, tasks);
+      // Process 1 task at a time (sequential) with a sleep delay to prevent 429 rate limits
+      await limit(1, tasks);
       console.log(`[Re-Extract] \u001b[32m🎉 Re-extraction complete!\u001b[39m`);
     })().catch(err => {
       console.error('[Re-Extract] Background processing thread crashed:', err);
     });
+
 
     return NextResponse.json({
       success: true,

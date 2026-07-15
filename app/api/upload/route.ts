@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     const autoExtract = formData.get('autoExtract') !== 'false';
     const uploadType = (formData.get('uploadType') as string) || 'policy';
     const storeFile = uploadType !== 'renewal';
+    const storagePref = (formData.get('storagePref') as 'platform' | 'drive') || 'platform';
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -157,7 +158,7 @@ export async function POST(request: NextRequest) {
       policyId = polData.id;
     }
 
-    const result = await uploadPolicyDocument(user.id, policyId, file, autoExtract, storeFile);
+    const result = await uploadPolicyDocument(user.id, policyId, file, autoExtract, storeFile, storagePref);
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
     console.error('[v0] Upload API error:', error);

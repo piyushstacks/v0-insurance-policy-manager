@@ -23,6 +23,18 @@ const SETTING_CARDS = [
     ctaClass: 'bg-blue-600 hover:bg-blue-700 text-white',
   },
   {
+    id: 'privacy',
+    title: 'Privacy & Storage',
+    description: 'Configure policy storage locations, link Google Drive, and manage client-side redaction.',
+    href: '/app/settings/privacy',
+    icon: Database,
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-600',
+    border: 'border-indigo-200',
+    cta: 'Storage Settings',
+    ctaClass: 'bg-indigo-600 hover:bg-indigo-700 text-white',
+  },
+  {
     id: 'security',
     title: 'Security & Access',
     description: 'Change password, configure 2FA, manage active sessions.',

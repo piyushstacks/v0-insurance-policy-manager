@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
       filteredDocs = filteredDocs.filter(d => {
         const p = (d.policies as any);
         if (!p) return false;
-        const hasNoPremium = p.premium_amount === 0 || p.premium_amount === null;
-        const hasNoTotal = p.total_premium === 0 || p.total_premium === null;
+        const hasNoPremium = p.premium_amount === 0 || p.premium_amount === 1 || p.premium_amount === null;
+        const hasNoTotal = p.total_premium === 0 || p.total_premium === 1 || p.total_premium === null;
         const hasNoSumInsured = p.sum_insured === null;
         const hasNoType = p.insurance_type === null || p.insurance_type === 'other';
         return hasNoPremium || hasNoTotal || hasNoSumInsured || hasNoType;

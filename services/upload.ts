@@ -7,6 +7,7 @@ import { supabaseAdmin, storageBucket } from '@/lib/supabase';
 import { extractDocumentInline, queueDocumentExtraction, triggerExtractionQueue } from './extraction';
 import { compressPdf } from './pdf-compression';
 import { uploadToB2, deleteFromB2 } from '@/lib/b2';
+import { uploadToGoogleDrive, deleteFromGoogleDrive } from './drive-storage';
 
 /**
  * Upload a policy document
@@ -17,7 +18,8 @@ export async function uploadPolicyDocument(
   policyId: string,
   file: File,
   autoExtract: boolean = true,
-  storeFile: boolean = true
+  storeFile: boolean = true,
+  storagePref: 'platform' | 'drive' = 'platform'
 ) {
   try {
     // Validate file
@@ -64,13 +66,25 @@ export async function uploadPolicyDocument(
 
     let fileUrl: string = '';
     let documentId: string = '';
+    let finalFilePath: string = fileName;
 
     if (storeFile) {
-      // Upload to Backblaze B2
-      try {
-        fileUrl = await uploadToB2(fileName, uploadBody, file.type);
-      } catch (uploadError: any) {
-        throw new Error(`Upload failed: ${uploadError.message}`);
+      if (storagePref === 'drive') {
+        try {
+          const driveResult = await uploadToGoogleDrive(userId, file.name, uploadBody, file.type);
+          fileUrl = driveResult.webViewLink;
+          finalFilePath = `gdrive://${driveResult.fileId}`;
+        } catch (driveError: any) {
+          throw new Error(`Google Drive upload failed: ${driveError.message}`);
+        }
+      } else {
+        // Upload to Backblaze B2
+        try {
+          fileUrl = await uploadToB2(fileName, uploadBody, file.type);
+          finalFilePath = fileName;
+        } catch (uploadError: any) {
+          throw new Error(`Upload failed: ${uploadError.message}`);
+        }
       }
 
       // Create document record
@@ -80,7 +94,7 @@ export async function uploadPolicyDocument(
           {
             policy_id: policyId,
             file_name: file.name,
-            file_path: fileName, 
+            file_path: finalFilePath, 
             file_type: file.type === 'application/pdf' ? 'pdf' : (file.type === 'image/jpeg' ? 'jpg' : 'png'),
             upload_date: new Date().toISOString(),
           },
@@ -126,11 +140,16 @@ export async function uploadPolicyDocument(
  */
 export async function deletePolicyDocument(documentId: string, filePath: string) {
   try {
-    // Delete from Backblaze B2
+    // Delete from storage (Google Drive or Backblaze B2)
     try {
-      await deleteFromB2(filePath);
-    } catch (b2Error) {
-      console.warn('B2 deletion warning:', b2Error);
+      if (filePath.startsWith('gdrive://')) {
+        const fileId = filePath.replace('gdrive://', '');
+        await deleteFromGoogleDrive(fileId);
+      } else {
+        await deleteFromB2(filePath);
+      }
+    } catch (storageError) {
+      console.warn('Storage deletion warning:', storageError);
     }
 
     // Delete record from database

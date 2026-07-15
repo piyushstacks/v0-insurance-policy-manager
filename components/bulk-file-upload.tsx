@@ -101,6 +101,9 @@ export default function BulkFileUpload({ onUploadComplete, onError, customerId }
       uploadQueue.forEach(f => formData.append('files', f.file));
       if (customerId) formData.append('customerId', customerId);
       formData.append('uploadType', uploadType);
+      
+      const storagePref = typeof window !== 'undefined' ? localStorage.getItem('pv_storage_pref') || 'platform' : 'platform';
+      formData.append('storagePref', storagePref);
 
       const response = await fetch('/api/upload/bulk', {
         method: 'POST',

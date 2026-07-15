@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     const customerId = (formData.get('customerId') as string) || '';
     const uploadType = (formData.get('uploadType') as string) || 'policy';
     const storeFile = uploadType !== 'renewal';
+    const storagePref = (formData.get('storagePref') as 'platform' | 'drive') || 'platform';
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'No files provided' }, { status: 400 });
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
         const policyId = polData.id;
 
         // Upload the file (if storeFile is false, it extracts text from buffer inline)
-        const result = await uploadPolicyDocument(user.id, policyId, file, false, storeFile);
+        const result = await uploadPolicyDocument(user.id, policyId, file, false, storeFile, storagePref);
 
         // ✅ Fire inline extraction with staggered delay — non-blocking, best-effort
         // If storeFile is false, uploadPolicyDocument already called inline extraction.

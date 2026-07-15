@@ -36,6 +36,9 @@ export default function FileUpload({ policyId, onUploadComplete, onError }: File
       formData.append('policyId', policyId);
       formData.append('autoExtract', 'true');
       formData.append('uploadType', uploadType);
+      
+      const storagePref = typeof window !== 'undefined' ? localStorage.getItem('pv_storage_pref') || 'platform' : 'platform';
+      formData.append('storagePref', storagePref);
 
       const response = await fetch('/api/upload', {
         method: 'POST',

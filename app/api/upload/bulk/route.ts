@@ -3,9 +3,10 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { uploadPolicyDocument } from '@/services/upload';
 import { supabaseAdmin } from '@/lib/supabase';
-import { extractDocumentInline, triggerExtractionQueue } from '@/services/extraction';
+import { extractDocumentInline } from '@/services/extraction';
 
 export const runtime = 'nodejs';
+export const maxDuration = 300; // 5 minutes – needed for sequential OCR + AI on bulk files
 
 export async function POST(request: NextRequest) {
   try {
@@ -104,9 +105,9 @@ export async function POST(request: NextRequest) {
     }
 
     const uploadResults = [];
-    let fileIndex = 0;
 
-    // Process each file sequentially
+    // Process each file sequentially — upload then immediately extract
+    // (Sequential rather than parallel prevents AI API rate-limit hammering)
     for (const file of files) {
       if (file.type !== 'application/pdf') {
         uploadResults.push({
@@ -147,25 +148,27 @@ export async function POST(request: NextRequest) {
 
         const policyId = polData.id;
 
-        // Upload the file (if storeFile is false, it extracts text from buffer inline)
+        // Step 1: Upload file to storage (extraction=false, we handle it below)
         const result = await uploadPolicyDocument(user.id, policyId, file, false, storeFile, storagePref);
 
-        // ✅ Fire inline extraction with staggered delay — non-blocking, best-effort
-        // If storeFile is false, uploadPolicyDocument already called inline extraction.
-        if (storeFile) {
-          const delaySeconds = fileIndex * 13;
-          triggerExtractionQueue(result.documentId, policyId, result.fileUrl || '', delaySeconds).catch((err) =>
-            console.error(`[BulkUpload] Inline extraction failed for ${file.name}:`, err.message)
-          );
-          fileIndex++;
+        // Step 2: Run synchronous extraction — awaited so it always completes
+        // before this function returns. Vercel won't kill it inside maxDuration=300.
+        if (storeFile && result.documentId && result.documentId !== 'no-document') {
+          try {
+            console.log(`[BulkUpload] Extracting ${file.name} (doc: ${result.documentId})...`);
+            await extractDocumentInline(result.documentId, policyId, result.fileUrl || null);
+            console.log(`[BulkUpload] Extraction done for ${file.name}`);
+          } catch (extractErr: any) {
+            console.error(`[BulkUpload] Extraction failed for ${file.name} (non-fatal):`, extractErr.message);
+          }
         }
 
         uploadResults.push({
           fileName: file.name,
           policyId,
           documentId: result.documentId,
-          status: 'queued',
-          message: storeFile ? 'Queued for background extraction' : 'Processing renewal receipt in background',
+          status: 'extracted',
+          message: storeFile ? 'Uploaded and extracted successfully' : 'Renewal receipt processed',
         });
       } catch (err: any) {
         uploadResults.push({

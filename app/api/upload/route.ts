@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { uploadPolicyDocument } from '@/services/upload';
+import { extractDocumentInline } from '@/services/extraction';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
+export const maxDuration = 300; // 5 minutes – needed for OCR + AI extraction to complete
 
 export async function POST(request: NextRequest) {
   try {
@@ -158,7 +160,25 @@ export async function POST(request: NextRequest) {
       policyId = polData.id;
     }
 
-    const result = await uploadPolicyDocument(user.id, policyId, file, autoExtract, storeFile, storagePref);
+    // Upload file to storage (B2 or Drive) — autoExtract=false here because
+    // we will run extraction synchronously below (not fire-and-forget)
+    const result = await uploadPolicyDocument(user.id, policyId, file, false, storeFile, storagePref);
+
+    // ── SYNCHRONOUS EXTRACTION (awaited inside the route's 5-min maxDuration window) ──
+    // This is the core fix: instead of a fire-and-forget background promise that
+    // Vercel kills the moment the HTTP response is sent, we run OCR+AI inline and
+    // wait for it to finish before returning the response to the client.
+    if (autoExtract && storeFile && result.documentId && result.documentId !== 'no-document') {
+      console.log(`[Upload] Starting synchronous extraction for doc ${result.documentId}...`);
+      try {
+        await extractDocumentInline(result.documentId, policyId, result.fileUrl || null);
+        console.log(`[Upload] Extraction completed for doc ${result.documentId}`);
+      } catch (extractErr: any) {
+        // Extraction failure is non-fatal — upload succeeded, policy will show as needing manual entry
+        console.error(`[Upload] Extraction failed (non-fatal):`, extractErr.message);
+      }
+    }
+
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
     console.error('[v0] Upload API error:', error);

@@ -171,100 +171,100 @@ function SignupContent() {
 
   return (
     <WavyBackground 
-      containerClassName="min-h-screen flex items-center justify-center overflow-hidden dark bg-[#050505]" 
-      className="w-full max-w-7xl mx-auto flex flex-col items-center justify-center gap-10 md:gap-14 px-6 py-12 relative z-10"
+      containerClassName="h-[100dvh] flex items-center justify-center overflow-hidden dark bg-[#050505]" 
+      className="w-full h-full max-w-7xl mx-auto flex flex-col items-center justify-center gap-6 md:gap-8 px-4 py-4 relative z-10"
     >
       
       {/* Hero Section */}
-      <div className="text-center w-full animate-fade-in hidden sm:flex flex-col items-center mt-8">
-        <h1 className="text-4xl md:text-5xl lg:text-[56px] font-extrabold text-white tracking-tight drop-shadow-xl leading-tight">
+      <div className="text-center w-full animate-fade-in hidden sm:flex flex-col items-center mt-2">
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white tracking-tight drop-shadow-xl leading-tight">
           Join <span className="text-blue-400">Apex OS</span>.
         </h1>
-        <p className="text-slate-300 mt-5 text-base md:text-lg font-medium max-w-[600px] mx-auto opacity-90 leading-relaxed">
+        <p className="text-slate-300 mt-2 text-sm md:text-base font-medium max-w-[600px] mx-auto opacity-90 leading-relaxed">
           The next-generation intelligence platform for wealth & insurance management.
         </p>
       </div>
 
       <div className="w-full max-w-[460px] z-20 animate-fade-in-up" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
         {/* Glass Card */}
-        <div className="bg-[#0a0a0c]/80 backdrop-blur-2xl border border-white/[0.08] rounded-[32px] p-8 md:p-10 relative overflow-hidden shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)]">
+        <div className="bg-[#0a0a0c]/80 backdrop-blur-2xl border border-white/[0.08] rounded-[32px] p-6 md:p-8 relative overflow-hidden shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)]">
           {/* Subtle top glare effect */}
           <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
 
           {/* Logo inside card */}
-          <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20 shadow-inner">
-              <Shield className="w-6 h-6 text-blue-400" />
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/20 shadow-inner">
+              <Shield className="w-5 h-5 text-blue-400" />
             </div>
-            <h2 className="text-2xl font-bold text-white tracking-wide">PolicyVault</h2>
+            <h2 className="text-xl font-bold text-white tracking-wide">PolicyVault</h2>
           </div>
 
           {/* ── Step 1: Form ── */}
           {step === 'form' && (
             <div className="animate-fade-in">
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-semibold text-white tracking-tight">Create your account</h3>
-                <p className="text-slate-400 text-sm md:text-base mt-2 font-medium">Get started with a secure vault.</p>
+              <div className="text-center mb-6">
+                <h3 className="text-xl md:text-2xl font-semibold text-white tracking-tight">Create your account</h3>
+                <p className="text-slate-400 text-sm mt-1 font-medium">Get started with a secure vault.</p>
               </div>
 
-              <form onSubmit={handleSignup} className="space-y-5">
-                {error && <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl text-center backdrop-blur-md">{error}</div>}
+              <form onSubmit={handleSignup} className="space-y-3 md:space-y-4">
+                {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl text-center backdrop-blur-md">{error}</div>}
                 
                 <div className="relative group">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
                   <Input
                     type="text"
                     placeholder="Full Name"
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    className="pl-12 h-[52px] rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 focus:ring-4 focus:ring-blue-500/10 transition-all text-base shadow-inner"
+                    className="pl-11 h-[48px] rounded-xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 focus:ring-4 focus:ring-blue-500/10 transition-all text-sm md:text-base shadow-inner"
                     required
                   />
                 </div>
 
                 <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
                   <Input
                     type="email"
                     placeholder="Email Address"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="pl-12 h-[52px] rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 focus:ring-4 focus:ring-blue-500/10 transition-all text-base shadow-inner"
+                    className="pl-11 h-[48px] rounded-xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 focus:ring-4 focus:ring-blue-500/10 transition-all text-sm md:text-base shadow-inner"
                     required
                   />
                 </div>
 
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
                   <Input
                     type={showPass ? 'text' : 'password'}
                     placeholder="Password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="pl-12 pr-12 h-[52px] rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 focus:ring-4 focus:ring-blue-500/10 transition-all text-base shadow-inner"
+                    className="pl-11 pr-11 h-[48px] rounded-xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 focus:ring-4 focus:ring-blue-500/10 transition-all text-sm md:text-base shadow-inner"
                     required
                     minLength={8}
                   />
                   <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors">
-                    {showPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
 
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
                   <Input
                     type={showPass ? 'text' : 'password'}
                     placeholder="Confirm Password"
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    className="pl-12 h-[52px] rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 focus:ring-4 focus:ring-blue-500/10 transition-all text-base shadow-inner"
+                    className="pl-11 h-[48px] rounded-xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 focus:ring-4 focus:ring-blue-500/10 transition-all text-sm md:text-base shadow-inner"
                     required
                     minLength={8}
                   />
                 </div>
 
-                <Button type="submit" disabled={loading} className="w-full h-[52px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-semibold text-base gap-2 shadow-[0_0_20px_rgba(37,99,235,0.2)] transition-all border border-white/10 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-5 h-5" /> Create Account</>}
+                <Button type="submit" disabled={loading} className="w-full h-[48px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-semibold text-sm md:text-base gap-2 shadow-[0_0_20px_rgba(37,99,235,0.2)] transition-all border border-white/10 mt-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Create Account</>}
                 </Button>
               </form>
             </div>
@@ -273,16 +273,18 @@ function SignupContent() {
           {/* ── Step 2: OTP ── */}
           {step === 'otp' && (
             <div className="animate-fade-in">
-              <div className="text-center mb-8">
-                <div className="mx-auto w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-4 border border-blue-500/20 shadow-inner">
-                  <CheckCircle className="w-7 h-7 text-blue-400" />
+              <div className="text-center mb-6">
+                <div className="flex justify-center mb-3">
+                  <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/20 shadow-inner">
+                    <CheckCircle className="w-6 h-6 text-blue-400" />
+                  </div>
                 </div>
-                <h3 className="text-2xl font-semibold text-white tracking-tight">Verify email</h3>
-                <p className="text-slate-400 text-sm md:text-base mt-2 font-medium">Code sent to <span className="text-white">{formData.email}</span></p>
+                <h3 className="text-xl md:text-2xl font-semibold text-white tracking-tight">Verify email</h3>
+                <p className="text-slate-400 text-sm mt-1 font-medium">Code sent to <span className="text-white">{formData.email}</span></p>
               </div>
 
-              <form onSubmit={handleVerifyOTP} className="space-y-6">
-                {error && <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl text-center backdrop-blur-md">{error}</div>}
+              <form onSubmit={handleVerifyOTP} className="space-y-5">
+                {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl text-center backdrop-blur-md">{error}</div>}
                 
                 <div className="flex justify-between gap-2 md:gap-3">
                   {otp.map((digit, idx) => (
@@ -296,22 +298,22 @@ function SignupContent() {
                       onChange={e => handleOtpChange(idx, e.target.value)}
                       onKeyDown={e => handleOtpKeyDown(idx, e)}
                       onPaste={handleOtpPaste}
-                      className="w-[46px] h-[56px] sm:w-[52px] sm:h-[60px] text-center text-2xl font-black bg-white/5 border border-white/10 text-white rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400/80 transition-all placeholder:text-slate-600 shadow-inner"
+                      className="w-[40px] h-[48px] sm:w-[48px] sm:h-[56px] text-center text-xl md:text-2xl font-black bg-white/5 border border-white/10 text-white rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400/80 transition-all placeholder:text-slate-600 shadow-inner"
                       placeholder="-"
                     />
                   ))}
                 </div>
 
-                <Button type="submit" disabled={loading} className="w-full h-[52px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-semibold text-base gap-2 shadow-[0_0_20px_rgba(37,99,235,0.2)] transition-all border border-white/10 mt-2 disabled:opacity-50">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-5 h-5" /> Verify & Continue</>}
+                <Button type="submit" disabled={loading} className="w-full h-[48px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-semibold text-sm md:text-base gap-2 shadow-[0_0_20px_rgba(37,99,235,0.2)] transition-all border border-white/10 mt-1 disabled:opacity-50">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Verify & Continue</>}
                 </Button>
 
-                <div className="flex items-center justify-between text-sm pt-4 font-medium">
+                <div className="flex items-center justify-between text-xs md:text-sm pt-2 font-medium">
                   <button type="button" onClick={() => { setStep('form'); setError(''); setOtp(['','','','','','']); }} className="text-slate-400 hover:text-white transition-colors px-2 py-1 -ml-2 rounded-lg hover:bg-white/5">
                     ← Back
                   </button>
                   <button type="button" onClick={resendOTP} disabled={cooldown > 0 || loading} className="text-blue-400 hover:text-blue-300 disabled:text-slate-500 transition-colors flex items-center gap-1.5 px-2 py-1 -mr-2 rounded-lg hover:bg-blue-500/10 disabled:hover:bg-transparent">
-                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-3 h-3 md:w-3.5 md:h-3.5 ${loading ? 'animate-spin' : ''}`} />
                     {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
                   </button>
                 </div>
@@ -321,11 +323,11 @@ function SignupContent() {
 
           {/* ── Step 3: Done ── */}
           {step === 'done' && (
-            <div className="text-center py-8 space-y-4 animate-fade-in">
-              <div className="w-24 h-24 bg-emerald-500/20 border-2 border-emerald-500/30 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-                <CheckCircle className="w-12 h-12 text-emerald-400" />
+            <div className="text-center py-6 space-y-4 animate-fade-in">
+              <div className="w-20 h-20 bg-emerald-500/20 border-2 border-emerald-500/30 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                <CheckCircle className="w-10 h-10 text-emerald-400" />
               </div>
-              <h2 className="text-2xl font-bold text-white">Account created!</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-white">Account created!</h2>
               <p className="text-slate-400 text-sm">Redirecting you to the dashboard...</p>
               <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto mt-4" />
             </div>
@@ -333,7 +335,7 @@ function SignupContent() {
         </div>
 
         {step === 'form' && (
-          <p className="text-center text-sm md:text-base text-slate-400 mt-8 font-medium">
+          <p className="text-center text-sm md:text-base text-slate-400 mt-6 font-medium">
             Already have an account?{' '}
             <Link href="/auth/login" className="text-blue-400 hover:text-blue-300 transition-colors py-1 px-2 rounded-lg hover:bg-blue-500/10">Sign in</Link>
           </p>
@@ -342,7 +344,7 @@ function SignupContent() {
 
       {/* Infinite Marquee Features List - Hidden on small screens */}
       <div 
-        className="w-full max-w-[100vw] overflow-hidden mt-6 relative mask-edges opacity-0 animate-fade-in-up hidden md:block" 
+        className="w-full max-w-[100vw] overflow-hidden mt-4 relative mask-edges opacity-0 animate-fade-in-up hidden md:block" 
         style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}
       >
         <div className="flex w-max gap-4 px-4 animate-marquee hover:animation-play-state-paused">
@@ -360,7 +362,7 @@ function SignupContent() {
           ].map((feature, idx) => (
             <div 
               key={idx} 
-              className="flex items-center gap-2.5 bg-[#0a0a0c]/60 border border-white/5 px-5 py-2.5 rounded-full text-sm font-medium text-slate-300 backdrop-blur-md whitespace-nowrap cursor-default shadow-lg"
+              className="flex items-center gap-2 bg-[#0a0a0c]/60 border border-white/5 px-4 py-2 rounded-full text-sm font-medium text-slate-300 backdrop-blur-md whitespace-nowrap cursor-default shadow-lg"
             >
               <feature.icon className="w-4 h-4 text-blue-400/80" />
               {feature.text}

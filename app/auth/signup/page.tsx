@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Shield, Mail, User, Lock, Eye, EyeOff, ArrowRight, RefreshCw, Loader2, CheckCircle, Sparkles, Clock, Activity, Users, Bell } from 'lucide-react';
 import { Suspense } from 'react';
+import { WavyBackground } from '@/components/ui/wavy-background';
 
 type Step = 'form' | 'otp' | 'done';
 
@@ -169,7 +170,7 @@ function SignupContent() {
   }
 
   return (
-    <div className="min-h-screen mesh-bg flex flex-col items-center justify-center p-4 relative overflow-hidden dark">
+    <WavyBackground containerClassName="min-h-screen flex flex-col items-center justify-center relative overflow-hidden dark" className="w-full h-full flex flex-col items-center justify-center p-4">
       
       {/* Animated Greeting */}
       <div className="absolute top-8 md:top-16 text-center z-10 w-full animate-fade-in hidden sm:flex flex-col items-center">
@@ -211,7 +212,7 @@ function SignupContent() {
         </div>
       </div>
 
-      <div className="w-full max-w-md z-20 mt-12 sm:mt-24 animate-fade-in-up">
+      <div className="w-full max-w-md z-20 mt-12 sm:mt-32 animate-fade-in-up">
         {/* Glass Card */}
         <div className="glass-panel rounded-[32px] p-8 md:p-10 relative overflow-hidden">
           {/* Subtle top glare effect */}
@@ -225,72 +226,72 @@ function SignupContent() {
             <h2 className="text-xl font-bold text-white tracking-wide">PolicyVault</h2>
           </div>
 
-          {/* Progress dots */}
-          <div className="flex items-center justify-center gap-2 mb-8">
-            {(['form', 'otp', 'done'] as Step[]).map((s, i) => (
-              <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${
-                step === s ? 'w-8 bg-blue-500' :
-                (['form', 'otp', 'done'].indexOf(step) > i) ? 'w-4 bg-blue-400/50' : 'w-4 bg-white/10'
-              }`} />
-            ))}
-          </div>
-
           {/* ── Step 1: Form ── */}
           {step === 'form' && (
             <div className="animate-fade-in">
               <div className="text-center mb-6">
-                <h3 className="text-2xl font-semibold text-white">Create account</h3>
-                <p className="text-slate-400 text-sm mt-1">We'll verify your email with a 6-digit code.</p>
+                <h3 className="text-xl font-semibold text-white">Create your account</h3>
+                <p className="text-slate-400 text-sm mt-1">Get started with a secure vault.</p>
               </div>
 
               <form onSubmit={handleSignup} className="space-y-4">
                 {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl text-center backdrop-blur-md">{error}</div>}
-
-                <div>
-                  <div className="relative group">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
-                    <Input type="text" placeholder="Full Name" value={formData.fullName}
-                      onChange={e => setFormData({ ...formData, fullName: e.target.value })}
-                      disabled={loading} className="pl-12 h-14 rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 transition-all text-base shadow-inner" />
-                  </div>
+                
+                <div className="relative group">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                  <Input
+                    type="text"
+                    placeholder="Full Name"
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    className="pl-11 h-12 bg-white/5 border-white/10 text-white rounded-2xl focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all placeholder:text-slate-500"
+                    required
+                  />
                 </div>
 
-                <div>
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
-                    <Input type="email" placeholder="Email Address" value={formData.email}
-                      onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      disabled={loading} className="pl-12 h-14 rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 transition-all text-base shadow-inner" />
-                  </div>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                  <Input
+                    type="email"
+                    placeholder="Email Address"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="pl-11 h-12 bg-white/5 border-white/10 text-white rounded-2xl focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all placeholder:text-slate-500"
+                    required
+                  />
                 </div>
 
-                <div>
-                  <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
-                    <Input type={showPass ? 'text' : 'password'} placeholder="Password (Min 8)"
-                      value={formData.password}
-                      onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      disabled={loading} className="pl-12 pr-12 h-14 rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 transition-all text-base shadow-inner" />
-                    <button type="button" onClick={() => setShowPass(!showPass)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors">
-                      {showPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                  <Input
+                    type={showPass ? 'text' : 'password'}
+                    placeholder="Password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="pl-11 pr-11 h-12 bg-white/5 border-white/10 text-white rounded-2xl focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all placeholder:text-slate-500"
+                    required
+                    minLength={8}
+                  />
+                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors">
+                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
 
-                <div>
-                  <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
-                    <Input type="password" placeholder="Confirm Password"
-                      value={formData.confirmPassword}
-                      onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      disabled={loading} className="pl-12 h-14 rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 transition-all text-base shadow-inner" />
-                  </div>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                  <Input
+                    type={showPass ? 'text' : 'password'}
+                    placeholder="Confirm Password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    className="pl-11 h-12 bg-white/5 border-white/10 text-white rounded-2xl focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all placeholder:text-slate-500"
+                    required
+                    minLength={8}
+                  />
                 </div>
 
-                <Button type="submit" disabled={loading}
-                  className="w-full h-14 mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all border border-white/10">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-5 h-5" /> Request Access</>}
+                <Button type="submit" disabled={loading} className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all border border-white/10 mt-2">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Create Account</>}
                 </Button>
               </form>
             </div>
@@ -300,43 +301,43 @@ function SignupContent() {
           {step === 'otp' && (
             <div className="animate-fade-in">
               <div className="text-center mb-8">
-                <div className="flex justify-center mb-4">
-                  <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center border border-emerald-500/30">
-                    <CheckCircle className="w-6 h-6 text-emerald-400" />
-                  </div>
+                <div className="mx-auto w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mb-4 border border-blue-500/30">
+                  <CheckCircle className="w-6 h-6 text-blue-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-white">Verify your email</h3>
-                <p className="text-slate-400 text-sm mt-2">
-                  Code sent to <span className="text-white font-medium">{formData.email}</span>
-                </p>
+                <h3 className="text-xl font-semibold text-white">Verify email</h3>
+                <p className="text-slate-400 text-sm mt-2">Code sent to <span className="text-white font-medium">{formData.email}</span></p>
               </div>
 
               <form onSubmit={handleVerifyOTP} className="space-y-6">
                 {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl text-center backdrop-blur-md">{error}</div>}
-
-                <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
-                  {otp.map((digit, i) => (
-                    <input key={i} ref={el => { otpRefs.current[i] = el; }}
-                      type="text" inputMode="numeric" maxLength={1} value={digit}
-                      onChange={e => handleOtpChange(i, e.target.value)}
-                      onKeyDown={e => handleOtpKeyDown(i, e)}
-                      className={`w-11 h-14 sm:w-12 sm:h-16 text-center text-2xl font-black border rounded-2xl outline-none transition-all shadow-inner
-                        ${digit ? 'border-blue-400/50 bg-blue-500/20 text-blue-100 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'border-white/10 bg-white/5 text-white'}
-                        focus:border-blue-400/80 focus:bg-white/10`}
+                
+                <div className="flex justify-between gap-2 md:gap-3">
+                  {otp.map((digit, idx) => (
+                    <input
+                      key={idx}
+                      ref={el => { otpRefs.current[idx] = el; }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={e => handleOtpChange(idx, e.target.value)}
+                      onKeyDown={e => handleOtpKeyDown(idx, e)}
+                      onPaste={handleOtpPaste}
+                      className="w-10 h-12 md:w-12 md:h-14 text-center text-xl font-bold bg-white/5 border border-white/10 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600"
+                      placeholder="-"
                     />
                   ))}
                 </div>
 
-                <Button type="submit" disabled={loading || otp.join('').length !== 6}
-                  className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all border border-white/10">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle className="w-5 h-5" /> Verify & Create Account</>}
+                <Button type="submit" disabled={loading} className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all border border-white/10">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Verify & Continue</>}
                 </Button>
 
                 <div className="flex items-center justify-between text-sm pt-2">
-                  <button type="button" onClick={() => { setStep('form'); setError(''); setOtp(['','','','','','']); }}
-                    className="text-slate-400 hover:text-white transition-colors">← Back</button>
-                  <button type="button" onClick={resendOTP} disabled={cooldown > 0 || loading}
-                    className="text-blue-400 hover:text-blue-300 disabled:text-slate-500 transition-colors flex items-center gap-1 font-medium">
+                  <button type="button" onClick={() => { setStep('form'); setError(''); setOtp(['','','','','','']); }} className="text-slate-400 hover:text-white transition-colors">
+                    ← Back
+                  </button>
+                  <button type="button" onClick={resendOTP} disabled={cooldown > 0 || loading} className="text-blue-400 hover:text-blue-300 disabled:text-slate-500 transition-colors flex items-center gap-1 font-medium">
                     <RefreshCw className="w-3.5 h-3.5" />
                     {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
                   </button>
@@ -365,7 +366,7 @@ function SignupContent() {
           </p>
         )}
       </div>
-    </div>
+    </WavyBackground>
   );
 }
 

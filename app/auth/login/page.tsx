@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Shield, Mail, ArrowRight, RefreshCw, Loader2, CheckCircle, Sparkles, Clock, Activity, Users, Bell } from 'lucide-react';
 import { Suspense } from 'react';
 import { emailRegex } from '@/lib/schemas';
+import { WavyBackground } from '@/components/ui/wavy-background';
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -153,7 +154,7 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen mesh-bg flex flex-col items-center justify-center p-4 relative overflow-hidden dark">
+    <WavyBackground containerClassName="min-h-screen flex flex-col items-center justify-center relative overflow-hidden dark" className="w-full h-full flex flex-col items-center justify-center p-4">
       
       {/* Animated Greeting */}
       <div className="absolute top-8 md:top-16 text-center z-10 w-full animate-fade-in flex flex-col items-center">
@@ -195,7 +196,7 @@ function LoginContent() {
         </div>
       </div>
 
-      <div className="w-full max-w-md z-20 mt-20 animate-fade-in-up">
+      <div className="w-full max-w-md z-20 mt-32 animate-fade-in-up">
         {/* Glass Card */}
         <div className="glass-panel rounded-[32px] p-8 md:p-10 relative overflow-hidden">
           {/* Subtle top glare effect */}
@@ -331,7 +332,7 @@ function LoginContent() {
           <Link href="/auth/signup" className="text-blue-400 hover:text-blue-300 transition-colors">Request Access</Link>
         </p>
       </div>
-    </div>
+    </WavyBackground>
   );
 }
 

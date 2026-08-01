@@ -154,36 +154,46 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen mesh-bg flex flex-col items-center justify-center p-4 relative overflow-hidden dark">
+      
+      {/* Animated Greeting */}
+      <div className="absolute top-12 md:top-24 text-center z-10 w-full animate-fade-in">
+        <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-2xl">
+          Welcome to <span className="text-blue-400">Apex OS</span>.
+        </h1>
+        <p className="text-slate-300 mt-3 text-sm md:text-base font-medium max-w-sm mx-auto">
+          The next-generation intelligence platform for wealth & insurance management.
+        </p>
+      </div>
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
-            <Shield className="w-7 h-7 text-white" />
+      <div className="w-full max-w-md z-20 mt-20 animate-fade-in-up">
+        {/* Glass Card */}
+        <div className="glass-panel rounded-[32px] p-8 md:p-10 relative overflow-hidden">
+          {/* Subtle top glare effect */}
+          <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+
+          {/* Logo inside card */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center border border-blue-500/30">
+              <Shield className="w-5 h-5 text-blue-400" />
+            </div>
+            <h2 className="text-xl font-bold text-white tracking-wide">PolicyVault</h2>
           </div>
-          <h1 className="text-2xl font-black text-foreground">PolicyVault</h1>
-          <p className="text-muted-foreground text-sm mt-1">AI-Powered Insurance Management</p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-card transition-colors border border-border rounded-[28px] p-8 shadow-xl shadow-slate-100">
 
           {step === 'email' && (
-            <>
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-foreground">Sign in</h2>
-                <p className="text-muted-foreground text-sm mt-1">We'll send a 6-digit code to your email.</p>
+            <div className="animate-fade-in">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-semibold text-white">Sign in to your vault</h3>
+                <p className="text-slate-400 text-sm mt-2">Enter your email to receive a secure access code.</p>
               </div>
 
-              <form onSubmit={handleSendOTP} className="space-y-4">
+              <form onSubmit={handleSendOTP} className="space-y-5">
                 {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl">{error}</div>
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl text-center backdrop-blur-md">{error}</div>
                 )}
                 <div>
-                  <label htmlFor="email" className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">Email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
                     <Input
                       id="email"
                       type="email"
@@ -191,7 +201,7 @@ function LoginContent() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       disabled={loading}
-                      className="pl-10 h-12 rounded-2xl border-border"
+                      className="pl-12 h-14 rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 transition-all text-base shadow-inner"
                       autoFocus
                     />
                   </div>
@@ -199,29 +209,31 @@ function LoginContent() {
                 <Button
                   type="submit"
                   disabled={loading || !emailRegex.test(email)}
-                  className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold gap-2 shadow-lg shadow-blue-200"
+                  className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all border border-white/10"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Mail className="w-4 h-4" /> Send Code</>}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Mail className="w-5 h-5" /> Send Access Code</>}
                 </Button>
               </form>
-            </>
+            </div>
           )}
 
           {step === 'otp' && (
-            <>
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-1">
-                  <CheckCircle className="w-5 h-5 text-emerald-500" />
-                  <h2 className="text-xl font-bold text-foreground">Check your email</h2>
+            <div className="animate-fade-in">
+              <div className="text-center mb-8">
+                <div className="flex justify-center mb-4">
+                  <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center border border-emerald-500/30">
+                    <CheckCircle className="w-6 h-6 text-emerald-400" />
+                  </div>
                 </div>
-                <p className="text-muted-foreground text-sm">
-                  Code sent to <strong className="text-foreground">{email}</strong>. Valid 5 minutes.
+                <h3 className="text-xl font-semibold text-white">Check your email</h3>
+                <p className="text-slate-400 text-sm mt-2">
+                  We sent a code to <span className="text-white font-medium">{email}</span>
                 </p>
               </div>
 
               <form onSubmit={handleVerifyOTP} className="space-y-6">
                 {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl">{error}</div>
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl text-center backdrop-blur-md">{error}</div>
                 )}
 
                 {/* OTP Boxes */}
@@ -236,21 +248,20 @@ function LoginContent() {
                       value={digit}
                       onChange={(e) => handleOtpChange(i, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      className={`w-12 h-14 text-center text-2xl font-black border-2 rounded-2xl outline-none transition-all
+                      className={`w-11 h-14 sm:w-12 sm:h-16 text-center text-2xl font-black border rounded-2xl outline-none transition-all shadow-inner
                         ${
                           otpError
-                            ? 'border-red-400 bg-red-50 text-red-700'
+                            ? 'border-red-500/50 bg-red-500/10 text-red-400'
                             : digit
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-border bg-muted transition-colors text-foreground'
+                            ? 'border-blue-400/50 bg-blue-500/20 text-blue-100 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+                            : 'border-white/10 bg-white/5 text-white'
                         }
-                        focus:border-blue-500 focus:bg-blue-50`}
+                        focus:border-blue-400/80 focus:bg-white/10`}
                     />
                   ))}
                 </div>
                 {otpError && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-2xl -mt-2 font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <div className="text-red-400 text-sm font-medium text-center -mt-2">
                     {otpError}
                   </div>
                 )}
@@ -258,16 +269,16 @@ function LoginContent() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold gap-2 shadow-lg shadow-blue-200"
+                  className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all border border-white/10"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Verify & Sign In</>}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-5 h-5" /> Authenticate & Enter</>}
                 </Button>
 
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-sm pt-2">
                   <button
                     type="button"
                     onClick={() => { setStep('email'); setError(''); setOtp(['','','','','','']); }}
-                    className="text-muted-foreground hover:text-foreground/90"
+                    className="text-slate-400 hover:text-white transition-colors"
                   >
                     ← Change email
                   </button>
@@ -275,20 +286,20 @@ function LoginContent() {
                     type="button"
                     onClick={() => handleSendOTP()}
                     disabled={cooldown > 0 || loading}
-                    className="text-blue-600 hover:text-blue-700 disabled:text-muted-foreground flex items-center gap-1 font-medium"
+                    className="text-blue-400 hover:text-blue-300 disabled:text-slate-500 transition-colors flex items-center gap-1 font-medium"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
                   </button>
                 </div>
               </form>
-            </>
+            </div>
           )}
         </div>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
+        <p className="text-center text-sm text-slate-400 mt-8 font-medium">
           Don't have an account?{' '}
-          <Link href="/auth/signup" className="text-blue-600 font-semibold hover:underline">Sign up</Link>
+          <Link href="/auth/signup" className="text-blue-400 hover:text-blue-300 transition-colors">Request Access</Link>
         </p>
       </div>
     </div>

@@ -169,111 +169,117 @@ function SignupContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen mesh-bg flex flex-col items-center justify-center p-4 relative overflow-hidden dark">
+      
+      {/* Animated Greeting */}
+      <div className="absolute top-8 md:top-16 text-center z-10 w-full animate-fade-in hidden sm:block">
+        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight drop-shadow-2xl">
+          Join <span className="text-blue-400">Apex OS</span>.
+        </h1>
+      </div>
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
-            <Shield className="w-7 h-7 text-white" />
+      <div className="w-full max-w-md z-20 mt-12 sm:mt-24 animate-fade-in-up">
+        {/* Glass Card */}
+        <div className="glass-panel rounded-[32px] p-8 md:p-10 relative overflow-hidden">
+          {/* Subtle top glare effect */}
+          <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+
+          {/* Logo inside card */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center border border-blue-500/30">
+              <Shield className="w-5 h-5 text-blue-400" />
+            </div>
+            <h2 className="text-xl font-bold text-white tracking-wide">PolicyVault</h2>
           </div>
-          <h1 className="text-2xl font-black text-foreground">PolicyVault</h1>
-          <p className="text-muted-foreground text-sm mt-1">AI-Powered Insurance Management</p>
-        </div>
 
-        {/* Progress dots */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          {(['form', 'otp', 'done'] as Step[]).map((s, i) => (
-            <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${
-              step === s ? 'w-8 bg-blue-600' :
-              (['form', 'otp', 'done'].indexOf(step) > i) ? 'w-4 bg-blue-300' : 'w-4 bg-slate-200'
-            }`} />
-          ))}
-        </div>
-
-        {/* Card */}
-        <div className="bg-card transition-colors border border-border rounded-[28px] p-8 shadow-xl shadow-slate-100">
+          {/* Progress dots */}
+          <div className="flex items-center justify-center gap-2 mb-8">
+            {(['form', 'otp', 'done'] as Step[]).map((s, i) => (
+              <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${
+                step === s ? 'w-8 bg-blue-500' :
+                (['form', 'otp', 'done'].indexOf(step) > i) ? 'w-4 bg-blue-400/50' : 'w-4 bg-white/10'
+              }`} />
+            ))}
+          </div>
 
           {/* ── Step 1: Form ── */}
           {step === 'form' && (
-            <>
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-foreground">Create account</h2>
-                <p className="text-muted-foreground text-sm mt-1">We'll verify your email with a 6-digit code.</p>
+            <div className="animate-fade-in">
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-semibold text-white">Create account</h3>
+                <p className="text-slate-400 text-sm mt-1">We'll verify your email with a 6-digit code.</p>
               </div>
 
               <form onSubmit={handleSignup} className="space-y-4">
-                {error && <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl">{error}</div>}
+                {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl text-center backdrop-blur-md">{error}</div>}
 
                 <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">Full Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input type="text" placeholder="Piyush Bhagchandani" value={formData.fullName}
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                    <Input type="text" placeholder="Full Name" value={formData.fullName}
                       onChange={e => setFormData({ ...formData, fullName: e.target.value })}
-                      disabled={loading} className="pl-10 h-12 rounded-2xl border-border" />
+                      disabled={loading} className="pl-12 h-14 rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 transition-all text-base shadow-inner" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">Email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input type="email" placeholder="you@example.com" value={formData.email}
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                    <Input type="email" placeholder="Email Address" value={formData.email}
                       onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      disabled={loading} className="pl-10 h-12 rounded-2xl border-border" />
+                      disabled={loading} className="pl-12 h-14 rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 transition-all text-base shadow-inner" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input type={showPass ? 'text' : 'password'} placeholder="Min. 8 characters"
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                    <Input type={showPass ? 'text' : 'password'} placeholder="Password (Min 8)"
                       value={formData.password}
                       onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      disabled={loading} className="pl-10 pr-10 h-12 rounded-2xl border-border" />
+                      disabled={loading} className="pl-12 pr-12 h-14 rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 transition-all text-base shadow-inner" />
                     <button type="button" onClick={() => setShowPass(!showPass)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/90">
-                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors">
+                      {showPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">Confirm Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input type="password" placeholder="Repeat password"
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                    <Input type="password" placeholder="Confirm Password"
                       value={formData.confirmPassword}
                       onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      disabled={loading} className="pl-10 h-12 rounded-2xl border-border" />
+                      disabled={loading} className="pl-12 h-14 rounded-2xl border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-400/50 transition-all text-base shadow-inner" />
                   </div>
                 </div>
 
                 <Button type="submit" disabled={loading}
-                  className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold gap-2 shadow-lg shadow-blue-200">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Continue</>}
+                  className="w-full h-14 mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all border border-white/10">
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-5 h-5" /> Request Access</>}
                 </Button>
               </form>
-            </>
+            </div>
           )}
 
           {/* ── Step 2: OTP ── */}
           {step === 'otp' && (
-            <>
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-1">
-                  <CheckCircle className="w-5 h-5 text-emerald-500" />
-                  <h2 className="text-xl font-bold text-foreground">Verify your email</h2>
+            <div className="animate-fade-in">
+              <div className="text-center mb-8">
+                <div className="flex justify-center mb-4">
+                  <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center border border-emerald-500/30">
+                    <CheckCircle className="w-6 h-6 text-emerald-400" />
+                  </div>
                 </div>
-                <p className="text-muted-foreground text-sm">
-                  Code sent to <strong className="text-foreground">{formData.email}</strong>. Valid 5 minutes.
+                <h3 className="text-xl font-semibold text-white">Verify your email</h3>
+                <p className="text-slate-400 text-sm mt-2">
+                  Code sent to <span className="text-white font-medium">{formData.email}</span>
                 </p>
               </div>
 
               <form onSubmit={handleVerifyOTP} className="space-y-6">
-                {error && <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl">{error}</div>}
+                {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-2xl text-center backdrop-blur-md">{error}</div>}
 
                 <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
                   {otp.map((digit, i) => (
@@ -281,48 +287,48 @@ function SignupContent() {
                       type="text" inputMode="numeric" maxLength={1} value={digit}
                       onChange={e => handleOtpChange(i, e.target.value)}
                       onKeyDown={e => handleOtpKeyDown(i, e)}
-                      className={`w-12 h-14 text-center text-2xl font-black border-2 rounded-2xl outline-none transition-all
-                        ${digit ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-border bg-muted transition-colors'}
-                        focus:border-blue-500 focus:bg-blue-50`}
+                      className={`w-11 h-14 sm:w-12 sm:h-16 text-center text-2xl font-black border rounded-2xl outline-none transition-all shadow-inner
+                        ${digit ? 'border-blue-400/50 bg-blue-500/20 text-blue-100 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'border-white/10 bg-white/5 text-white'}
+                        focus:border-blue-400/80 focus:bg-white/10`}
                     />
                   ))}
                 </div>
 
                 <Button type="submit" disabled={loading || otp.join('').length !== 6}
-                  className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold gap-2 shadow-lg shadow-blue-200">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle className="w-4 h-4" /> Verify & Create Account</>}
+                  className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all border border-white/10">
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle className="w-5 h-5" /> Verify & Create Account</>}
                 </Button>
 
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-sm pt-2">
                   <button type="button" onClick={() => { setStep('form'); setError(''); setOtp(['','','','','','']); }}
-                    className="text-muted-foreground hover:text-foreground/90">← Back</button>
+                    className="text-slate-400 hover:text-white transition-colors">← Back</button>
                   <button type="button" onClick={resendOTP} disabled={cooldown > 0 || loading}
-                    className="text-blue-600 hover:text-blue-700 disabled:text-muted-foreground flex items-center gap-1 font-medium">
+                    className="text-blue-400 hover:text-blue-300 disabled:text-slate-500 transition-colors flex items-center gap-1 font-medium">
                     <RefreshCw className="w-3.5 h-3.5" />
                     {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
                   </button>
                 </div>
               </form>
-            </>
+            </div>
           )}
 
           {/* ── Step 3: Done ── */}
           {step === 'done' && (
-            <div className="text-center py-6 space-y-4">
-              <div className="w-20 h-20 bg-emerald-50 border-2 border-emerald-200 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle className="w-10 h-10 text-emerald-500" />
+            <div className="text-center py-8 space-y-4 animate-fade-in">
+              <div className="w-24 h-24 bg-emerald-500/20 border-2 border-emerald-500/30 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                <CheckCircle className="w-12 h-12 text-emerald-400" />
               </div>
-              <h2 className="text-xl font-bold text-foreground">Account created!</h2>
-              <p className="text-muted-foreground text-sm">Redirecting you to the dashboard...</p>
-              <Loader2 className="w-5 h-5 animate-spin text-blue-500 mx-auto" />
+              <h2 className="text-2xl font-bold text-white">Account created!</h2>
+              <p className="text-slate-400 text-sm">Redirecting you to the dashboard...</p>
+              <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto mt-4" />
             </div>
           )}
         </div>
 
         {step === 'form' && (
-          <p className="text-center text-sm text-muted-foreground mt-6">
+          <p className="text-center text-sm text-slate-400 mt-8 font-medium">
             Already have an account?{' '}
-            <Link href="/auth/login" className="text-blue-600 font-semibold hover:underline">Sign in</Link>
+            <Link href="/auth/login" className="text-blue-400 hover:text-blue-300 transition-colors">Sign in</Link>
           </p>
         )}
       </div>

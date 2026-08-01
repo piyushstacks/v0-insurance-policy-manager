@@ -164,24 +164,34 @@ function LoginContent() {
           The next-generation intelligence platform for wealth & insurance management.
         </p>
 
-        {/* Staggered Features List */}
-        <div className="flex flex-wrap justify-center gap-2.5 max-w-2xl px-4">
-          {[
-            { icon: Sparkles, text: 'AI Data Extraction' },
-            { icon: Clock, text: 'Automated Renewals' },
-            { icon: Activity, text: 'Gap Detection' },
-            { icon: Users, text: 'Team Collaboration' },
-            { icon: Bell, text: 'Smart Reminders' }
-          ].map((feature, idx) => (
-            <div 
-              key={idx} 
-              className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-xs font-medium text-slate-300 backdrop-blur-md animate-fade-in-up"
-              style={{ animationDelay: `${idx * 150 + 400}ms` }}
-            >
-              <feature.icon className="w-3.5 h-3.5 text-blue-400" />
-              {feature.text}
-            </div>
-          ))}
+        {/* Infinite Marquee Features List */}
+        <div 
+          className="w-full max-w-[100vw] overflow-hidden mt-4 relative mask-edges opacity-0 animate-fade-in-up" 
+          style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}
+        >
+          <div className="flex w-max gap-4 px-4 animate-marquee hover:animation-play-state-paused">
+            {[
+              { icon: Sparkles, text: 'AI Data Extraction' },
+              { icon: Clock, text: 'Automated Renewals' },
+              { icon: Activity, text: 'Gap Detection' },
+              { icon: Users, text: 'Team Collaboration' },
+              { icon: Bell, text: 'Smart Reminders' },
+              // Duplicate for infinite scrolling effect
+              { icon: Sparkles, text: 'AI Data Extraction' },
+              { icon: Clock, text: 'Automated Renewals' },
+              { icon: Activity, text: 'Gap Detection' },
+              { icon: Users, text: 'Team Collaboration' },
+              { icon: Bell, text: 'Smart Reminders' }
+            ].map((feature, idx) => (
+              <div 
+                key={idx} 
+                className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2.5 rounded-full text-sm font-medium text-slate-300 backdrop-blur-md whitespace-nowrap hover:bg-white/10 transition-colors cursor-default"
+              >
+                <feature.icon className="w-4 h-4 text-blue-400" />
+                {feature.text}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

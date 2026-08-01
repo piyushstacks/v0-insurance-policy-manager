@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Shield, Mail, User, Lock, Eye, EyeOff, ArrowRight, RefreshCw, Loader2, CheckCircle } from 'lucide-react';
+import { Shield, Mail, User, Lock, Eye, EyeOff, ArrowRight, RefreshCw, Loader2, CheckCircle, Sparkles, Clock, Activity, Users, Bell } from 'lucide-react';
 import { Suspense } from 'react';
 
 type Step = 'form' | 'otp' | 'done';
@@ -172,10 +172,33 @@ function SignupContent() {
     <div className="min-h-screen mesh-bg flex flex-col items-center justify-center p-4 relative overflow-hidden dark">
       
       {/* Animated Greeting */}
-      <div className="absolute top-8 md:top-16 text-center z-10 w-full animate-fade-in hidden sm:block">
+      <div className="absolute top-8 md:top-16 text-center z-10 w-full animate-fade-in hidden sm:flex flex-col items-center">
         <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight drop-shadow-2xl">
           Join <span className="text-blue-400">Apex OS</span>.
         </h1>
+        <p className="text-slate-300 mt-3 text-sm md:text-base font-medium max-w-sm mx-auto mb-6">
+          The next-generation intelligence platform for wealth & insurance management.
+        </p>
+
+        {/* Staggered Features List */}
+        <div className="flex flex-wrap justify-center gap-2.5 max-w-2xl px-4">
+          {[
+            { icon: Sparkles, text: 'AI Data Extraction' },
+            { icon: Clock, text: 'Automated Renewals' },
+            { icon: Activity, text: 'Gap Detection' },
+            { icon: Users, text: 'Team Collaboration' },
+            { icon: Bell, text: 'Smart Reminders' }
+          ].map((feature, idx) => (
+            <div 
+              key={idx} 
+              className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-xs font-medium text-slate-300 backdrop-blur-md animate-fade-in-up"
+              style={{ animationDelay: `${idx * 150 + 400}ms` }}
+            >
+              <feature.icon className="w-3.5 h-3.5 text-blue-400" />
+              {feature.text}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="w-full max-w-md z-20 mt-12 sm:mt-24 animate-fade-in-up">

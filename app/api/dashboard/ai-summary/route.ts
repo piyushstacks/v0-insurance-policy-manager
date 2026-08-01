@@ -6,11 +6,13 @@ import redis from '@/lib/redis';
 import { getAdvancedDashboardMetrics } from '@/services/dashboard-cache';
 import { getTeamUserIds } from '@/services/team';
 
-// Initialize OpenAI client with Groq base URL and Key
-const openai = new OpenAI({
-  baseURL: 'https://api.groq.com/openai/v1',
-  apiKey: process.env.GROQ_API_KEY || '',
-});
+// Initialize OpenAI client inside the request handler to avoid build errors if env vars are missing at build time
+const getOpenAIClient = () => {
+  return new OpenAI({
+    baseURL: 'https://api.groq.com/openai/v1',
+    apiKey: process.env.GROQ_API_KEY || 'dummy-key-for-build',
+  });
+};
 
 const MODEL = process.env.EXTRACTION_MODEL || 'llama-3.3-70b-versatile';
 
@@ -26,6 +28,7 @@ function extractNumbers(text: string): number[] {
 
 export async function GET(request: Request) {
   try {
+    const openai = getOpenAIClient();
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

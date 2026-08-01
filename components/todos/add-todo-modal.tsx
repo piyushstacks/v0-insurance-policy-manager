@@ -229,7 +229,6 @@ export function AddTodoModal({ open, onOpenChange, onSuccess, initialDate, editI
               </div>
             </div>
           </div>
-          </div>
           <DialogFooter className="px-6 py-4 border-t border-border gap-2 sm:justify-end sticky bottom-0 bg-background shadow-[0_-4px_16px_rgba(0,0,0,0.06)] rounded-b-2xl">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="font-bold">
               Cancel

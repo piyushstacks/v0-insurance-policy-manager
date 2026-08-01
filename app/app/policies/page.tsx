@@ -497,7 +497,8 @@ export default function PoliciesPage() {
             </div>
           ) : (
             <>
-            <div className="w-full overflow-x-auto custom-scrollbar">
+            {/* Desktop Table */}
+            <div className="w-full overflow-x-auto custom-scrollbar hidden md:block">
               <table className="w-full text-left border-collapse min-w-full table-auto">
                 <thead>
                   <tr className="bg-muted border-b text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -512,7 +513,7 @@ export default function PoliciesPage() {
                     <th className="px-2 py-3 text-center w-14">Delete</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                   {paginatedPolicies.map((p) => {
                     const baseUrl = process.env.NEXT_PUBLIC_B2_PUBLIC_URL || '';
                     const fileUrl = p.documents?.[0]?.file_path ? `${baseUrl}/${p.documents[0].file_path}` : `/app/policies/${p.id}`;
@@ -542,7 +543,7 @@ export default function PoliciesPage() {
                         <td className="px-3 py-3 text-foreground/90 text-xs truncate max-w-[120px]">
                           {p.policy_type ? (
                             <div className="flex flex-col gap-1 min-w-0">
-                               <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-sm w-max uppercase text-[9px] tracking-wider border border-indigo-100">{p.policy_type.split(' | ')[0] || 'General'}</span>
+                               <span className="font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded-sm w-max uppercase text-[9px] tracking-wider border border-indigo-100 dark:border-indigo-800/50">{p.policy_type.split(' | ')[0] || 'General'}</span>
                                <span className="text-[11px] truncate" title={p.policy_type.split(' | ')[1] || ''}>{p.policy_type.split(' | ')[1] || ''}</span>
                             </div>
                           ) : '—'}
@@ -561,13 +562,13 @@ export default function PoliciesPage() {
                         </td>
                         <td className="px-2 py-3 text-center">
                            <Link href={`/app/policies/${p.id}`} prefetch={true}>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 inline-flex" title="View Details">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 inline-flex" title="View Details">
                                 <Eye className="w-4 h-4" />
                               </Button>
                            </Link>
                         </td>
                         <td className="px-2 py-3 text-center">
-                           <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 inline-flex" onClick={(e) => deleteSingle(p.id, e)} title="Delete Policy">
+                           <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 inline-flex" onClick={(e) => deleteSingle(p.id, e)} title="Delete Policy">
                              <Trash2 className="w-4 h-4" />
                            </Button>
                         </td>
@@ -576,6 +577,78 @@ export default function PoliciesPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card List */}
+            <div className="md:hidden flex flex-col gap-3 p-3 bg-muted/30">
+              {paginatedPolicies.map((p) => {
+                const baseUrl = process.env.NEXT_PUBLIC_B2_PUBLIC_URL || '';
+                const fileUrl = p.documents?.[0]?.file_path ? `${baseUrl}/${p.documents[0].file_path}` : `/app/policies/${p.id}`;
+                
+                return (
+                  <div key={p.id} className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col gap-3 relative">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex items-center gap-2">
+                        <span 
+                          className={`w-2 h-2 rounded-full shrink-0 ${
+                            p.status === 'active' || p.status === 'renewed' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 
+                            p.status === 'expired' ? 'bg-amber-500' : 
+                            'bg-red-500'
+                          }`} 
+                        />
+                        {p.documents?.[0]?.file_path ? (
+                          <a href={fileUrl} target="_blank" rel="noreferrer" className="font-bold text-foreground hover:text-blue-600 truncate">{p.policy_number}</a>
+                        ) : (
+                          <Link href={`/app/policies/${p.id}`} prefetch={true} className="font-bold text-foreground hover:text-blue-600 truncate">{p.policy_number}</Link>
+                        )}
+                      </div>
+                      <input type="checkbox" className="rounded border-border/80 accent-blue-600 w-5 h-5 cursor-pointer" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">Insured</span>
+                        <span className="font-medium text-foreground truncate">{p.customer?.name || '—'}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">Company</span>
+                        <span className="font-medium text-foreground truncate">{p.insurer?.name || '—'}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">Product</span>
+                        <span className="font-medium text-indigo-600 dark:text-indigo-400 truncate">{p.policy_type?.split(' | ')[0] || 'General'}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">Expiry Date</span>
+                        <span className="font-medium text-foreground">{p.expiry_date ? new Date(p.expiry_date).toLocaleDateString('en-GB') : '—'}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-border pt-3 mt-1">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Premium</span>
+                        {p.premium_amount ? (
+                          <span className="flex items-center gap-0.5 font-bold text-emerald-600 dark:text-emerald-400">
+                            <IndianRupee className="w-3.5 h-3.5" />
+                            {p.premium_amount.toLocaleString('en-IN')}
+                          </span>
+                        ) : <span className="font-medium text-muted-foreground">—</span>}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={(e) => deleteSingle(p.id, e)}>
+                          <Trash2 className="w-5 h-5" />
+                        </Button>
+                        <Link href={`/app/policies/${p.id}`} prefetch={true}>
+                           <Button variant="ghost" size="icon" className="h-10 w-10 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                             <Eye className="w-5 h-5" />
+                           </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             {totalPages > 1 && (
               <div className="p-4 border-t bg-muted flex items-center justify-between">

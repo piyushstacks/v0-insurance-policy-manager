@@ -80,8 +80,8 @@ export function Fab({ actions = DEFAULT_ACTIONS, className }: FabProps) {
         type="button"
         onClick={() => setOpen(v => !v)}
         className={cn(
-          'w-14 h-14 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-300/50 flex items-center justify-center transition-all duration-200 active:scale-95',
-          open && 'rotate-45 bg-slate-700'
+          'w-[56px] h-[56px] rounded-full bg-blue-600 text-white shadow-[0_8px_30px_rgba(37,99,235,0.4)] dark:shadow-[0_8px_30px_rgba(37,99,235,0.2)] flex items-center justify-center transition-all duration-300 active:scale-95 hover:bg-blue-700',
+          open && 'rotate-45 bg-slate-800 dark:bg-slate-100 dark:text-slate-900 shadow-none'
         )}
         aria-label="Quick actions"
       >

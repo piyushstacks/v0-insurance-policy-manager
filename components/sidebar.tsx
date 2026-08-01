@@ -158,28 +158,8 @@ export default function Sidebar({ user }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile Top Bar */}
-      <div className="lg:hidden flex items-center justify-between px-4 h-16 bg-sidebar border-b border-border sticky top-0 z-40 transition-colors">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-md">
-            <Fingerprint className="w-5 h-5" />
-          </div>
-          <h1 className="text-lg font-black text-sidebar-foreground tracking-tight">PolicyVault</h1>
-        </div>
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors"
-        >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-      </div>
-
-      {/* Sidebar Desktop / Mobile Overlay */}
-      <aside className={`
-        fixed inset-y-0 right-0 z-50 w-72 lg:w-60 xl:w-72 bg-sidebar border-l border-border flex flex-col transition-all duration-300 ease-in-out
-        lg:left-0 lg:right-auto lg:border-r lg:border-l-0 lg:translate-x-0 lg:static lg:h-screen
-        ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-      `}>
+      {/* Sidebar Desktop */}
+      <aside className="hidden lg:flex inset-y-0 left-0 z-50 w-60 xl:w-72 bg-sidebar border-r border-border flex-col h-screen transition-colors">
         {/* Main Content Area (Scrollable) */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {/* Header / Logo */}

@@ -133,53 +133,55 @@ export default function PolicyEditPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-card transition-colors rounded-xl border border-border shadow-sm p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-card transition-colors rounded-xl border border-border shadow-sm p-4 md:p-6 space-y-6 relative flex-1 flex flex-col">
         
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Policy Number</label>
+        <div className="space-y-5 flex-1">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest pl-1">Policy Number</label>
             <Input 
               value={formData.policy_number}
               onChange={(e) => setFormData(prev => ({ ...prev, policy_number: e.target.value }))}
               placeholder="e.g. P/141100/01/2025/001234"
-              className="h-11 bg-muted transition-colors border-border"
+              className="h-12 bg-muted transition-colors border-border rounded-xl text-base"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Gross Premium Amount (₹)</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest pl-1">Gross Premium Amount (₹)</label>
               <Input 
                 type="number"
                 value={formData.premium_amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, premium_amount: e.target.value }))}
                 placeholder="e.g. 25000"
-                className="h-11 bg-muted transition-colors border-border"
+                className="h-12 bg-muted transition-colors border-border rounded-xl text-base"
                 required
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{sumInsuredLabel}</label>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest pl-1">{sumInsuredLabel}</label>
               <Input 
                 type="number"
                 value={formData.sum_insured}
                 onChange={(e) => setFormData(prev => ({ ...prev, sum_insured: e.target.value }))}
                 placeholder="e.g. 500000"
-                className="h-11 bg-muted transition-colors border-border"
+                className="h-12 bg-muted transition-colors border-border rounded-xl text-base"
                 required
               />
             </div>
           </div>
         </div>
 
-        <div className="pt-4 border-t border-border flex justify-end gap-3">
+        {/* Sticky bottom bar on mobile */}
+        <div className="sticky bottom-0 -mx-4 -mb-4 md:mx-0 md:mb-0 p-4 md:p-0 mt-6 bg-card border-t border-border md:border-t-0 md:pt-4 flex flex-col md:flex-row justify-end gap-3 z-10 shadow-[0_-8px_20px_rgba(0,0,0,0.05)] md:shadow-none">
           <Button 
             type="button" 
             variant="ghost" 
             onClick={() => router.push(`/app/policies/${policyId}`)}
             disabled={isSaving}
+            className="h-12 md:h-10 order-2 md:order-1 rounded-xl"
           >
             Cancel
           </Button>
@@ -187,11 +189,11 @@ export default function PolicyEditPage() {
             type="submit" 
             variant="primary" 
             disabled={isSaving}
-            className="min-w-[140px]"
+            className="h-12 md:h-10 min-w-[140px] order-1 md:order-2 rounded-xl"
           >
             {isSaving ? <PageLoader words={[]} label="" /> : (
               <>
-                <Save className="w-4 h-4 mr-2" />
+                <Save className="w-5 h-5 md:w-4 md:h-4 mr-2" />
                 {isManualEntry ? 'Finalize Policy' : 'Save Changes'}
               </>
             )}

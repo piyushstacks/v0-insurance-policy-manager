@@ -43,10 +43,10 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-background font-sans overflow-hidden transition-colors">
+    <div className="flex flex-col lg:flex-row h-[100dvh] w-[100vw] overflow-hidden bg-background font-sans transition-colors">
       <Sidebar user={user} />
-      <main className="flex-1 w-full flex flex-col min-w-0 h-screen">
-        <div className="flex-1 overflow-y-auto w-full pb-20 lg:pb-0 relative">
+      <main className="flex-1 w-full flex flex-col min-w-0 h-[100dvh]">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden w-full pb-20 lg:pb-0 relative">
           <TeamProvider>
             {children}
           </TeamProvider>

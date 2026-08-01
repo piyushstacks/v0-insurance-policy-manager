@@ -299,21 +299,47 @@ export default function CustomersPage() {
             </div>
 
             {/* ─── Mobile card list (< lg) ─────────────────────── */}
-            <div className="lg:hidden divide-y divide-slate-100">
+            <div className="lg:hidden flex flex-col gap-3 p-3 bg-muted/30">
               {paginatedCustomers.map(c => (
-                <Link key={c.id} href={`/app/customers/${c.id}`} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted active:bg-muted transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-white font-black text-sm flex items-center justify-center shrink-0">
-                    {c.name?.charAt(0).toUpperCase() || '?'}
+                <div key={c.id} className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col gap-3 relative">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                          {c.name?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                        {c.totalPremium >= 500000 && (
+                          <div className="absolute -top-1 -right-1 bg-amber-400 text-white rounded-full p-0.5 shadow-sm">
+                            <Crown className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <Link href={`/app/customers/${c.id}`} className="font-bold text-foreground text-sm truncate hover:text-blue-600 transition-colors">
+                          {c.name}
+                        </Link>
+                        <span className="text-xs text-muted-foreground truncate">{c.mobile || c.email || 'No contact info'}</span>
+                      </div>
+                    </div>
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-border/80 accent-blue-600 w-5 h-5 cursor-pointer mt-1" 
+                      checked={selected.has(c.id)} 
+                      onChange={(e) => toggleSelect(c.id, e as any)} 
+                    />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground text-sm truncate">{c.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{c.mobile || c.email || 'No contact info'}</p>
+
+                  <div className="flex items-center justify-between border-t border-border pt-3 mt-1">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">Premium</span>
+                      <span className="font-bold text-foreground">₹{c.totalPremium.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">Policies</span>
+                      <span className="font-medium text-foreground">{c.policiesCount}</span>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-black text-foreground">₹{c.totalPremium.toLocaleString('en-IN')}</p>
-                    <p className="text-[10px] text-muted-foreground">{c.policiesCount} {c.policiesCount === 1 ? 'policy' : 'policies'}</p>
-                  </div>
-                </Link>
+                </div>
               ))}
             </div>
 

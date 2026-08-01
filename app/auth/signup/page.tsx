@@ -177,8 +177,8 @@ function SignupContent() {
           <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
             <Shield className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900">PolicyVault</h1>
-          <p className="text-slate-500 text-sm mt-1">AI-Powered Insurance Management</p>
+          <h1 className="text-2xl font-black text-foreground">PolicyVault</h1>
+          <p className="text-muted-foreground text-sm mt-1">AI-Powered Insurance Management</p>
         </div>
 
         {/* Progress dots */}
@@ -192,62 +192,62 @@ function SignupContent() {
         </div>
 
         {/* Card */}
-        <div className="bg-white border border-slate-200 rounded-[28px] p-8 shadow-xl shadow-slate-100">
+        <div className="bg-card transition-colors border border-border rounded-[28px] p-8 shadow-xl shadow-slate-100">
 
           {/* ── Step 1: Form ── */}
           {step === 'form' && (
             <>
               <div className="mb-6">
-                <h2 className="text-xl font-bold text-slate-900">Create account</h2>
-                <p className="text-slate-500 text-sm mt-1">We'll verify your email with a 6-digit code.</p>
+                <h2 className="text-xl font-bold text-foreground">Create account</h2>
+                <p className="text-muted-foreground text-sm mt-1">We'll verify your email with a 6-digit code.</p>
               </div>
 
               <form onSubmit={handleSignup} className="space-y-4">
                 {error && <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl">{error}</div>}
 
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Full Name</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">Full Name</label>
                   <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input type="text" placeholder="Piyush Bhagchandani" value={formData.fullName}
                       onChange={e => setFormData({ ...formData, fullName: e.target.value })}
-                      disabled={loading} className="pl-10 h-12 rounded-2xl border-slate-200" />
+                      disabled={loading} className="pl-10 h-12 rounded-2xl border-border" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Email</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input type="email" placeholder="you@example.com" value={formData.email}
                       onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      disabled={loading} className="pl-10 h-12 rounded-2xl border-slate-200" />
+                      disabled={loading} className="pl-10 h-12 rounded-2xl border-border" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Password</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input type={showPass ? 'text' : 'password'} placeholder="Min. 8 characters"
                       value={formData.password}
                       onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      disabled={loading} className="pl-10 pr-10 h-12 rounded-2xl border-slate-200" />
+                      disabled={loading} className="pl-10 pr-10 h-12 rounded-2xl border-border" />
                     <button type="button" onClick={() => setShowPass(!showPass)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/90">
                       {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Confirm Password</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">Confirm Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input type="password" placeholder="Repeat password"
                       value={formData.confirmPassword}
                       onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      disabled={loading} className="pl-10 h-12 rounded-2xl border-slate-200" />
+                      disabled={loading} className="pl-10 h-12 rounded-2xl border-border" />
                   </div>
                 </div>
 
@@ -265,10 +265,10 @@ function SignupContent() {
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-1">
                   <CheckCircle className="w-5 h-5 text-emerald-500" />
-                  <h2 className="text-xl font-bold text-slate-900">Verify your email</h2>
+                  <h2 className="text-xl font-bold text-foreground">Verify your email</h2>
                 </div>
-                <p className="text-slate-500 text-sm">
-                  Code sent to <strong className="text-slate-700">{formData.email}</strong>. Valid 5 minutes.
+                <p className="text-muted-foreground text-sm">
+                  Code sent to <strong className="text-foreground">{formData.email}</strong>. Valid 5 minutes.
                 </p>
               </div>
 
@@ -282,7 +282,7 @@ function SignupContent() {
                       onChange={e => handleOtpChange(i, e.target.value)}
                       onKeyDown={e => handleOtpKeyDown(i, e)}
                       className={`w-12 h-14 text-center text-2xl font-black border-2 rounded-2xl outline-none transition-all
-                        ${digit ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-slate-50'}
+                        ${digit ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-border bg-muted transition-colors'}
                         focus:border-blue-500 focus:bg-blue-50`}
                     />
                   ))}
@@ -295,9 +295,9 @@ function SignupContent() {
 
                 <div className="flex items-center justify-between text-sm">
                   <button type="button" onClick={() => { setStep('form'); setError(''); setOtp(['','','','','','']); }}
-                    className="text-slate-400 hover:text-slate-600">← Back</button>
+                    className="text-muted-foreground hover:text-foreground/90">← Back</button>
                   <button type="button" onClick={resendOTP} disabled={cooldown > 0 || loading}
-                    className="text-blue-600 hover:text-blue-700 disabled:text-slate-400 flex items-center gap-1 font-medium">
+                    className="text-blue-600 hover:text-blue-700 disabled:text-muted-foreground flex items-center gap-1 font-medium">
                     <RefreshCw className="w-3.5 h-3.5" />
                     {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
                   </button>
@@ -312,15 +312,15 @@ function SignupContent() {
               <div className="w-20 h-20 bg-emerald-50 border-2 border-emerald-200 rounded-full flex items-center justify-center mx-auto">
                 <CheckCircle className="w-10 h-10 text-emerald-500" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">Account created!</h2>
-              <p className="text-slate-500 text-sm">Redirecting you to the dashboard...</p>
+              <h2 className="text-xl font-bold text-foreground">Account created!</h2>
+              <p className="text-muted-foreground text-sm">Redirecting you to the dashboard...</p>
               <Loader2 className="w-5 h-5 animate-spin text-blue-500 mx-auto" />
             </div>
           )}
         </div>
 
         {step === 'form' && (
-          <p className="text-center text-sm text-slate-500 mt-6">
+          <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{' '}
             <Link href="/auth/login" className="text-blue-600 font-semibold hover:underline">Sign in</Link>
           </p>

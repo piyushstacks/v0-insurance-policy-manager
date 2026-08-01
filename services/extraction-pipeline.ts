@@ -50,13 +50,16 @@ const GROQ_MODEL_MAP: Record<string, string> = {
 };
 
 // ── Provider detection ───────────────────────────────────────────────────────
-// Priority: Google Gemini API (Direct) → Groq → OpenRouter
+// Priority: Groq (FREE 14,400/day) → paid fallback (FALLBACK_MODEL_API_KEY) → OpenRouter → Gemini direct
 function getProvider(modelType: 'fast' | 'smart'): { endpoint: string; key: string; type: 'gemini' | 'groq' | 'openrouter' } | null {
   const geminiKey = process.env.GEMINI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
   const orKey = process.env.OPENROUTER_API_KEY;
+  // Dedicated paid fallback — set FALLBACK_MODEL_API_KEY to an OpenRouter or direct provider key.
+  // This prevents exhausting the 50 req/day free OR tiers during bulk uploads.
+  const fallbackKey = process.env.FALLBACK_MODEL_API_KEY;
 
-  // Force Groq usage as requested by user
+  // Primary: Groq — 14,400 req/day FREE, fast cold start
   if (groqKey) {
     return {
       type: 'groq',
@@ -65,22 +68,22 @@ function getProvider(modelType: 'fast' | 'smart'): { endpoint: string; key: stri
     };
   }
 
-  // Fallback to Groq if key is present
-  if (groqKey) {
-    return {
-      type: 'groq',
-      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-      key: groqKey,
-    };
-  }
-
-  // Fallback to OpenRouter as last resort
-  const activeOrKey = orKey || (geminiKey && geminiKey.startsWith('sk-or-') ? geminiKey : null);
+  // Fallback: dedicated paid model key (FALLBACK_MODEL_API_KEY) or OpenRouter
+  const activeOrKey = fallbackKey || orKey || (geminiKey && geminiKey.startsWith('sk-or-') ? geminiKey : null);
   if (activeOrKey) {
     return {
       type: 'openrouter',
       endpoint: 'https://openrouter.ai/api/v1/chat/completions',
       key: activeOrKey,
+    };
+  }
+
+  // Last resort: Gemini direct API (not via OpenRouter)
+  if (geminiKey && !geminiKey.startsWith('sk-or-')) {
+    return {
+      type: 'gemini',
+      endpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
+      key: geminiKey,
     };
   }
 
@@ -103,7 +106,9 @@ async function callLLMWithProvider(
   } else if (provider.type === 'groq') {
     modelName = modelType === 'fast' ? GROQ_FAST_MODEL : GROQ_SMART_MODEL;
   } else {
-    modelName = process.env.EXTRACTION_MODEL || 'google/gemma-4-31b-it:free';
+    // Use FALLBACK_MODEL_NAME if set (paid model), otherwise fall back to EXTRACTION_MODEL.
+    // Default is Claude Haiku via OpenRouter — avoids free-tier 50 req/day models.
+    modelName = process.env.FALLBACK_MODEL_NAME || process.env.EXTRACTION_MODEL || 'anthropic/claude-haiku-4-5';
   }
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {

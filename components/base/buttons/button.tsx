@@ -65,16 +65,16 @@ export const styles = sortCx({
         },
         secondary: {
             root: [
-                "bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 ring-inset hover:bg-slate-50 hover:text-slate-900 data-loading:bg-slate-50",
+                "bg-card transition-colors text-foreground shadow-sm ring-1 ring-slate-200 ring-inset hover:bg-muted transition-colors hover:text-foreground data-loading:bg-muted transition-colors",
                 // Icon styles
-                "*:data-icon:text-slate-500 hover:*:data-icon:text-slate-700",
+                "*:data-icon:text-muted-foreground hover:*:data-icon:text-foreground",
             ].join(" "),
         },
         tertiary: {
             root: [
-                "text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-loading:bg-slate-100",
+                "text-foreground hover:bg-muted transition-colors hover:text-foreground data-loading:bg-muted transition-colors",
                 // Icon styles
-                "*:data-icon:text-slate-500 hover:*:data-icon:text-slate-700",
+                "*:data-icon:text-muted-foreground hover:*:data-icon:text-foreground",
             ].join(" "),
         },
         "link-color": {
@@ -88,11 +88,11 @@ export const styles = sortCx({
         },
         "link-gray": {
             root: [
-                "justify-normal rounded p-0! text-slate-700 hover:text-slate-900",
+                "justify-normal rounded p-0! text-foreground hover:text-foreground",
                 // Inner text underline
                 "*:data-text:underline *:data-text:decoration-transparent hover:*:data-text:decoration-current",
                 // Icon styles
-                "*:data-icon:text-slate-600 hover:*:data-icon:text-slate-900",
+                "*:data-icon:text-foreground/90 hover:*:data-icon:text-foreground",
             ].join(" "),
         },
         "primary-destructive": {
@@ -106,7 +106,7 @@ export const styles = sortCx({
         },
         "secondary-destructive": {
             root: [
-                "bg-white text-red-600 shadow-sm ring-1 ring-red-200 outline-red-600 ring-inset hover:bg-red-50 hover:text-red-700 data-loading:bg-red-50",
+                "bg-card transition-colors text-red-600 shadow-sm ring-1 ring-red-200 outline-red-600 ring-inset hover:bg-red-50 hover:text-red-700 data-loading:bg-red-50",
                 // Icon styles
                 "*:data-icon:text-red-600 hover:*:data-icon:text-red-700",
             ].join(" "),

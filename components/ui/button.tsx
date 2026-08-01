@@ -9,13 +9,13 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm font-semibold',
-        primary: 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md font-bold',
-        destructive: 'bg-red-500 text-white hover:bg-red-600 shadow-sm font-semibold',
-        outline: 'border border-slate-200 bg-white shadow-sm hover:bg-slate-50 hover:text-slate-900 text-slate-700 font-medium',
-        secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200 font-semibold',
-        ghost: 'hover:bg-slate-100 hover:text-slate-900 text-slate-600 font-medium',
-        link: 'text-indigo-600 underline-offset-4 hover:underline font-medium',
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm font-semibold transition-colors',
+        primary: 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md font-bold transition-colors',
+        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm font-semibold transition-colors',
+        outline: 'border border-border bg-background shadow-sm hover:bg-accent hover:text-accent-foreground text-foreground font-medium transition-colors',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 font-semibold transition-colors',
+        ghost: 'hover:bg-accent hover:text-accent-foreground text-foreground font-medium transition-colors',
+        link: 'text-primary underline-offset-4 hover:underline font-medium transition-colors',
       },
       size: {
         default: 'h-10 px-4 py-2',

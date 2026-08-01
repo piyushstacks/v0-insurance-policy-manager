@@ -8,6 +8,8 @@ import { ExtractionResultInput } from '@/lib/schemas';
 import { MASTER_EXTRACTION_PROMPT } from '@/lib/ai-prompt';
 import { DocumentProcessorServiceClient } from '@google-cloud/documentai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Safe runtime require — works because pdf-parse is serverExternalPackages
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -16,6 +18,62 @@ const pdfParse: (buf: Buffer) => Promise<{ text: string; numpages: number }> =
 
 const DEFAULT_MODEL = process.env.EXTRACTION_MODEL || "google/gemini-2.5-flash:free";
 
+// ── GCP Credential Bootstrap ─────────────────────────────────────────────────────────────
+/**
+ * Decodes GOOGLE_APPLICATION_CREDENTIALS_JSON_B64 from env and writes it to
+ * /tmp/gcp-sa.json at module load time. This is required for Vercel serverless
+ * because the GCP SDK requires GOOGLE_APPLICATION_CREDENTIALS to be a file path,
+ * not inline JSON. For local dev, the existing file path in
+ * GOOGLE_APPLICATION_CREDENTIALS is used directly (no B64 needed).
+ *
+ * How to generate the B64 value:
+ *   base64 -i /path/to/service-account.json | tr -d '\n'
+ * Then set GOOGLE_APPLICATION_CREDENTIALS_JSON_B64 in Vercel project settings.
+ */
+function initGoogleCredentials(): void {
+  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_B64;
+  if (!b64) {
+    // Local dev: GOOGLE_APPLICATION_CREDENTIALS points to the file directly.
+    return;
+  }
+  try {
+    const json = Buffer.from(b64, 'base64').toString('utf-8');
+    const tmpPath = '/tmp/gcp-sa.json';
+    fs.writeFileSync(tmpPath, json, { encoding: 'utf-8' });
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = tmpPath;
+    console.log('[v0/GCP] Decoded GCP credentials from GOOGLE_APPLICATION_CREDENTIALS_JSON_B64 → /tmp/gcp-sa.json');
+  } catch (err: any) {
+    console.error('[v0/GCP] Failed to decode GCP credentials from base64:', err.message);
+  }
+}
+
+// Run at module load so the env var is set before any provider is constructed.
+initGoogleCredentials();
+
+async function tryGoogleDocAIOCR(buffer: Buffer, mimeType: string): Promise<string | null> {
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+  const location = process.env.GOOGLE_CLOUD_LOCATION || 'us';
+  const processorId = process.env.GOOGLE_CLOUD_PROCESSOR_ID;
+  
+  if (!projectId || !processorId) return null;
+  
+  try {
+    const client = new DocumentProcessorServiceClient();
+    const name = `projects/${projectId}/locations/${location}/processors/${processorId}`;
+    const request = {
+      name,
+      rawDocument: {
+        content: buffer.toString('base64'),
+        mimeType,
+      },
+    };
+    const [result] = await client.processDocument(request);
+    return result.document?.text?.trim() || null;
+  } catch (err: any) {
+    console.error('[v0/GCP] tryGoogleDocAIOCR failed:', err.message);
+    return null;
+  }
+}
 
 export interface OCRProvider {
   name: string;
@@ -37,9 +95,12 @@ class PDFParseProvider implements OCRProvider {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Image files — no server-side text extraction without a GPU
+    // Image files — try Google Document AI first (if configured), else placeholder
     if (/\.(jpe?g|png)(\?|$)/i.test(fileUrl)) {
-      console.warn('[v0/OCR] Image file — using placeholder.');
+      console.warn('[v0/OCR] Image file — attempting Google Document AI OCR...');
+      const imageText = await tryGoogleDocAIOCR(buffer, fileUrl.match(/\.png(\?|$)/i) ? 'image/png' : 'image/jpeg');
+      if (imageText) return imageText;
+      console.warn('[v0/OCR] Google Doc AI not configured or failed for image. Returning placeholder.');
       return 'IMAGE_UPLOAD_NO_TEXT_EXTRACTED';
     }
 
@@ -48,7 +109,11 @@ class PDFParseProvider implements OCRProvider {
       const result = await pdfParse(buffer);
       const text = result.text?.trim() ?? '';
       if (!text || text.length < 20) {
-        console.warn('[v0/OCR] Scanned/image-only PDF (no embedded text) — placeholder.');
+        console.warn('[v0/OCR] Scanned/image-only PDF (no embedded text). Attempting Google Document AI OCR fallback...');
+        // Call Google Document AI OCR before giving up — handles scanned/image PDFs.
+        const docAiText = await tryGoogleDocAIOCR(buffer, 'application/pdf');
+        if (docAiText) return docAiText;
+        console.warn('[v0/OCR] Google Doc AI not configured or also found no text. Flagging for manual entry.');
         return 'SCANNED_PDF_NO_TEXT_EXTRACTED';
       }
       console.log(`[v0/OCR] Extracted ${text.length} chars, ${result.numpages} pages.`);
@@ -77,24 +142,26 @@ class PDFParseProvider implements OCRProvider {
       } as any;
     }
 
-    // ── GEN AI INJECTION — OpenRouter API with free model fallback chain ──
-    const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY; // fallback if user only provided one
+    // ── GEN AI INJECTION ──────────────────────────────────────────────────────────────────
+    // Single configurable paid fallback model — eliminates unreliable 50 req/day free tiers.
+    // Set FALLBACK_MODEL_API_KEY (OpenRouter key) + FALLBACK_MODEL_NAME in env to enable.
+    // Default: Claude Haiku via OpenRouter (reliable, cheap, fast).
+    const fallbackModelKey = process.env.FALLBACK_MODEL_API_KEY || process.env.OPENROUTER_API_KEY;
+    const fallbackModelName = process.env.FALLBACK_MODEL_NAME || 'anthropic/claude-haiku-4-5';
+    const openRouterKey = fallbackModelKey || process.env.GEMINI_API_KEY;
     if (openRouterKey) {
-      console.log('[v0/AI] OpenRouter API Key found. Routing raw text through LLM Intelligence...');
-      
+      console.log(`[v0/AI] Routing through LLM: ${fallbackModelName}...`);
+
       let parsed: any = null;
       let finalCat = 'General';
       let finalSubCat = 'Standard Policy';
       let aiErrLog = null;
-      
+
       const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-      
-      // Fallback model list requested by user
-      const models = [
-         "openai/gpt-oss-120b:free",
-         "nvidia/nemotron-3-super-120b-a12b:free",
-         "minimax/minimax-m2.5:free"
-      ];
+
+      // Single paid fallback model instead of 3 rate-limited free-tier models.
+      const models = [fallbackModelName];
+
       
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
@@ -108,8 +175,8 @@ ENTITY RESOLUTION CONTEXT (use these to normalize company/customer names):
 - Known Insurers in DB: [${existingInsurers.join(', ')}]
 - Known Customers in DB: [${existingCustomers.join(', ')}]
 
-RAW DOCUMENT TEXT (first 15000 chars):
-${text.substring(0, 15000)}
+RAW DOCUMENT TEXT (first 30000 chars):
+${text.substring(0, 30000)}
 
 Respond with ONLY valid JSON — no markdown, no explanation.`;
 
@@ -691,9 +758,13 @@ class GoogleDocumentAIProvider implements OCRProvider {
   
   constructor() {
     try {
-       // Only initialize if Google Cloud is properly set up in environment
+       // initGoogleCredentials() has already run at module load time and set
+       // GOOGLE_APPLICATION_CREDENTIALS from the base64 env var if present.
        if (process.env.GOOGLE_CLOUD_PROJECT_ID) {
           this.client = new DocumentProcessorServiceClient();
+          console.log('[v0/GCP] DocumentProcessorServiceClient initialized.');
+       } else {
+          console.warn('[v0/GCP] GOOGLE_CLOUD_PROJECT_ID not set — Google Document AI disabled.');
        }
     } catch (err: any) {
        console.warn('[v0/GCP] Document AI Client failed to init (likely missing CREDENTIALS):', err.message);

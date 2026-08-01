@@ -127,11 +127,11 @@ export default function PrivacySettingsPage() {
   };
 
   return (
-    <div className="flex-1 p-6 md:p-10 bg-slate-50/50 pb-32">
+    <div className="flex-1 p-6 md:p-10 bg-background pb-32">
       <div className="max-w-4xl mx-auto">
         
         {/* Back navigation */}
-        <Link href="/app/settings" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-6 font-medium text-sm">
+        <Link href="/app/settings" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 font-medium text-sm">
           <ArrowLeft className="w-4 h-4" />
           Back to settings
         </Link>
@@ -139,10 +139,10 @@ export default function PrivacySettingsPage() {
         {/* Title */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-2">
               Privacy & Cloud Storage
             </h1>
-            <p className="font-medium text-slate-500 mt-1">
+            <p className="font-medium text-muted-foreground mt-1">
               Configure secure vaults, Google Drive storage integration, and client-side redaction settings.
             </p>
           </div>
@@ -159,9 +159,9 @@ export default function PrivacySettingsPage() {
           <div className="lg:col-span-2 space-y-6">
             
             {/* Storage Selection Card */}
-            <div className="bg-white rounded-[28px] p-6 border border-slate-200/80 shadow-sm">
+            <div className="bg-card transition-colors rounded-[28px] p-6 border border-border/80 shadow-sm">
               <h2 className="text-lg font-bold text-slate-950 mb-1">Select Policy Storage Location</h2>
-              <p className="text-sm text-slate-500 mb-6">Choose where your physical policy documents (PDFs, images) are stored.</p>
+              <p className="text-sm text-muted-foreground mb-6">Choose where your physical policy documents (PDFs, images) are stored.</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
@@ -171,7 +171,7 @@ export default function PrivacySettingsPage() {
                   className={`border rounded-2xl p-5 cursor-pointer transition-all ${
                     storagePref === 'platform' 
                       ? 'border-indigo-600 bg-indigo-50/20 ring-1 ring-indigo-600/30' 
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      : 'border-border bg-card transition-colors hover:border-border/80'
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -184,8 +184,8 @@ export default function PrivacySettingsPage() {
                       </div>
                     )}
                   </div>
-                  <h3 className="font-bold text-slate-900 mt-4">Platform Storage</h3>
-                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  <h3 className="font-bold text-foreground mt-4">Platform Storage</h3>
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
                     Policies are securely uploaded to PolicyVault Backblaze cloud storage. Fast, redundant, and zero setup.
                   </p>
                 </div>
@@ -196,7 +196,7 @@ export default function PrivacySettingsPage() {
                   className={`border rounded-2xl p-5 cursor-pointer transition-all ${
                     storagePref === 'drive' 
                       ? 'border-indigo-600 bg-indigo-50/20 ring-1 ring-indigo-600/30' 
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      : 'border-border bg-card transition-colors hover:border-border/80'
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -211,13 +211,13 @@ export default function PrivacySettingsPage() {
                       </div>
                     )}
                   </div>
-                  <h3 className="font-bold text-slate-900 mt-4 flex items-center gap-1.5">
+                  <h3 className="font-bold text-foreground mt-4 flex items-center gap-1.5">
                     Google Drive
                     {!driveConnected && (
-                      <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded">Not Connected</span>
+                      <span className="text-[10px] bg-muted transition-colors text-foreground/90 font-bold px-1.5 py-0.5 rounded">Not Connected</span>
                     )}
                   </h3>
-                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
                     Policies are stored in your personal Google Drive account. We only process text in-memory for AI OCR extraction.
                   </p>
                 </div>
@@ -226,7 +226,7 @@ export default function PrivacySettingsPage() {
             </div>
 
             {/* Google Drive Account Setup Card */}
-            <div className="bg-white rounded-[28px] p-6 border border-slate-200/80 shadow-sm">
+            <div className="bg-card transition-colors rounded-[28px] p-6 border border-border/80 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-slate-950">Google Drive Integration</h2>
                 {driveConnected ? (
@@ -234,7 +234,7 @@ export default function PrivacySettingsPage() {
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Connected
                   </span>
                 ) : (
-                  <span className="text-xs text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full">
+                  <span className="text-xs text-muted-foreground font-bold bg-muted transition-colors px-2 py-0.5 rounded-full">
                     Disconnected
                   </span>
                 )}
@@ -242,10 +242,10 @@ export default function PrivacySettingsPage() {
 
               {driveConnected ? (
                 <div className="space-y-4">
-                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-between">
+                  <div className="bg-muted transition-colors rounded-2xl p-4 border border-border flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Authorized Account</p>
-                      <p className="text-sm font-bold text-slate-800 mt-0.5">{driveEmail}</p>
+                      <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Authorized Account</p>
+                      <p className="text-sm font-bold text-foreground mt-0.5">{driveEmail}</p>
                       <p className="text-xs text-indigo-600 font-semibold mt-1">App Folder: Google Drive/PolicyVault/</p>
                     </div>
                     <Button 
@@ -257,14 +257,14 @@ export default function PrivacySettingsPage() {
                     </Button>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-2">
-                    <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                    <Lock className="w-3.5 h-3.5 text-muted-foreground" />
                     <span>PolicyVault has restricted access. We cannot read or edit other files on your Google Drive.</span>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <p className="text-sm text-slate-600 max-w-md mx-auto mb-6 leading-relaxed">
+                  <p className="text-sm text-foreground/90 max-w-md mx-auto mb-6 leading-relaxed">
                     Connect your personal Google account. We will create a folder named <strong>"PolicyVault"</strong> to host your uploaded insurance certificates securely.
                   </p>
                   
@@ -297,14 +297,14 @@ export default function PrivacySettingsPage() {
           <div className="space-y-6">
             
             {/* Extra Privacy Features */}
-            <div className="bg-white rounded-[28px] p-6 border border-slate-200/80 shadow-sm space-y-6">
+            <div className="bg-card transition-colors rounded-[28px] p-6 border border-border/80 shadow-sm space-y-6">
               <h2 className="text-lg font-bold text-slate-950">Privacy Options</h2>
               
               {/* Client-Side Redaction Toggle */}
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
-                  <h3 className="font-bold text-slate-800 text-sm">Client-Side Redaction</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
+                  <h3 className="font-bold text-foreground text-sm">Client-Side Redaction</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     Scan documents in your browser and automatically scrub SSNs, Credit Cards, and Tax IDs before they reach the server.
                   </p>
                 </div>
@@ -314,19 +314,19 @@ export default function PrivacySettingsPage() {
                     clientRedaction ? 'bg-indigo-600' : 'bg-slate-200'
                   }`}
                 >
-                  <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
+                  <div className={`w-4 h-4 bg-card transition-colors rounded-full absolute top-1 transition-transform ${
                     clientRedaction ? 'translate-x-6' : 'translate-x-1'
                   }`} />
                 </button>
               </div>
 
-              <hr className="border-slate-100" />
+              <hr className="border-border" />
 
               {/* Ephemeral File Processing */}
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
-                  <h3 className="font-bold text-slate-800 text-sm">Ephemeral Processing</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
+                  <h3 className="font-bold text-foreground text-sm">Ephemeral Processing</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     Immediately delete all uploaded policy files from cache after metadata is extracted by AI. No storage footprint remains.
                   </p>
                 </div>
@@ -336,7 +336,7 @@ export default function PrivacySettingsPage() {
                     ephemeralProcessing ? 'bg-indigo-600' : 'bg-slate-200'
                   }`}
                 >
-                  <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
+                  <div className={`w-4 h-4 bg-card transition-colors rounded-full absolute top-1 transition-transform ${
                     ephemeralProcessing ? 'translate-x-6' : 'translate-x-1'
                   }`} />
                 </button>
@@ -344,9 +344,9 @@ export default function PrivacySettingsPage() {
             </div>
 
             {/* Data Portability (Download Data) */}
-            <div className="bg-white rounded-[28px] p-6 border border-slate-200/80 shadow-sm space-y-4">
+            <div className="bg-card transition-colors rounded-[28px] p-6 border border-border/80 shadow-sm space-y-4">
               <h2 className="text-lg font-bold text-slate-950">Data Portability</h2>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Download your complete history, user data, and extracted insurance policy metadata in an open JSON format at any time.
               </p>
               
@@ -354,7 +354,7 @@ export default function PrivacySettingsPage() {
                 onClick={handleExportData} 
                 disabled={isExporting}
                 variant="outline"
-                className="w-full border-slate-200 hover:bg-slate-50 text-slate-700 hover:text-slate-800 font-bold rounded-xl h-10 flex items-center justify-center gap-2"
+                className="w-full border-border hover:bg-muted transition-colors text-foreground hover:text-foreground font-bold rounded-xl h-10 flex items-center justify-center gap-2"
               >
                 {isExporting ? (
                   <>
@@ -379,10 +379,10 @@ export default function PrivacySettingsPage() {
       {/* MOCK GOOGLE OAUTH CONSENT MODAL */}
       {isSimulatingOAuth && (
         <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-all duration-300">
-          <div className="bg-white w-full max-w-[450px] rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className="bg-card transition-colors w-full max-w-[450px] rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
             {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex flex-col items-center text-center">
-              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+            <div className="p-6 border-b border-border flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-muted transition-colors flex items-center justify-center mb-3">
                 <svg className="w-6 h-6" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
@@ -402,38 +402,38 @@ export default function PrivacySettingsPage() {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-black text-slate-900 tracking-tight">Sign in with Google</h3>
-              <p className="text-xs text-slate-500 mt-1">to continue to <strong className="text-slate-800">PolicyVault</strong></p>
+              <h3 className="text-lg font-black text-foreground tracking-tight">Sign in with Google</h3>
+              <p className="text-xs text-muted-foreground mt-1">to continue to <strong className="text-foreground">PolicyVault</strong></p>
             </div>
 
             {/* Permission Requests */}
             <div className="p-6 space-y-4">
-              <p className="text-sm font-semibold text-slate-700">PolicyVault wants to access your Google Account:</p>
+              <p className="text-sm font-semibold text-foreground">PolicyVault wants to access your Google Account:</p>
               
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-start gap-3">
+              <div className="bg-muted transition-colors rounded-2xl p-4 border border-border flex items-start gap-3">
                 <div className="w-5 h-5 text-orange-600 mt-0.5 shrink-0">
                   <svg className="w-full h-full" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M19.38 12.01L14.77 4H9.23l4.62 8.01h5.53zM9.77 12.99L6.54 18.6h9.08l3.23-5.61H9.77zm-.92-1.98L4.23 11l4.62 8 4.62-8H8.85z" />
                   </svg>
                 </div>
-                <div className="text-xs text-slate-600 leading-relaxed">
-                  <strong className="text-slate-800 block mb-0.5">Google Drive App Access</strong>
+                <div className="text-xs text-foreground/90 leading-relaxed">
+                  <strong className="text-foreground block mb-0.5">Google Drive App Access</strong>
                   See, edit, create, and delete only the specific Google Drive files you upload or create with this app.
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-slate-400 mt-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>Make sure you trust PolicyVault. You can revoke access at any time in your Google Settings.</span>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
+            <div className="p-6 border-t border-border bg-background flex items-center justify-end gap-3">
               <Button 
                 variant="outline" 
                 onClick={() => completeOAuthMock(false)}
-                className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-sm h-10"
+                className="rounded-xl border-border text-foreground hover:bg-muted transition-colors font-bold text-sm h-10"
               >
                 Cancel
               </Button>

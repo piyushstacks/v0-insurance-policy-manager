@@ -40,7 +40,7 @@ interface TeamData {
 const ROLE_CONFIG = {
   ADMIN: { label: 'Admin', badge: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500', icon: Crown },
   SUB_ADMIN: { label: 'Sub Admin', badge: 'bg-purple-100 text-purple-700 border-purple-200', dot: 'bg-purple-500', icon: Shield },
-  MEMBER: { label: 'Member', badge: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400', icon: Users },
+  MEMBER: { label: 'Member', badge: 'bg-muted transition-colors text-foreground/90 border-border', dot: 'bg-slate-400', icon: Users },
 };
 
 // ─── CREATE TEAM PAGE ─────────────────────────────────────────────
@@ -82,23 +82,23 @@ function CreateTeamPage() {
           <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 border-2 border-white rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-xl shadow-blue-100">
             <Shield className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 mb-2">Create Your Agency</h1>
-          <p className="text-slate-500 max-w-sm mx-auto text-sm">
+          <h1 className="text-3xl font-black text-foreground mb-2">Create Your Agency</h1>
+          <p className="text-muted-foreground max-w-sm mx-auto text-sm">
             Establish your business identity. PolicyVault uses these details for all automated client communications.
           </p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-2xl shadow-slate-200/50 space-y-6">
+        <div className="bg-card transition-colors border border-border rounded-[32px] p-8 shadow-2xl shadow-slate-200/50 space-y-6">
           <div className="space-y-4">
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] block mb-2">
                 Business / Team Name
               </label>
               <Input
                 value={teamName}
                 onChange={(e) => setTeamName(e.target.value)}
                 placeholder="e.g. Apex Solutions or Anil Bhagchandani Team"
-                className="h-14 rounded-2xl text-lg font-bold border-slate-200 focus:border-blue-500 focus:ring-blue-500/10 placeholder:text-slate-300"
+                className="h-14 rounded-2xl text-lg font-bold border-border focus:border-blue-500 focus:ring-blue-500/10 placeholder:text-slate-300"
                 autoFocus
               />
               <p className="text-[11px] text-blue-600 font-semibold mt-2 flex items-center gap-1.5">
@@ -109,30 +109,30 @@ function CreateTeamPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] block mb-2">
                   Contact Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     value={teamEmail}
                     onChange={(e) => setTeamEmail(e.target.value)}
                     placeholder="office@agency.com"
-                    className="h-12 pl-11 rounded-xl font-medium border-slate-200"
+                    className="h-12 pl-11 rounded-xl font-medium border-border"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] block mb-2">
                   Contact Phone
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     value={teamPhone}
                     onChange={(e) => setTeamPhone(e.target.value)}
                     placeholder="+91 98765 43210"
-                    className="h-12 pl-11 rounded-xl font-medium border-slate-200"
+                    className="h-12 pl-11 rounded-xl font-medium border-border"
                   />
                 </div>
               </div>
@@ -151,8 +151,8 @@ function CreateTeamPage() {
             )}
           </Button>
 
-          <div className="pt-2 border-t border-slate-100">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">As Admin you can:</p>
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">As Admin you can:</p>
             <div className="space-y-2">
               {[
                 'Invite & remove team members',
@@ -162,7 +162,7 @@ function CreateTeamPage() {
               ].map((perm) => (
                 <div key={perm} className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span className="text-sm text-slate-600">{perm}</span>
+                  <span className="text-sm text-foreground/90">{perm}</span>
                 </div>
               ))}
             </div>
@@ -208,7 +208,7 @@ function RoleSelector({
           transition-all duration-200
           ${currentRole === 'SUB_ADMIN'
             ? 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100'
-            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+            : 'bg-muted transition-colors border-border text-foreground hover:bg-muted transition-colors'
           }
           ${loading ? 'opacity-60 cursor-not-allowed' : ''}
           focus:ring-2 focus:ring-blue-100 focus:border-blue-400
@@ -219,8 +219,8 @@ function RoleSelector({
       </select>
       <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
         {loading
-          ? <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
-          : <ChevronDown className="w-3 h-3 text-slate-400" />
+          ? <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+          : <ChevronDown className="w-3 h-3 text-muted-foreground" />
         }
       </div>
     </div>
@@ -263,10 +263,10 @@ function MemberRow({
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold text-sm text-slate-900 truncate">{name}</p>
+            <p className="font-semibold text-sm text-foreground truncate">{name}</p>
             {isThisAdmin && <RoleBadge role="ADMIN" />}
           </div>
-          {member.email && <p className="text-xs text-slate-400 truncate">{member.email}</p>}
+          {member.email && <p className="text-xs text-muted-foreground truncate">{member.email}</p>}
           <p className="text-[10px] text-slate-300 mt-0.5">
             Joined {new Date(member.joined_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
           </p>
@@ -546,13 +546,13 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
             <Users className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 leading-tight">{team?.name}</h1>
+            <h1 className="text-2xl font-black text-foreground leading-tight">{team?.name}</h1>
             <RoleBadge role={role!} />
           </div>
         </div>
         <div className="flex gap-2">
-          <Button onClick={onRefresh} variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100" title="Refresh">
-            <RefreshCw className="w-4 h-4 text-slate-500" />
+          <Button onClick={onRefresh} variant="ghost" size="icon" className="rounded-xl hover:bg-muted transition-colors" title="Refresh">
+            <RefreshCw className="w-4 h-4 text-muted-foreground" />
           </Button>
           {!isAdmin && (
             <Button onClick={handleLeave} variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 rounded-xl gap-2 text-sm">
@@ -564,27 +564,27 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
 
       {/* ── Stats ── */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+        <div className="bg-card transition-colors border border-border rounded-2xl p-4 shadow-sm">
           <p className="text-2xl font-black text-blue-600">{members.length}</p>
-          <p className="text-xs font-semibold text-slate-400 mt-0.5">Members</p>
+          <p className="text-xs font-semibold text-muted-foreground mt-0.5">Members</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+        <div className="bg-card transition-colors border border-border rounded-2xl p-4 shadow-sm">
           <p className="text-2xl font-black text-amber-500">{pendingInvites.length}</p>
-          <p className="text-xs font-semibold text-slate-400 mt-0.5">Pending Invites</p>
+          <p className="text-xs font-semibold text-muted-foreground mt-0.5">Pending Invites</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-          <p className={`text-lg font-black mt-0.5 ${isAdmin ? 'text-amber-600' : isSubAdmin ? 'text-purple-600' : 'text-slate-600'}`}>
+        <div className="bg-card transition-colors border border-border rounded-2xl p-4 shadow-sm">
+          <p className={`text-lg font-black mt-0.5 ${isAdmin ? 'text-amber-600' : isSubAdmin ? 'text-purple-600' : 'text-foreground/90'}`}>
             {ROLE_CONFIG[role!].label}
           </p>
-          <p className="text-xs font-semibold text-slate-400 mt-0.5">Your Role</p>
+          <p className="text-xs font-semibold text-muted-foreground mt-0.5">Your Role</p>
         </div>
       </div>
 
       {/* ── Team Profile (Admin only) ── */}
       {isAdmin && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+        <div className="bg-card transition-colors border border-border rounded-3xl p-6 shadow-sm space-y-4">
           <div className="flex justify-between items-center mb-2">
-             <h2 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
+             <h2 className="font-bold text-foreground flex items-center gap-2 text-sm">
                <Shield className="w-4 h-4 text-blue-600" /> Agency Profile Settings
              </h2>
              {!isEditingProfile ? (
@@ -601,43 +601,43 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">Business Name</label>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] block mb-2">Business Name</label>
               <Input
                 disabled={!isEditingProfile}
                 value={editTeamName}
                 onChange={(e) => setEditTeamName(e.target.value)}
                 placeholder="Team Name"
-                className="h-11 rounded-2xl font-bold border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+                className="h-11 rounded-2xl font-bold border-border disabled:bg-muted transition-colors disabled:text-muted-foreground"
               />
             </div>
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">Contact Email</label>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] block mb-2">Contact Email</label>
               <div className="relative">
-                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                  <Input
                    disabled={!isEditingProfile}
                    value={editTeamEmail}
                    onChange={(e) => setEditTeamEmail(e.target.value)}
                    placeholder="Support Email"
-                   className="h-11 pl-9 rounded-2xl font-medium border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+                   className="h-11 pl-9 rounded-2xl font-medium border-border disabled:bg-muted transition-colors disabled:text-muted-foreground"
                  />
               </div>
             </div>
             <div>
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">Contact Phone</label>
+               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] block mb-2">Contact Phone</label>
                <div className="relative">
-                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                  <Input
                    disabled={!isEditingProfile}
                    value={editTeamPhone}
                    onChange={(e) => setEditTeamPhone(e.target.value)}
                    placeholder="Support Phone"
-                   className="h-11 pl-9 rounded-2xl font-medium border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+                   className="h-11 pl-9 rounded-2xl font-medium border-border disabled:bg-muted transition-colors disabled:text-muted-foreground"
                  />
                </div>
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-2">
+          <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-2">
              <AlertCircle className="w-3.5 h-3.5" />
              These details are highlighted in the reminder emails to your clients.
           </p>
@@ -646,8 +646,8 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
 
       {/* ── Invite (Admin / SubAdmin only) ── */}
       {canManageTeam && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
-          <h2 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
+        <div className="bg-card transition-colors border border-border rounded-3xl p-6 shadow-sm space-y-4">
+          <h2 className="font-bold text-foreground flex items-center gap-2 text-sm">
             <Mail className="w-4 h-4 text-blue-600" /> Invite a Member
           </h2>
           <div className="flex gap-3">
@@ -673,7 +673,7 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-2">
               <p className="text-emerald-700 text-xs font-bold">✅ Share this link with your colleague:</p>
               <div className="flex gap-2">
-                <code className="text-xs bg-white border border-emerald-200 text-slate-700 px-3 py-2 rounded-xl flex-1 truncate block">
+                <code className="text-xs bg-card transition-colors border border-emerald-200 text-foreground px-3 py-2 rounded-xl flex-1 truncate block">
                   {inviteLink}
                 </code>
                 <Button onClick={() => copyLink(inviteLink)} size="sm" variant="outline" className="rounded-xl shrink-0 border-emerald-300 h-9">
@@ -686,15 +686,15 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
       )}
 
       {/* ── Members List ── */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-        <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-1 text-sm">
+      <div className="bg-card transition-colors border border-border rounded-3xl p-6 shadow-sm">
+        <h2 className="font-bold text-foreground flex items-center gap-2 mb-1 text-sm">
           <UserCog className="w-4 h-4 text-blue-600" />
           Members
-          <span className="text-xs font-normal text-slate-400">({members.length})</span>
+          <span className="text-xs font-normal text-muted-foreground">({members.length})</span>
         </h2>
 
         {isAdmin && (
-          <p className="text-xs text-slate-400 mb-4">
+          <p className="text-xs text-muted-foreground mb-4">
             Use the dropdown to change a member's role. Changes apply immediately.
           </p>
         )}
@@ -728,18 +728,18 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
           ))}
 
           {members.length === 0 && (
-            <div className="py-8 text-center text-slate-400 text-sm">No members yet.</div>
+            <div className="py-8 text-center text-muted-foreground text-sm">No members yet.</div>
           )}
         </div>
       </div>
 
       {/* ── Pending Invitations ── */}
       {canManageTeam && pendingInvites.length > 0 && (
-        <div className="bg-white border border-amber-200 rounded-3xl p-6 shadow-sm">
-          <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-4 text-sm">
+        <div className="bg-card transition-colors border border-amber-200 rounded-3xl p-6 shadow-sm">
+          <h2 className="font-bold text-foreground flex items-center gap-2 mb-4 text-sm">
             <Clock className="w-4 h-4 text-amber-500" />
             Pending Invitations
-            <span className="text-xs font-normal text-slate-400">({pendingInvites.length})</span>
+            <span className="text-xs font-normal text-muted-foreground">({pendingInvites.length})</span>
           </h2>
           <div className="divide-y divide-slate-100">
             {pendingInvites.map((inv) => {
@@ -747,8 +747,8 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
               return (
                 <div key={inv.id} className="flex items-center justify-between py-3.5">
                   <div className="min-w-0">
-                    <p className="font-semibold text-sm text-slate-900 truncate">{inv.email}</p>
-                    <p className={`text-xs mt-0.5 ${isExpired ? 'text-red-400 font-semibold' : 'text-slate-400'}`}>
+                    <p className="font-semibold text-sm text-foreground truncate">{inv.email}</p>
+                    <p className={`text-xs mt-0.5 ${isExpired ? 'text-red-400 font-semibold' : 'text-muted-foreground'}`}>
                       {isExpired ? '⚠️ Expired' : `Expires ${new Date(inv.expires_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
                     </p>
                   </div>
@@ -804,7 +804,7 @@ function TeamViewPage({ data: initialData, onRefresh }: { data: TeamData; onRefr
                 {can
                   ? <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                   : <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />}
-                <span className={can ? 'text-slate-700' : 'text-slate-400'}>{text}</span>
+                <span className={can ? 'text-foreground' : 'text-muted-foreground'}>{text}</span>
               </div>
             ))}
           </div>
@@ -848,7 +848,7 @@ export default function TeamPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
           <Loader2 className="w-10 h-10 animate-spin text-blue-500 mx-auto" />
-          <p className="text-slate-500 text-sm font-medium">Loading team...</p>
+          <p className="text-muted-foreground text-sm font-medium">Loading team...</p>
         </div>
       </div>
     );
@@ -861,8 +861,8 @@ export default function TeamPage() {
           <div className="w-16 h-16 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-center mx-auto">
             <AlertCircle className="w-8 h-8 text-red-500" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900">Failed to load team</h2>
-          <p className="text-slate-500 text-sm bg-slate-100 px-4 py-2 rounded-xl font-mono">{apiError}</p>
+          <h2 className="text-xl font-bold text-foreground">Failed to load team</h2>
+          <p className="text-muted-foreground text-sm bg-muted transition-colors px-4 py-2 rounded-xl font-mono">{apiError}</p>
           <Button onClick={fetchTeam} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
             <RefreshCw className="w-4 h-4" /> Retry
           </Button>

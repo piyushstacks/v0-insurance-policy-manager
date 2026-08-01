@@ -7,6 +7,7 @@ import { supabaseAdmin, supabase } from '@/lib/supabase';
 import type { Policy, PolicyDocument } from '@/lib/types';
 import { PolicyInput } from '@/lib/schemas';
 import { getTeamUserIds } from './team';
+import { invalidateDashboardCache } from './dashboard-cache';
 
 /**
  * Create a new policy
@@ -41,6 +42,7 @@ export async function createPolicy(userId: string, data: PolicyInput) {
       policy_number: policy.policy_number,
     });
 
+    await invalidateDashboardCache(userId);
     return policy;
   } catch (error) {
     console.error('Failed to create policy:', error);
@@ -283,6 +285,7 @@ export async function updatePolicy(
     // Log audit
     await auditLog(userId, 'UPDATE', 'policies', policyId, updateData);
 
+    await invalidateDashboardCache(userId);
     return updated;
   } catch (error) {
     console.error('Failed to update policy:', error);
@@ -340,6 +343,7 @@ export async function deletePolicy(policyId: string, userId: string) {
       policy_number: existing?.policy_number,
     });
 
+    await invalidateDashboardCache(userId);
     return { success: true };
   } catch (error) {
     console.error('Failed to delete policy:', error);

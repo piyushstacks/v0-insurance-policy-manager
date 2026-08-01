@@ -65,9 +65,9 @@ const SETTING_CARDS = [
     description: 'Edit your display name and email address with OTP verification.',
     href: '/app/settings/profile',
     icon: User,
-    iconBg: 'bg-slate-100',
-    iconColor: 'text-slate-600',
-    border: 'border-slate-200',
+    iconBg: 'bg-muted transition-colors',
+    iconColor: 'text-foreground/90',
+    border: 'border-border',
     cta: 'Edit Profile',
     ctaClass: 'bg-slate-800 hover:bg-slate-900 text-white',
   },
@@ -75,7 +75,7 @@ const SETTING_CARDS = [
 
 export default function SettingsPage() {
   return (
-    <div className="flex-1 p-6 md:p-10 bg-slate-50/50 pb-32">
+    <div className="flex-1 p-6 md:p-10 bg-background pb-32">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-10">
@@ -83,8 +83,8 @@ export default function SettingsPage() {
             <Settings className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">System Settings</h1>
-            <p className="font-medium text-slate-500">Global preferences and configuration.</p>
+            <h1 className="text-3xl font-black text-foreground tracking-tight">System Settings</h1>
+            <p className="font-medium text-muted-foreground">Global preferences and configuration.</p>
           </div>
         </div>
 
@@ -93,7 +93,7 @@ export default function SettingsPage() {
           {SETTING_CARDS.map((card) => {
             const Icon = card.icon;
             return (
-              <div key={card.id} className={`bg-white rounded-[28px] p-6 border ${card.border} shadow-sm hover:shadow-md transition-shadow`}>
+              <div key={card.id} className={`bg-card transition-colors rounded-[28px] p-6 border ${card.border} shadow-sm hover:shadow-md transition-shadow`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 ${card.iconBg} rounded-2xl flex items-center justify-center shrink-0`}>
@@ -101,10 +101,10 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h2 className="font-bold text-slate-900">{card.title}</h2>
+                        <h2 className="font-bold text-foreground">{card.title}</h2>
                         {card.badge}
                       </div>
-                      <p className="text-sm text-slate-500 mt-0.5">{card.description}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">{card.description}</p>
                     </div>
                   </div>
                   <Link href={card.href} className="shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
@@ -129,7 +129,7 @@ export default function SettingsPage() {
                 <p className="text-emerald-300 text-xs font-bold uppercase tracking-wider">Renewing May 14, 2026</p>
               </div>
             </div>
-            <Button className="bg-white text-emerald-900 hover:bg-emerald-50 font-bold rounded-xl px-6 h-10 shrink-0">
+            <Button className="bg-card transition-colors text-emerald-900 hover:bg-emerald-50 font-bold rounded-xl px-6 h-10 shrink-0">
               Manage Billing
             </Button>
           </div>

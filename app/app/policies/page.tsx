@@ -265,13 +265,13 @@ export default function PoliciesPage() {
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 mb-1">Policies Directory</h1>
-          <p className="text-slate-500 font-medium">Manage and explore {totalRecords} parsed policies</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-1">Policies Directory</h1>
+          <p className="text-muted-foreground font-medium">Manage and explore {totalRecords} parsed policies</p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
           <div className="relative flex-1 w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               value={searchTerm}
               onChange={e => {
@@ -279,7 +279,7 @@ export default function PoliciesPage() {
                 setCurrentPage(1);
               }}
               placeholder="Search policies..."
-              className="pl-9 h-10 rounded-xl bg-slate-50 border-slate-200 w-full"
+              className="pl-9 h-10 rounded-xl bg-muted border-border w-full"
             />
           </div>
           <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
@@ -316,29 +316,29 @@ export default function PoliciesPage() {
                   Pending ({pendingPolicies.length})
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto bg-slate-50 p-0 border-l border-slate-200">
-                <SheetHeader className="p-6 bg-white border-b border-slate-200">
-                  <SheetTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
+              <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto bg-muted p-0 border-l border-border">
+                <SheetHeader className="p-6 bg-card border-b border-border">
+                  <SheetTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
                     <RefreshCw className="w-5 h-5 text-amber-500 animate-spin" />
                     Pending Extractions
                   </SheetTitle>
-                  <p className="text-sm text-slate-500 font-normal">
+                  <p className="text-sm text-muted-foreground font-normal">
                     These policies are currently being processed by the AI or require your manual review.
                   </p>
                 </SheetHeader>
                 <div className="p-4 flex flex-col gap-3">
                   {pendingPolicies.length === 0 ? (
-                    <div className="text-center p-8 text-slate-500">No pending extractions.</div>
+                    <div className="text-center p-8 text-muted-foreground">No pending extractions.</div>
                   ) : (
                     pendingPolicies.map(p => {
                       const docName = p.documents?.[0]?.file_name || 'Policy Document';
                       const isManual = p.policy_number?.includes('MANUAL');
                       return (
-                        <div key={p.id} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col gap-3">
+                        <div key={p.id} className="bg-card rounded-xl p-4 border border-border shadow-sm flex flex-col gap-3">
                           <div className="flex items-start gap-3">
                             <FileText className="w-8 h-8 text-indigo-100 fill-indigo-500 shrink-0" />
                             <div className="flex-1 min-w-0">
-                               <p className="font-semibold text-slate-800 truncate text-sm">{docName}</p>
+                               <p className="font-semibold text-foreground truncate text-sm">{docName}</p>
                                <div className="flex items-center gap-2 mt-1.5">
                                  {isManual ? (
                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 uppercase tracking-wide">
@@ -353,7 +353,7 @@ export default function PoliciesPage() {
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-2 pt-3 border-t border-slate-100 justify-end">
+                          <div className="flex items-center gap-2 pt-3 border-t border-border justify-end">
                              {isManual && (
                                <Link href={`/app/policies/${p.id}/edit`}>
                                  <Button variant="default" size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
@@ -384,13 +384,13 @@ export default function PoliciesPage() {
 
       {/* --- TOP COLLAPSIBLE FILTERS --- */}
       {showMobileFilters && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6 animate-in slide-in-from-top-2 fade-in duration-200 flex flex-col gap-4">
+        <div className="bg-card rounded-xl border border-border shadow-sm p-5 mb-6 animate-in slide-in-from-top-2 fade-in duration-200 flex flex-col gap-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Product Dropdown */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Category</label>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Category</label>
               <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="flex h-9 w-full rounded-md border border-border bg-muted px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={filterProduct} 
                 onChange={e => { setFilterProduct(e.target.value); setCurrentPage(1); }}
               >
@@ -401,9 +401,9 @@ export default function PoliciesPage() {
 
             {/* Company Dropdown */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Insurer</label>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Insurer</label>
               <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="flex h-9 w-full rounded-md border border-border bg-muted px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={filterCompany} 
                 onChange={e => { setFilterCompany(e.target.value); setCurrentPage(1); }}
               >
@@ -414,15 +414,15 @@ export default function PoliciesPage() {
 
             {/* Dates */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">From</label>
-              <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} className="h-9 text-sm bg-slate-50 border-slate-200" />
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">From</label>
+              <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} className="h-9 text-sm bg-muted border-border" />
             </div>
             
             <div className="space-y-1.5 relative">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">To</label>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">To</label>
               <div className="flex gap-2">
-                 <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} className="h-9 text-sm bg-slate-50 border-slate-200" />
-                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-slate-400 hover:text-slate-800 bg-slate-100" onClick={clearFilters} title="Clear Filters">
+                 <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} className="h-9 text-sm bg-muted border-border" />
+                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground bg-muted" onClick={clearFilters} title="Clear Filters">
                     <X className="w-4 h-4" />
                   </Button>
               </div>
@@ -432,10 +432,10 @@ export default function PoliciesPage() {
       )}
 
       {/* --- FULL WIDTH TABLE --- */}
-      <main className="flex-1 flex flex-col min-w-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         
         {/* Header: Pagination Toolbar */}
-        <div className="p-3 border-b bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-slate-500 z-20">
+        <div className="p-3 border-b bg-muted flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-muted-foreground z-20">
             <div className="flex items-center gap-3">
                <div className="flex items-center gap-1.5">
                    <span className="font-medium">Rows per page:</span>
@@ -445,7 +445,7 @@ export default function PoliciesPage() {
                        setPageSize(Number(e.target.value));
                        setCurrentPage(1);
                      }} 
-                     className="border border-slate-200 rounded px-2 py-1 bg-white font-medium text-slate-700 outline-none hover:border-indigo-300 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
+                     className="border border-border rounded px-2 py-1 bg-card font-medium text-foreground outline-none hover:border-indigo-300 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
                    >
                       <option value="10">10</option>
                       <option value="25">25</option>
@@ -453,8 +453,8 @@ export default function PoliciesPage() {
                       <option value="100">100</option>
                    </select>
                </div>
-               <div className="block sm:block ml-0 sm:ml-2 mt-2 sm:mt-0 px-0 sm:px-3 py-1 border-none sm:border-solid sm:border-l border-slate-200 text-[10px] sm:text-xs">
-                   Showing <span className="font-bold text-slate-700">{totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> to <span className="font-bold text-slate-700">{(currentPage - 1) * pageSize + filteredPolicies.length}</span> of <span className="font-bold text-slate-700">{totalRecords}</span> entries
+               <div className="block sm:block ml-0 sm:ml-2 mt-2 sm:mt-0 px-0 sm:px-3 py-1 border-none sm:border-solid sm:border-l border-border text-[10px] sm:text-xs">
+                   Showing <span className="font-bold text-foreground">{totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> to <span className="font-bold text-foreground">{(currentPage - 1) * pageSize + filteredPolicies.length}</span> of <span className="font-bold text-foreground">{totalRecords}</span> entries
                </div>
             </div>
             
@@ -468,8 +468,8 @@ export default function PoliciesPage() {
                >
                  Prev
                </Button>
-               <span className="font-bold text-slate-700 px-3 bg-white border border-slate-200 py-1.5 rounded-md shadow-sm">
-                 {currentPage} <span className="text-slate-400 font-medium mx-1">/</span> {totalPages || 1}
+               <span className="font-bold text-foreground px-3 bg-card border border-border py-1.5 rounded-md shadow-sm">
+                 {currentPage} <span className="text-muted-foreground font-medium mx-1">/</span> {totalPages || 1}
                </span>
                <Button 
                   variant="outline" 
@@ -484,30 +484,30 @@ export default function PoliciesPage() {
         </div>
 
         {/* Table Area */}
-        <div className="flex-1 overflow-auto bg-white">
+        <div className="flex-1 overflow-auto bg-card">
           {isLoading ? (
             <PageLoader words={['policies', 'documents', 'schedules', 'records', 'policies']} label="loading" />
           ) : filteredPolicies.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="w-12 h-12 rounded-full bg-slate-100 items-center justify-center flex mx-auto mb-3">
-                <Search className="w-6 h-6 text-slate-400" />
+              <div className="w-12 h-12 rounded-full bg-muted items-center justify-center flex mx-auto mb-3">
+                <Search className="w-6 h-6 text-muted-foreground" />
               </div>
-              <h3 className="font-semibold text-slate-800 mb-1">No policies found</h3>
-              <p className="text-sm text-slate-500">Try clearing your filters or adding a new policy.</p>
+              <h3 className="font-semibold text-foreground mb-1">No policies found</h3>
+              <p className="text-sm text-muted-foreground">Try clearing your filters or adding a new policy.</p>
             </div>
           ) : (
             <>
             <div className="w-full overflow-x-auto custom-scrollbar">
               <table className="w-full text-left border-collapse min-w-full table-auto">
                 <thead>
-                  <tr className="bg-slate-100 border-b text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="w-8 px-2 py-3 text-center"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-3.5 h-3.5 cursor-pointer align-middle" checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} onChange={toggleAll} /></th>
-                    <th className="px-3 py-3 border-r border-slate-200 min-w-[100px]">Policy No</th>
-                    <th className="px-3 py-3 border-r border-slate-200 min-w-[100px]">Insured</th>
-                    <th className="px-3 py-3 border-r border-slate-200 min-w-[120px]">Company</th>
-                    <th className="px-2 py-3 border-r border-slate-200 min-w-[80px]">Product</th>
-                    <th className="px-2 py-3 border-r border-slate-200 w-20">Dates</th>
-                    <th className="px-2 py-3 text-right border-r border-slate-200 w-24">Gross Prem</th>
+                  <tr className="bg-muted border-b text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                    <th className="w-8 px-2 py-3 text-center"><input type="checkbox" className="rounded border-border/80 accent-blue-600 w-3.5 h-3.5 cursor-pointer align-middle" checked={selected.size === paginatedPolicies.length && paginatedPolicies.length > 0} onChange={toggleAll} /></th>
+                    <th className="px-3 py-3 border-r border-border min-w-[100px]">Policy No</th>
+                    <th className="px-3 py-3 border-r border-border min-w-[100px]">Insured</th>
+                    <th className="px-3 py-3 border-r border-border min-w-[120px]">Company</th>
+                    <th className="px-2 py-3 border-r border-border min-w-[80px]">Product</th>
+                    <th className="px-2 py-3 border-r border-border w-20">Dates</th>
+                    <th className="px-2 py-3 text-right border-r border-border w-24">Gross Prem</th>
                     <th className="px-2 py-3 text-center w-14">Details</th>
                     <th className="px-2 py-3 text-center w-14">Delete</th>
                   </tr>
@@ -518,18 +518,28 @@ export default function PoliciesPage() {
                     const fileUrl = p.documents?.[0]?.file_path ? `${baseUrl}/${p.documents[0].file_path}` : `/app/policies/${p.id}`;
                     
                     return (
-                      <tr key={p.id} className="hover:bg-slate-50/80 transition-colors text-sm">
-                        <td className="px-3 py-3 align-middle text-center"><input type="checkbox" className="rounded border-slate-300 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
-                        <td className="px-3 py-3 font-medium text-slate-900 truncate max-w-[140px]">
-                          {p.documents?.[0]?.file_path ? (
-                            <a href={fileUrl} target="_blank" rel="noreferrer" className="hover:text-blue-600 hover:underline">{p.policy_number}</a>
-                          ) : (
-                            <Link href={`/app/policies/${p.id}`} className="hover:text-blue-600 hover:underline">{p.policy_number}</Link>
-                          )}
+                      <tr key={p.id} className="hover:bg-muted/80 transition-colors text-sm">
+                        <td className="px-3 py-3 align-middle text-center"><input type="checkbox" className="rounded border-border/80 accent-blue-600 w-4 h-4 cursor-pointer align-middle" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
+                        <td className="px-3 py-3 font-medium text-foreground truncate max-w-[140px]">
+                          <div className="flex items-center gap-2">
+                            <span 
+                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                p.status === 'active' || p.status === 'renewed' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 
+                                p.status === 'expired' ? 'bg-amber-500' : 
+                                'bg-red-500'
+                              }`} 
+                              title={p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : 'Unknown'}
+                            />
+                            {p.documents?.[0]?.file_path ? (
+                              <a href={fileUrl} target="_blank" rel="noreferrer" className="hover:text-blue-600 hover:underline truncate">{p.policy_number}</a>
+                            ) : (
+                              <Link href={`/app/policies/${p.id}`} prefetch={true} className="hover:text-blue-600 hover:underline truncate">{p.policy_number}</Link>
+                            )}
+                          </div>
                         </td>
-                        <td className="px-3 py-3 truncate text-slate-700 max-w-[140px]">{p.customer?.name || '—'}</td>
-                        <td className="px-3 py-3 truncate text-slate-700 max-w-[160px]">{p.insurer?.name || '—'}</td>
-                        <td className="px-3 py-3 text-slate-600 text-xs truncate max-w-[120px]">
+                        <td className="px-3 py-3 truncate text-foreground max-w-[140px]">{p.customer?.name || '—'}</td>
+                        <td className="px-3 py-3 truncate text-foreground max-w-[160px]">{p.insurer?.name || '—'}</td>
+                        <td className="px-3 py-3 text-foreground/90 text-xs truncate max-w-[120px]">
                           {p.policy_type ? (
                             <div className="flex flex-col gap-1 min-w-0">
                                <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-sm w-max uppercase text-[9px] tracking-wider border border-indigo-100">{p.policy_type.split(' | ')[0] || 'General'}</span>
@@ -537,15 +547,20 @@ export default function PoliciesPage() {
                             </div>
                           ) : '—'}
                         </td>
-                        <td className="px-3 py-3 text-xs text-slate-500 whitespace-nowrap">
-                          <div className="font-medium text-slate-700 mb-0.5">{p.start_date ? new Date(p.start_date).toLocaleDateString('en-GB') : '—'}</div>
+                        <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                          <div className="font-medium text-foreground mb-0.5">{p.start_date ? new Date(p.start_date).toLocaleDateString('en-GB') : '—'}</div>
                           <div className="opacity-70 text-[10px] uppercase">to {p.expiry_date ? new Date(p.expiry_date).toLocaleDateString('en-GB') : '—'}</div>
                         </td>
-                        <td className="px-3 py-3 text-right text-slate-700 font-medium whitespace-nowrap">
-                          {p.premium_amount ? <span>₹{p.premium_amount.toLocaleString('en-IN')}</span> : '—'}
+                        <td className="px-3 py-3 text-right text-foreground font-medium whitespace-nowrap">
+                          {p.premium_amount ? (
+                            <span className="flex items-center justify-end gap-0.5 text-emerald-600 dark:text-emerald-400">
+                              <IndianRupee className="w-3.5 h-3.5" />
+                              {p.premium_amount.toLocaleString('en-IN')}
+                            </span>
+                          ) : '—'}
                         </td>
                         <td className="px-2 py-3 text-center">
-                           <Link href={`/app/policies/${p.id}`}>
+                           <Link href={`/app/policies/${p.id}`} prefetch={true}>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 inline-flex" title="View Details">
                                 <Eye className="w-4 h-4" />
                               </Button>
@@ -563,9 +578,9 @@ export default function PoliciesPage() {
               </table>
             </div>
             {totalPages > 1 && (
-              <div className="p-4 border-t bg-slate-50 flex items-center justify-between">
-                <div className="text-xs text-slate-500 font-medium">
-                  Page <span className="font-bold text-slate-700">{currentPage}</span> of <span className="font-bold text-slate-700">{totalPages}</span>
+              <div className="p-4 border-t bg-muted flex items-center justify-between">
+                <div className="text-xs text-muted-foreground font-medium">
+                  Page <span className="font-bold text-foreground">{currentPage}</span> of <span className="font-bold text-foreground">{totalPages}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button

@@ -20,12 +20,16 @@ import {
   PieChart,
   CalendarDays,
   ShieldCheck,
-  Lock
+  Lock,
+  Clock,
+  ListTodo
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { GlobalSearch } from '@/components/global-search';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { useTeam } from '@/hooks/use-team';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface SidebarProps {
   user: User;
@@ -33,14 +37,14 @@ interface SidebarProps {
 
 const BadgeWithDot = ({ children, color = 'success' }: { children: React.ReactNode, color?: string }) => {
   const colors = {
-    success: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    blue: 'bg-blue-50 text-blue-700 border-blue-100',
-    gray: 'bg-slate-50 text-slate-700 border-slate-100',
+    success: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800/50',
+    blue: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-800/50',
+    gray: 'bg-muted transition-colors dark:bg-slate-800/50 text-foreground border-border dark:border-slate-700/50',
   };
   const dotColors = {
-    success: 'bg-emerald-500',
-    blue: 'bg-blue-500',
-    gray: 'bg-slate-500',
+    success: 'bg-emerald-500 dark:bg-emerald-400',
+    blue: 'bg-blue-500 dark:bg-blue-400',
+    gray: 'bg-muted transition-colors0 dark:bg-slate-400',
   };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${colors[color as keyof typeof colors]}`}>
@@ -59,24 +63,37 @@ export default function Sidebar({ user }: SidebarProps) {
   const { isMember } = useTeam();
 
   const navItems = [
-    { 
+    ...(!isMember ? [{ 
       name: 'Home', 
       href: '/app', 
       icon: Home, 
       exact: true,
-      locked: isMember,
       children: [
         { name: 'Dashboard', href: '/app', icon: BarChart3, exact: true }
       ]
-    },
+    }] : []),
     { name: 'Policies', href: '/app/policies', icon: FileText, exact: false },
     { divider: true },
     { name: 'Customers', href: '/app/customers', icon: Users, exact: false },
+    { 
+      name: 'Follow-ups', 
+      href: '/app/followups', 
+      icon: Clock, 
+      exact: false, 
+      badge: <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" title="Pending Items" /> 
+    },
+    { name: 'Todo', href: '/app/todos', icon: ListTodo, exact: false },
     { name: 'Renewals', href: '/app/renewals', icon: CalendarDays, exact: false },
     { name: 'Reminders', href: '/app/reminders', icon: CalendarDays, exact: false },
-    { name: 'Reporting', href: '/app/reporting', icon: PieChart, exact: false, locked: isMember },
+    ...(!isMember ? [{ name: 'Reporting', href: '/app/reporting', icon: PieChart, exact: false }] : []),
     { divider: true },
-    { name: 'Approvals', href: '/app/approvals', icon: Bell, exact: false },
+    { 
+      name: 'Approvals', 
+      href: '/app/approvals', 
+      icon: Bell, 
+      exact: false, 
+      badge: <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" title="Action Required" /> 
+    },
     { name: 'Settings', href: '/app/settings', icon: Settings, exact: false },
     { 
       name: 'Support', 
@@ -92,7 +109,7 @@ export default function Sidebar({ user }: SidebarProps) {
   }
 
   const NavLink = ({ item }: { item: any }) => {
-    if (item.divider) return <div className="h-px bg-slate-100 my-4 mx-3" />;
+    if (item.divider) return <div className="h-px bg-border my-4 mx-3" />;
     
     const isActive = item.exact ? pathname === item.href : pathname?.startsWith(item.href);
     const isLocked = item.locked;
@@ -103,8 +120,8 @@ export default function Sidebar({ user }: SidebarProps) {
           href={isLocked ? '#' : item.href}
           className={`flex items-center justify-between group px-3 py-2 rounded-xl transition-all duration-200 ${
             isActive && !isLocked
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-blue-900/20' 
+              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
           } ${isLocked ? 'pointer-events-none' : ''}`}
           onClick={() => !isLocked && setIsMobileMenuOpen(false)}
         >
@@ -124,7 +141,7 @@ export default function Sidebar({ user }: SidebarProps) {
                   key={child.name}
                   href={isLocked ? '#' : child.href}
                   className={`flex items-center gap-3 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    isChildActive && !isLocked ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
+                    isChildActive && !isLocked ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground/70 hover:text-foreground'
                   } ${isLocked ? 'pointer-events-none' : ''}`}
                   onClick={() => !isLocked && setIsMobileMenuOpen(false)}
                 >
@@ -142,16 +159,16 @@ export default function Sidebar({ user }: SidebarProps) {
   return (
     <>
       {/* Mobile Top Bar */}
-      <div className="lg:hidden flex items-center justify-between px-4 h-16 bg-white border-b border-slate-200 sticky top-0 z-40">
+      <div className="lg:hidden flex items-center justify-between px-4 h-16 bg-sidebar border-b border-border sticky top-0 z-40 transition-colors">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-md">
             <Fingerprint className="w-5 h-5" />
           </div>
-          <h1 className="text-lg font-black text-slate-900 tracking-tight">PolicyVault</h1>
+          <h1 className="text-lg font-black text-sidebar-foreground tracking-tight">PolicyVault</h1>
         </div>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"
+          className="p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors"
         >
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
@@ -159,7 +176,7 @@ export default function Sidebar({ user }: SidebarProps) {
 
       {/* Sidebar Desktop / Mobile Overlay */}
       <aside className={`
-        fixed inset-y-0 right-0 z-50 w-72 lg:w-60 xl:w-72 bg-white border-l border-slate-200 flex flex-col transition-all duration-300 ease-in-out
+        fixed inset-y-0 right-0 z-50 w-72 lg:w-60 xl:w-72 bg-sidebar border-l border-border flex flex-col transition-all duration-300 ease-in-out
         lg:left-0 lg:right-auto lg:border-r lg:border-l-0 lg:translate-x-0 lg:static lg:h-screen
         ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
       `}>
@@ -168,22 +185,17 @@ export default function Sidebar({ user }: SidebarProps) {
           {/* Header / Logo */}
           <div className="p-6 pb-2">
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-100 ring-4 ring-white">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-900/20 ring-4 ring-sidebar transition-all">
                 <Fingerprint className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-xl font-black text-slate-900 leading-none tracking-tight">PolicyVault</h1>
+                <h1 className="text-xl font-black text-sidebar-foreground leading-none tracking-tight transition-colors">PolicyVault</h1>
               </div>
             </div>
 
-            {/* Search Bar - Mimicking reference UI */}
-            <div className="relative group mb-6">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Quick search... (⌘K)"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-600 placeholder:text-slate-400"
-              />
+            {/* Global Search */}
+            <div className="mb-6">
+              <GlobalSearch placeholder="Quick search… (⌘K)" />
             </div>
 
             {/* Nav Items */}
@@ -195,18 +207,19 @@ export default function Sidebar({ user }: SidebarProps) {
 
 
         {/* Footer / User Profile */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+        <div className="p-4 border-t border-border bg-sidebar-accent/30 transition-colors">
           <div className="flex items-center gap-3 p-2">
-            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center border-2 border-white shadow-sm shrink-0 overflow-hidden">
+            <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center border-2 border-sidebar shadow-sm shrink-0 overflow-hidden transition-colors">
               <img src={`https://ui-avatars.com/api/?name=${user.email}&background=0D8ABC&color=fff`} alt="user" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-900 truncate leading-none mb-1">{user.user_metadata?.full_name || user.email?.split('@')[0]}</p>
-              <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">{user.email}</p>
+              <p className="text-sm font-bold text-sidebar-foreground truncate leading-none mb-1 transition-colors">{user.user_metadata?.full_name || user.email?.split('@')[0]}</p>
+              <p className="text-[10px] font-semibold text-muted-foreground truncate mt-0.5 transition-colors">{user.email}</p>
             </div>
+            <ThemeToggle />
             <button 
               onClick={handleLogout}
-              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
               title="Logout"
             >
               <LogOut className="w-5 h-5" />
@@ -218,7 +231,7 @@ export default function Sidebar({ user }: SidebarProps) {
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 dark:bg-black/80 backdrop-blur-sm z-40 lg:hidden transition-all"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

@@ -93,14 +93,14 @@ export default function RenewalsPage() {
               <CalendarDays className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Renewals</h1>
-              <p className="text-slate-500 font-medium">Policies expiring in the next 90 days</p>
+              <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Renewals</h1>
+              <p className="text-muted-foreground font-medium">Policies expiring in the next 90 days</p>
             </div>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={fetchRenewals} disabled={isLoading} className="bg-white">
+          <Button variant="outline" onClick={fetchRenewals} disabled={isLoading} className="bg-card transition-colors">
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -108,7 +108,7 @@ export default function RenewalsPage() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 bg-card transition-colors rounded-xl border border-border shadow-sm overflow-hidden">
         {/* Header Ribbon */}
         <div className="p-4 border-b bg-amber-50/50 flex items-center justify-between text-sm">
           <div className="flex items-center gap-2 text-amber-800 font-semibold">
@@ -118,22 +118,22 @@ export default function RenewalsPage() {
         </div>
 
         {/* Table Area */}
-        <div className="flex-1 overflow-auto bg-white custom-scrollbar">
+        <div className="flex-1 overflow-auto bg-card transition-colors custom-scrollbar">
           {isLoading ? (
             <PageLoader words={['renewals', 'dates', 'policies', 'customers']} label="loading" />
           ) : policies.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 border border-slate-100 shadow-sm">
+              <div className="w-16 h-16 rounded-full bg-muted transition-colors flex items-center justify-center mx-auto mb-4 border border-border shadow-sm">
                 <CalendarDays className="w-8 h-8 text-slate-300" />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-1">No upcoming renewals</h3>
-              <p className="text-slate-500 max-w-sm mx-auto">You have no policies expiring in the next 90 days. Everything is up to date!</p>
+              <h3 className="text-lg font-bold text-foreground mb-1">No upcoming renewals</h3>
+              <p className="text-muted-foreground max-w-sm mx-auto">You have no policies expiring in the next 90 days. Everything is up to date!</p>
             </div>
           ) : (
             <div className="w-full min-w-[800px]">
               <table className="w-full text-left border-collapse table-auto">
                 <thead>
-                  <tr className="bg-slate-50 border-b text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <tr className="bg-muted transition-colors border-b text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     <th className="px-4 py-3 min-w-[140px]">Customer</th>
                     <th className="px-4 py-3 min-w-[120px]">Policy No</th>
                     <th className="px-4 py-3 min-w-[120px]">Type / Insurer</th>
@@ -150,10 +150,10 @@ export default function RenewalsPage() {
                     const isAnniversary = p.renewal_type === 'Anniversary Premium';
                     
                     return (
-                      <tr key={p.id} className="hover:bg-slate-50/50 transition-colors text-sm group">
+                      <tr key={p.id} className="hover:bg-background transition-colors text-sm group">
                         <td className="px-4 py-3">
-                          <div className="font-bold text-slate-900 truncate max-w-[160px]">{p.customer?.name || '—'}</div>
-                          {p.customer?.mobile && <div className="text-xs text-slate-500 mt-0.5">{p.customer.mobile}</div>}
+                          <div className="font-bold text-foreground truncate max-w-[160px]">{p.customer?.name || '—'}</div>
+                          {p.customer?.mobile && <div className="text-xs text-muted-foreground mt-0.5">{p.customer.mobile}</div>}
                         </td>
                         <td className="px-4 py-3">
                           <Link href={`/app/policies/${p.id}`} className="font-medium text-blue-600 hover:underline">
@@ -168,11 +168,11 @@ export default function RenewalsPage() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="font-medium text-slate-700 text-xs truncate max-w-[140px] mb-0.5">{p.policy_type?.split(' | ')[0] || '—'}</div>
-                          <div className="text-[10px] text-slate-400 uppercase tracking-wide truncate max-w-[140px]">{p.insurer?.name || '—'}</div>
+                          <div className="font-medium text-foreground text-xs truncate max-w-[140px] mb-0.5">{p.policy_type?.split(' | ')[0] || '—'}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase tracking-wide truncate max-w-[140px]">{p.insurer?.name || '—'}</div>
                         </td>
                         <td className="px-4 py-3">
-                            <div className="font-bold text-slate-900">
+                            <div className="font-bold text-foreground">
                                 ₹{(p.expected_premium || p.premium_amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                             </div>
                             {p.is_health_hike && (
@@ -182,11 +182,11 @@ export default function RenewalsPage() {
                             )}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="font-medium text-slate-900 mb-0.5">
+                          <div className="font-medium text-foreground mb-0.5">
                             {new Date(dueDate).toLocaleDateString('en-GB')}
                           </div>
                           <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-slate-400" />
+                            <Clock className="w-3 h-3 text-muted-foreground" />
                             <span className={`text-[10px] font-bold uppercase tracking-wider ${days < 0 ? 'text-red-600' : days <= 15 ? 'text-rose-600' : 'text-amber-600'}`}>
                               {days < 0 ? `Past Due ${Math.abs(days)}d` : days === 0 ? 'Due Today' : `In ${days} days`}
                             </span>
@@ -201,7 +201,7 @@ export default function RenewalsPage() {
                           <div className="flex items-center justify-end gap-2">
                             {p.is_health_hike ? (
                                 <Link href={`/app/policies/${p.id}/edit`}>
-                                    <Button variant="outline" size="sm" className="h-8 text-[10px] bg-white border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 px-2" title="Update Exact Renewal Amount">
+                                    <Button variant="outline" size="sm" className="h-8 text-[10px] bg-card transition-colors border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 px-2" title="Update Exact Renewal Amount">
                                         Update Amt
                                     </Button>
                                 </Link>

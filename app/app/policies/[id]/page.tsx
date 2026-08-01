@@ -272,10 +272,10 @@ export default function PolicyDetailPage() {
     active: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
     renewed: 'bg-sky-50 text-sky-700 border-sky-200/80',
     expired: 'bg-rose-50 text-rose-700 border-rose-200/80',
-    cancelled: 'bg-slate-50 text-slate-700 border-slate-200/80',
+    cancelled: 'bg-muted text-foreground border-border/80',
     lapsed: 'bg-amber-50 text-amber-700 border-amber-200/80',
     matured: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
-    surrendered: 'bg-slate-50 text-slate-600 border-slate-200/80',
+    surrendered: 'bg-muted text-foreground/90 border-border/80',
   };
 
   // Determine categories
@@ -305,27 +305,27 @@ export default function PolicyDetailPage() {
   })();
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-20">
+    <div className="min-h-screen bg-background pb-20">
       {/* ── STICKY HEADER ── */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md">
+      <header className="sticky top-0 z-40 w-full border-b border-border bg-card/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link href="/app/policies">
-              <Button variant="outline" size="icon" className="h-9 w-9 rounded-lg border-slate-200 hover:bg-slate-50">
-                <ArrowLeft className="w-4 h-4 text-slate-600" />
+              <Button variant="outline" size="icon" className="h-9 w-9 rounded-lg border-border hover:bg-muted">
+                <ArrowLeft className="w-4 h-4 text-foreground/90" />
               </Button>
             </Link>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{policy.policy_number}</h1>
-                <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-600" onClick={() => copyToClipboard(policy.policy_number)}>
+                <h1 className="text-xl font-bold text-foreground tracking-tight">{policy.policy_number}</h1>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground/90" onClick={() => copyToClipboard(policy.policy_number)}>
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                 </Button>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${statusColors[policy.status] || 'bg-slate-100'}`}>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${statusColors[policy.status] || 'bg-muted'}`}>
                   {policy.status.toUpperCase()}
                 </span>
               </div>
-              <p className="text-sm text-slate-500 mt-0.5 font-medium">
+              <p className="text-sm text-muted-foreground mt-0.5 font-medium">
                 {category.toUpperCase()} INSURANCE &bull; {policy.product_name || policy.policy_type || '—'}
               </p>
             </div>
@@ -345,11 +345,11 @@ export default function PolicyDetailPage() {
               </Button>
             )}
             <Link href={`/app/policies/${policyId}/edit`}>
-              <Button variant="outline" size="sm" className="h-9 border-slate-200 text-slate-700 bg-white hover:bg-slate-50">
+              <Button variant="outline" size="sm" className="h-9 border-border text-foreground bg-card hover:bg-muted">
                 Edit
               </Button>
             </Link>
-            <Button variant="outline" size="sm" className="h-9 border-slate-200 text-slate-700 bg-white hover:bg-slate-50" onClick={handleShare}>
+            <Button variant="outline" size="sm" className="h-9 border-border text-foreground bg-card hover:bg-muted" onClick={handleShare}>
               <Share2 className="w-4 h-4 mr-2" /> Share
             </Button>
             <RoleActionButton
@@ -362,7 +362,7 @@ export default function PolicyDetailPage() {
               icon={Trash2}
               variant="outline"
               size="sm"
-              className="h-9 text-rose-600 border-rose-200 hover:bg-rose-50 bg-white"
+              className="h-9 text-rose-600 border-rose-200 hover:bg-rose-50 bg-card"
               reasonPrompt="Why do you want to delete this policy?"
               metadata={{ policy_number: policy.policy_number }}
             />
@@ -371,25 +371,25 @@ export default function PolicyDetailPage() {
         </div>
 
         {/* Quick Summary Chips */}
-        <div className="border-t border-slate-100 bg-slate-50/50 px-4 sm:px-6 py-2.5">
-          <div className="max-w-7xl mx-auto flex flex-wrap gap-x-6 gap-y-2 text-xs font-semibold text-slate-500">
+        <div className="border-t border-border bg-background px-4 sm:px-6 py-2.5">
+          <div className="max-w-7xl mx-auto flex flex-wrap gap-x-6 gap-y-2 text-xs font-semibold text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-400">Premium:</span>
-              <span className="text-slate-800">{formatCurrency(policy.premium_amount)} / year</span>
+              <span className="text-muted-foreground">Premium:</span>
+              <span className="text-foreground">{formatCurrency(policy.premium_amount)} / year</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-400">Expires:</span>
+              <span className="text-muted-foreground">Expires:</span>
               {daysRemaining !== null ? (
-                <span className={isExpired ? 'text-rose-600' : 'text-slate-800'}>
+                <span className={isExpired ? 'text-rose-600' : 'text-foreground'}>
                   {isExpired ? `Expired ${Math.abs(daysRemaining)} days ago` : `In ${daysRemaining} days`}
                 </span>
               ) : (
-                <span className="text-slate-800">—</span>
+                <span className="text-foreground">—</span>
               )}
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-400">Insurer:</span>
-              <span className="text-slate-800">{policy.insurer?.name || '—'}</span>
+              <span className="text-muted-foreground">Insurer:</span>
+              <span className="text-foreground">{policy.insurer?.name || '—'}</span>
             </div>
           </div>
         </div>
@@ -403,52 +403,52 @@ export default function PolicyDetailPage() {
           <div className="lg:col-span-2 space-y-8">
             
             {/* SECTION 1: POLICY OVERVIEW */}
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Policy Overview</h2>
+            <section className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-border">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Policy Overview</h2>
               </div>
               <div className="p-6 grid grid-cols-2 sm:grid-cols-4 gap-6">
                 <div>
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Policy Type</span>
-                  <span className="block text-sm font-bold text-slate-800 mt-1">{category.toUpperCase()}</span>
+                  <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Policy Type</span>
+                  <span className="block text-sm font-bold text-foreground mt-1">{category.toUpperCase()}</span>
                 </div>
                 <div>
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Plan Name</span>
-                  <span className="block text-sm font-bold text-slate-800 mt-1 truncate" title={policy.product_name || policy.policy_type}>{policy.product_name || policy.policy_type || '—'}</span>
+                  <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Plan Name</span>
+                  <span className="block text-sm font-bold text-foreground mt-1 truncate" title={policy.product_name || policy.policy_type}>{policy.product_name || policy.policy_type || '—'}</span>
                 </div>
                 <div>
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Company</span>
-                  <span className="block text-sm font-bold text-slate-800 mt-1 truncate">{policy.insurer?.name || '—'}</span>
+                  <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Company</span>
+                  <span className="block text-sm font-bold text-foreground mt-1 truncate">{policy.insurer?.name || '—'}</span>
                 </div>
                 <div>
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coverage Period</span>
-                  <span className="block text-xs font-bold text-slate-800 mt-1">
+                  <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Coverage Period</span>
+                  <span className="block text-xs font-bold text-foreground mt-1">
                     {formatDate(policy.start_date || policy.policy_start_date)} - {formatDate(policy.expiry_date || policy.policy_end_date)}
                   </span>
                 </div>
                 <div className="mt-2">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Premium</span>
-                  <span className="block text-sm font-bold text-slate-800 mt-1">{formatCurrency(policy.premium_amount)}</span>
+                  <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Premium</span>
+                  <span className="block text-sm font-bold text-foreground mt-1">{formatCurrency(policy.premium_amount)}</span>
                 </div>
                 <div className="mt-2">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sum Insured</span>
-                  <span className="block text-sm font-bold text-slate-800 mt-1">{formatCurrency(policy.sum_insured)}</span>
+                  <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sum Insured</span>
+                  <span className="block text-sm font-bold text-foreground mt-1">{formatCurrency(policy.sum_insured)}</span>
                 </div>
                 <div className="mt-2">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Payment Mode</span>
-                  <span className="block text-sm font-bold text-slate-800 mt-1 uppercase">{policy.payment_mode || '—'}</span>
+                  <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Payment Mode</span>
+                  <span className="block text-sm font-bold text-foreground mt-1 uppercase">{policy.payment_mode || '—'}</span>
                 </div>
                 <div className="mt-2">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</span>
-                  <span className="block text-sm font-bold text-slate-800 mt-1 capitalize">{policy.status}</span>
+                  <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</span>
+                  <span className="block text-sm font-bold text-foreground mt-1 capitalize">{policy.status}</span>
                 </div>
               </div>
             </section>
 
             {/* SECTION 2: PEOPLE (Merged Customer + Nominee) */}
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Insured People</h2>
+            <section className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-border">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Insured People</h2>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -459,20 +459,20 @@ export default function PolicyDetailPage() {
                     </h3>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center py-1 border-b border-slate-50">
-                        <span className="text-xs text-slate-400 font-medium">Name</span>
-                        <span className="text-sm font-bold text-slate-800">{policy.customer?.name || '—'}</span>
+                        <span className="text-xs text-muted-foreground font-medium">Name</span>
+                        <span className="text-sm font-bold text-foreground">{policy.customer?.name || '—'}</span>
                       </div>
                       <div className="flex justify-between items-center py-1 border-b border-slate-50">
-                        <span className="text-xs text-slate-400 font-medium">DOB</span>
-                        <span className="text-sm font-bold text-slate-800">{formatDate(policy.customer?.dob)}</span>
+                        <span className="text-xs text-muted-foreground font-medium">DOB</span>
+                        <span className="text-sm font-bold text-foreground">{formatDate(policy.customer?.dob)}</span>
                       </div>
                       <div className="flex justify-between items-center py-1 border-b border-slate-50">
-                        <span className="text-xs text-slate-400 font-medium">Gender</span>
-                        <span className="text-sm font-bold text-slate-800 capitalize">{policy.customer?.gender || '—'}</span>
+                        <span className="text-xs text-muted-foreground font-medium">Gender</span>
+                        <span className="text-sm font-bold text-foreground capitalize">{policy.customer?.gender || '—'}</span>
                       </div>
                       <div className="flex justify-between items-center py-1 border-b border-slate-50">
-                        <span className="text-xs text-slate-400 font-medium">Mobile</span>
-                        <span className="text-sm font-bold text-slate-800">
+                        <span className="text-xs text-muted-foreground font-medium">Mobile</span>
+                        <span className="text-sm font-bold text-foreground">
                           {policy.customer?.mobile ? (
                             <a href={`tel:${policy.customer.mobile}`} className="text-indigo-600 hover:underline flex items-center gap-1">
                               <Phone className="w-3 h-3" /> {policy.customer.mobile}
@@ -481,8 +481,8 @@ export default function PolicyDetailPage() {
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-1 border-b border-slate-50">
-                        <span className="text-xs text-slate-400 font-medium">Email</span>
-                        <span className="text-sm font-bold text-slate-800">
+                        <span className="text-xs text-muted-foreground font-medium">Email</span>
+                        <span className="text-sm font-bold text-foreground">
                           {policy.customer?.email ? (
                             <a href={`mailto:${policy.customer.email}`} className="text-indigo-600 hover:underline flex items-center gap-1">
                               <Mail className="w-3 h-3" /> {policy.customer.email}
@@ -491,25 +491,25 @@ export default function PolicyDetailPage() {
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-1">
-                        <span className="text-xs text-slate-400 font-medium">PAN</span>
-                        <span className="text-sm font-bold text-slate-800 tracking-wider">{maskPan(policy.customer?.pan)}</span>
+                        <span className="text-xs text-muted-foreground font-medium">PAN</span>
+                        <span className="text-sm font-bold text-foreground tracking-wider">{maskPan(policy.customer?.pan)}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Nominee Info */}
-                  <div className="bg-slate-50/50 p-5 rounded-lg border border-slate-100 flex flex-col justify-center">
+                  <div className="bg-background p-5 rounded-lg border border-border flex flex-col justify-center">
                     <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-4 flex items-center gap-1.5">
                       <UserCheck className="w-3.5 h-3.5" /> Nominee Details
                     </h3>
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center py-1 border-b border-slate-200/50">
-                        <span className="text-xs text-slate-400 font-medium">Nominee Name</span>
-                        <span className="text-sm font-bold text-slate-800">{policy.nominee || details?.nominee_name || '—'}</span>
+                      <div className="flex justify-between items-center py-1 border-b border-border/50">
+                        <span className="text-xs text-muted-foreground font-medium">Nominee Name</span>
+                        <span className="text-sm font-bold text-foreground">{policy.nominee || details?.nominee_name || '—'}</span>
                       </div>
-                      <div className="flex justify-between items-center py-1 border-b border-slate-200/50">
-                        <span className="text-xs text-slate-400 font-medium">Relationship</span>
-                        <span className="text-sm font-bold text-slate-800 capitalize">
+                      <div className="flex justify-between items-center py-1 border-b border-border/50">
+                        <span className="text-xs text-muted-foreground font-medium">Relationship</span>
+                        <span className="text-sm font-bold text-foreground capitalize">
                           {details?.nominee_relationship || '—'}
                         </span>
                       </div>
@@ -520,32 +520,32 @@ export default function PolicyDetailPage() {
             </section>
 
             {/* SECTION 4: COVERAGE DETAIL CHIPS */}
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Coverage & Benefits</h2>
+            <section className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Coverage & Benefits</h2>
                 <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">{category}</span>
               </div>
               <div className="p-6">
                 {category === 'health' && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {/* Room Rent Limit */}
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Room Rent Limit</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Room Rent Limit</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">
                         {health?.room_rent_limit ? formatCurrency(health.room_rent_limit) : 'Private Room Cover'}
                       </span>
                     </div>
                     {/* ICU Limit */}
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">ICU Limit</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">ICU Limit</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">
                         {health?.icu_limit ? formatCurrency(health.icu_limit) : 'No Limit / Actuals'}
                       </span>
                     </div>
                     {/* Restoration Benefit */}
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Restoration</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1 flex items-center gap-1.5">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Restoration</span>
+                      <span className="block text-sm font-bold text-foreground mt-1 flex items-center gap-1.5">
                         {health?.restore_benefit ? (
                           <>
                             <ShieldCheck className="w-4 h-4 text-emerald-500" /> Active (100%)
@@ -554,21 +554,21 @@ export default function PolicyDetailPage() {
                       </span>
                     </div>
                     {/* No Claim Bonus */}
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">No Claim Bonus (NCB)</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">No Claim Bonus (NCB)</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">
                         {health?.ncb_percent ? `${health.ncb_percent}%` : '50% (Max 100%)'}
                       </span>
                     </div>
                     {/* Pre & Post Hospitalisation */}
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pre / Post Hosp.</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">60 Days / 180 Days</span>
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Pre / Post Hosp.</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">60 Days / 180 Days</span>
                     </div>
                     {/* Copay */}
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Co-pay</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Co-pay</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">
                         {health?.co_pay_percent ? `${health.co_pay_percent}%` : 'No Co-pay (0%)'}
                       </span>
                     </div>
@@ -577,39 +577,39 @@ export default function PolicyDetailPage() {
 
                 {category === 'motor' && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Zero Depreciation</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Zero Depreciation</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">
                         {motor?.covers?.zero_dep ? '✓ Covered' : 'Not Covered'}
                       </span>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Engine Protect</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Engine Protect</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">
                         {motor?.covers?.engine_protect ? '✓ Covered' : 'Not Covered'}
                       </span>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Roadside Assistance (RSA)</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Roadside Assistance (RSA)</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">
                         {motor?.covers?.rsa ? '✓ Covered' : 'Not Covered'}
                       </span>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Consumables Cover</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Consumables Cover</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">
                         {motor?.covers?.consumables ? '✓ Covered' : 'Not Covered'}
                       </span>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Return to Invoice</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Return to Invoice</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">
                         {motor?.covers?.return_to_invoice ? '✓ Covered' : 'Not Covered'}
                       </span>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">NCB Percentage</span>
-                      <span className="block text-sm font-bold text-slate-800 mt-1">
+                    <div className="p-3 bg-muted rounded-lg border border-border">
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">NCB Percentage</span>
+                      <span className="block text-sm font-bold text-foreground mt-1">
                         {motor?.current_ncb_percent ? `${motor.current_ncb_percent}%` : '—'}
                       </span>
                     </div>
@@ -617,11 +617,11 @@ export default function PolicyDetailPage() {
                 )}
 
                 {category !== 'health' && category !== 'motor' && (
-                  <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-center text-center">
+                  <div className="p-4 bg-background rounded-xl border border-border flex items-center justify-center text-center">
                     <div>
                       <ShieldCheck className="w-8 h-8 text-indigo-500 mx-auto mb-2" />
-                      <p className="text-sm font-bold text-slate-800">Standard policy benefits apply</p>
-                      <p className="text-xs text-slate-400 mt-1">Refer to PDF document below for full scope of coverage.</p>
+                      <p className="text-sm font-bold text-foreground">Standard policy benefits apply</p>
+                      <p className="text-xs text-muted-foreground mt-1">Refer to PDF document below for full scope of coverage.</p>
                     </div>
                   </div>
                 )}
@@ -695,73 +695,73 @@ export default function PolicyDetailPage() {
           <div className="space-y-8">
             
             {/* SECTION 5: FINANCIAL SUMMARY */}
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Financial Summary</h3>
+            <section className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-border">
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Financial Summary</h3>
               </div>
               <div className="p-5 space-y-4">
                 <div className="flex justify-between items-center py-1">
-                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Premium Amount</span>
-                  <span className="text-sm font-bold text-slate-800">{formatCurrency(policy.premium_amount)}</span>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Premium Amount</span>
+                  <span className="text-sm font-bold text-foreground">{formatCurrency(policy.premium_amount)}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
-                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">GST (18%)</span>
-                  <span className="text-sm font-bold text-slate-800">
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">GST (18%)</span>
+                  <span className="text-sm font-bold text-foreground">
                     {policy.gst_amount ? formatCurrency(policy.gst_amount) : formatCurrency(Math.round(policy.premium_amount * 0.18))}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-b border-slate-100 pb-3">
-                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Total Premium</span>
-                  <span className="text-sm font-extrabold text-slate-900">
+                <div className="flex justify-between items-center py-1 border-b border-border pb-3">
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Total Premium</span>
+                  <span className="text-sm font-extrabold text-foreground">
                     {policy.total_premium ? formatCurrency(policy.total_premium) : formatCurrency(Math.round(policy.premium_amount * 1.18))}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-1">
-                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Frequency</span>
-                  <span className="text-xs bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Frequency</span>
+                  <span className="text-xs bg-muted text-foreground font-bold px-2 py-0.5 rounded uppercase tracking-wider">
                     {policy.premium_frequency || 'Annual'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-1">
-                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Next Due Date</span>
-                  <span className="text-sm font-bold text-slate-800">{formatDate(policy.expiry_date || policy.policy_end_date)}</span>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Next Due Date</span>
+                  <span className="text-sm font-bold text-foreground">{formatDate(policy.expiry_date || policy.policy_end_date)}</span>
                 </div>
               </div>
             </section>
 
             {/* SECTION 3: INSURANCE COMPANY CARD */}
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Insurance Company</h3>
+            <section className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-border">
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Insurance Company</h3>
               </div>
               <div className="p-5 flex flex-col items-center">
                 <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-3">
                   <Building2 className="w-6 h-6 text-indigo-600" />
                 </div>
-                <h4 className="font-bold text-slate-800 text-center">{policy.insurer?.name || '—'}</h4>
-                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-1">Authorized Provider</p>
+                <h4 className="font-bold text-foreground text-center">{policy.insurer?.name || '—'}</h4>
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-1">Authorized Provider</p>
 
                 <div className="w-full mt-5 space-y-3.5 border-t border-slate-50 pt-4 text-xs font-semibold">
                   {policy.insurer?.contact && (
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400 uppercase tracking-wider">Helpline</span>
+                      <span className="text-muted-foreground uppercase tracking-wider">Helpline</span>
                       <a href={`tel:${policy.insurer.contact}`} className="text-indigo-600 hover:underline flex items-center gap-1">
                         <Phone className="w-3 h-3" /> {policy.insurer.contact}
                       </a>
                     </div>
                   )}
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 uppercase tracking-wider">Claim Status</span>
-                    <span className="text-slate-800">Cashless Network</span>
+                    <span className="text-muted-foreground uppercase tracking-wider">Claim Status</span>
+                    <span className="text-foreground">Cashless Network</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 uppercase tracking-wider">Support</span>
+                    <span className="text-muted-foreground uppercase tracking-wider">Support</span>
                     <a href="mailto:support@insurer.com" className="text-indigo-600 hover:underline flex items-center gap-1">
                       <Mail className="w-3 h-3" /> Email Support
                     </a>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 uppercase tracking-wider">Website</span>
+                    <span className="text-muted-foreground uppercase tracking-wider">Website</span>
                     <a href="https://www.hdfcergo.com" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline flex items-center gap-1">
                       hdfcergo.com <ExternalLink className="w-3 h-3" />
                     </a>
@@ -771,66 +771,66 @@ export default function PolicyDetailPage() {
             </section>
 
             {/* SECTION 6: TIMELINE */}
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Policy Timeline</h3>
+            <section className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-border">
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Policy Timeline</h3>
               </div>
               <div className="p-5">
-                <div className="relative pl-6 border-l border-slate-200 space-y-6">
+                <div className="relative pl-6 border-l border-border space-y-6">
                   {/* Timeline Event 1: Issued */}
                   <div className="relative">
                     <div className="absolute -left-[30px] top-0.5 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center shrink-0"></div>
-                    <p className="text-xs font-bold text-slate-800">Policy Issued</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(policy.issue_date || policy.start_date || policy.policy_start_date)}</p>
+                    <p className="text-xs font-bold text-foreground">Policy Issued</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(policy.issue_date || policy.start_date || policy.policy_start_date)}</p>
                   </div>
                   {/* Timeline Event 2: Active */}
                   <div className="relative">
                     <div className={`absolute -left-[30px] top-0.5 w-4 h-4 rounded-full border-4 border-white flex items-center justify-center shrink-0 ${policy.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
-                    <p className={`text-xs font-bold ${policy.status === 'active' ? 'text-slate-800' : 'text-slate-400'}`}>Policy Active</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(policy.start_date || policy.policy_start_date)}</p>
+                    <p className={`text-xs font-bold ${policy.status === 'active' ? 'text-foreground' : 'text-muted-foreground'}`}>Policy Active</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(policy.start_date || policy.policy_start_date)}</p>
                   </div>
                   {/* Timeline Event 3: Renewal Due */}
                   <div className="relative">
                     <div className="absolute -left-[30px] top-0.5 w-4 h-4 rounded-full bg-slate-200 border-4 border-white flex items-center justify-center shrink-0"></div>
-                    <p className="text-xs font-bold text-slate-400">Renewal Due</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(policy.expiry_date || policy.policy_end_date)}</p>
+                    <p className="text-xs font-bold text-muted-foreground">Renewal Due</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(policy.expiry_date || policy.policy_end_date)}</p>
                   </div>
                   {/* Timeline Event 4: Expired */}
                   <div className="relative">
                     <div className={`absolute -left-[30px] top-0.5 w-4 h-4 rounded-full border-4 border-white flex items-center justify-center shrink-0 ${isExpired ? 'bg-rose-500' : 'bg-slate-200'}`}></div>
-                    <p className={`text-xs font-bold ${isExpired ? 'text-rose-600' : 'text-slate-400'}`}>Expired</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(policy.expiry_date || policy.policy_end_date)}</p>
+                    <p className={`text-xs font-bold ${isExpired ? 'text-rose-600' : 'text-muted-foreground'}`}>Expired</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(policy.expiry_date || policy.policy_end_date)}</p>
                   </div>
                 </div>
               </div>
             </section>
 
             {/* SECTION 7: DOCUMENTS */}
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Documents</h3>
-                <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{documents.length}</span>
+            <section className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Documents</h3>
+                <span className="text-[10px] font-bold bg-muted text-foreground/90 px-1.5 py-0.5 rounded">{documents.length}</span>
               </div>
               <div className="p-5 space-y-4">
                 {documents.length === 0 ? (
                   <div className="text-center py-6">
                     <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="text-xs font-bold text-slate-500">No documents</p>
+                    <p className="text-xs font-bold text-muted-foreground">No documents</p>
                   </div>
                 ) : (
                   documents.map((doc) => (
-                    <div key={doc.id} className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                    <div key={doc.id} className="p-3 bg-background rounded-xl border border-border flex items-center justify-between gap-3 hover:bg-muted transition-colors">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
                           <FileText className="w-4 h-4 text-indigo-600" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-800 truncate" title={doc.file_name}>{doc.file_name}</p>
-                          <p className="text-[9px] text-slate-400 font-semibold mt-0.5">{formatDate(doc.upload_date || doc.created_at)}</p>
+                          <p className="text-xs font-bold text-foreground truncate" title={doc.file_name}>{doc.file_name}</p>
+                          <p className="text-[9px] text-muted-foreground font-semibold mt-0.5">{formatDate(doc.upload_date || doc.created_at)}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <a href={`/api/documents/${doc.id}/download`} target="_blank" rel="noreferrer" download={doc.file_name} className="h-7 w-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 text-slate-600 shadow-sm transition-colors">
+                        <a href={`/api/documents/${doc.id}/download`} target="_blank" rel="noreferrer" download={doc.file_name} className="h-7 w-7 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-muted text-foreground/90 shadow-sm transition-colors">
                           <Download className="w-3.5 h-3.5" />
                         </a>
                         <Button size="sm" variant="outline" className="h-7 px-2 text-xs border-indigo-200 text-indigo-700 bg-indigo-50/40 hover:bg-indigo-50 hover:text-indigo-800 shadow-sm font-semibold flex items-center gap-1 transition-colors" onClick={() => handleReExtractDoc(doc.id)} disabled={reExtractingDoc === doc.id}>
@@ -850,23 +850,23 @@ export default function PolicyDetailPage() {
 
         {/* SECTION 9: RAW OCR DATA ACCORDION */}
         {Object.keys(extractedData).length > 0 && (
-          <section className="mt-12 border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
-            <button className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50/50 transition-colors" onClick={() => setShowRawOcr(!showRawOcr)}>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                <Info className="w-4 h-4 text-slate-400" /> Raw OCR Data (Advanced)
+          <section className="mt-12 border border-border rounded-xl bg-card shadow-sm overflow-hidden">
+            <button className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-background transition-colors" onClick={() => setShowRawOcr(!showRawOcr)}>
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                <Info className="w-4 h-4 text-muted-foreground" /> Raw OCR Data (Advanced)
               </span>
-              {showRawOcr ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+              {showRawOcr ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
             </button>
             {showRawOcr && (
-              <div className="border-t border-slate-100 p-6 bg-slate-50/30">
+              <div className="border-t border-border p-6 bg-muted/30">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
                   {Object.entries(extractedData).map(([key, val]) => {
                     if (val === null || val === undefined || val === '') return null;
                     if (typeof val === 'object') return null; // skip nested structures
                     return (
-                      <div key={key} className="py-2 border-b border-slate-100 flex flex-col">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate" title={key}>{key.replace(/_/g, ' ')}</span>
-                        <span className="text-xs font-bold text-slate-700 mt-1 break-words">{String(val)}</span>
+                      <div key={key} className="py-2 border-b border-border flex flex-col">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate" title={key}>{key.replace(/_/g, ' ')}</span>
+                        <span className="text-xs font-bold text-foreground mt-1 break-words">{String(val)}</span>
                       </div>
                     );
                   })}

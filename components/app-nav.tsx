@@ -31,7 +31,7 @@ export default function AppNav({ user }: AppNavProps) {
   ];
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white/70 backdrop-blur-xl border-b border-slate-200 shadow-sm transition-all">
+    <nav className="sticky top-0 z-50 w-full bg-card transition-colors/70 backdrop-blur-xl border-b border-border shadow-sm transition-all">
       <div className="mx-auto max-w-[1600px] px-4 md:px-8">
         <div className="flex h-16 items-center justify-between gap-6">
           {/* Logo */}
@@ -40,7 +40,7 @@ export default function AppNav({ user }: AppNavProps) {
                <Fingerprint className="w-5 h-5" />
              </div>
              <div className="hidden md:flex flex-col tracking-tight">
-                <h1 className="text-xl font-extrabold text-slate-900 leading-none">PolicyVault</h1>
+                <h1 className="text-xl font-extrabold text-foreground leading-none">PolicyVault</h1>
                 <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest leading-none mt-0.5">Manager</span>
              </div>
           </div>
@@ -55,7 +55,7 @@ export default function AppNav({ user }: AppNavProps) {
                     className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                       isActive 
                         ? 'bg-indigo-50/80 text-indigo-700 shadow-sm ring-1 ring-indigo-100' 
-                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted transition-colors'
                     }`}
                   >
                     <item.icon className={`w-4 h-4 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
@@ -69,14 +69,14 @@ export default function AppNav({ user }: AppNavProps) {
           {/* Right Profile Controls */}
           <div className="flex shrink-0 items-center justify-end gap-4 ml-4">
             <div className="hidden lg:flex flex-col items-end">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Signed In</span>
-              <span className="text-sm font-semibold text-slate-700">{user.email}</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Signed In</span>
+              <span className="text-sm font-semibold text-foreground">{user.email}</span>
             </div>
             <Button
               onClick={handleLogout}
               variant="outline"
               size="icon"
-              className="h-9 w-9 rounded-full border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-100 transition-colors shadow-sm"
+              className="h-9 w-9 rounded-full border-border text-muted-foreground hover:text-red-600 hover:bg-red-50 hover:border-red-100 transition-colors shadow-sm"
               title="Sign Out"
             >
               <LogOut className="w-4 h-4" />

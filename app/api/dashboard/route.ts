@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
      const { data: policies, error } = await supabaseAdmin!
        .from('policies')
-       .select('*, customer:customers(name), insurer:insurers(name)')
+       .select('*, customer:customers(name), insurer:insurers(name), life_policies(sum_assured)')
        .in('user_id', teamUserIds);
 
      if (error) throw error;
@@ -78,20 +78,53 @@ export async function GET(request: NextRequest) {
 
      // Core Metrics
      const totalPremium = filteredPolicies.reduce((acc, p) => acc + (p.premium_amount || 0), 0);
-     const totalAUM = allPolicies.filter(p => p.status === 'active').reduce((acc, p) => acc + (p.premium_amount || 0), 0);
      const totalPolicies = filteredPolicies.length;
      const activePolicies = filteredPolicies.filter(p => p.status === 'active').length;
      
      const customerIds = new Set(filteredPolicies.map(p => p.customer_id).filter(Boolean));
      const companyIds = new Set(filteredPolicies.map(p => p.insurer_id).filter(Boolean));
 
-     // Sector wise AUM
-     const sectorMap: Record<string, number> = {};
-     allPolicies.filter(p => p.status === 'active').forEach(p => {
-         const category = p.policy_type ? p.policy_type.split(' | ')[0] : 'General';
-         sectorMap[category] = (sectorMap[category] || 0) + (p.premium_amount || 0);
+     function getCategory(insurerName: string, insuranceType: string, policyType: string): 'Life' | 'Health' | 'General' {
+         const iName = (insurerName || '').toLowerCase();
+         const iType = (insuranceType || '').toLowerCase();
+         const pType = (policyType || '').toLowerCase();
+         const typeStr = `${iType} ${pType}`;
+
+         // 1. Type keywords
+         const healthKeywords = ['health', 'mediclaim', 'critical illness', 'hospicash', 'top-up', 'super top-up', 'opd', 'personal accident'];
+         if (healthKeywords.some(k => typeStr.includes(k))) return 'Health';
+
+         const lifeKeywords = ['life', 'term', 'ulip', 'endowment', 'whole life', 'money back', 'pension', 'annuity', 'child plan', 'retirement'];
+         if (lifeKeywords.some(k => typeStr.includes(k))) return 'Life';
+
+         const generalKeywords = ['motor', 'car', 'bike', '2 wheeler', '4 wheeler', 'commercial vehicle', 'sme', 'fire', 'marine', 'travel', 'property', 'shopkeeper', 'liability', 'cyber', 'engineering', 'burglary'];
+         if (generalKeywords.some(k => typeStr.includes(k))) return 'General';
+
+         // 2. Insurer keywords
+         const lifeInsurers = ['lic', 'tata aia', 'hdfc life', 'icici prudential', 'sbi life', 'max life', 'bajaj allianz life', 'kotak mahindra life', 'aditya birla sun', 'pnb metlife', 'canara hsbc', 'bharti axa life', 'future generali india life', 'edelweiss tokio', 'pramerica', 'puravankara', 'star union', 'indiafirst', 'aegon', 'bandhan life', 'shriram life', 'reliance nippon', 'exide life', 'ageas federal'];
+         if (lifeInsurers.some(k => iName.includes(k))) return 'Life';
+
+         const healthInsurers = ['star health', 'niva bupa', 'max bupa', 'care health', 'religare', 'aditya birla health', 'manipalcigna', 'reliance health'];
+         if (healthInsurers.some(k => iName.includes(k))) return 'Health';
+
+         // 3. Default to General (including disambiguation fallback)
+         return 'General';
+     }
+
+     // Sector wise AUM (Sum Assured based)
+     const sectorMap: Record<string, number> = { Life: 0, Health: 0, General: 0 };
+     allPolicies.filter(p => ['active', 'renewed'].includes(p.status)).forEach(p => {
+         const category = getCategory(p.insurer?.name, p.insurance_type, p.policy_type);
+         let sa = p.sum_insured || 0;
+         if (category === 'Life') {
+             sa = p.life_policies?.[0]?.sum_assured || p.sum_insured || 0;
+         }
+         sectorMap[category] = (sectorMap[category] || 0) + sa;
      });
-     const sectorAUM = Object.entries(sectorMap).map(([name, aum]) => ({ name, aum })).sort((a,b) => b.aum - a.aum);
+     
+     const totalAUM = Object.values(sectorMap).reduce((a,b) => a+b, 0);
+     // Filter out 0 AUM sectors for the donut chart
+     const sectorAUM = Object.entries(sectorMap).map(([name, aum]) => ({ name, aum })).filter(s => s.aum > 0).sort((a,b) => b.aum - a.aum);
 
      // Chart Data (Group by Company and Customer for filtered policies)
      const companyMap: Record<string, number> = {};
@@ -127,11 +160,52 @@ export async function GET(request: NextRequest) {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 5);
 
+     // --- TIME SERIES GENERATION FOR LINE CHARTS ---
+     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+     const trendPeriods: string[] = [];
+     for (let i = 5; i >= 0; i--) {
+         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+         trendPeriods.push(`${monthNames[d.getMonth()]} ${d.getFullYear().toString().substring(2)}`);
+     }
+
+     const sectorAUMTrend: any[] = [];
+     const companyAUMTrend: any[] = [];
+     const top5Companies = companyChartData.slice(0, 5).map(c => c.name);
+
+     for (let i = 0; i < trendPeriods.length; i++) {
+         const periodEnd = new Date(now.getFullYear(), now.getMonth() - 5 + i + 1, 0, 23, 59, 59); // Last day of that month
+         
+         const activeUpToMonth = allPolicies.filter(p => {
+              const d = new Date(p.start_date || p.created_at);
+              return d <= periodEnd && ['active', 'renewed'].includes(p.status);
+         });
+
+         const sTrend: any = { period: trendPeriods[i], Life: 0, Health: 0, General: 0 };
+         const cTrend: any = { period: trendPeriods[i] };
+         top5Companies.forEach(c => cTrend[c] = 0);
+
+         activeUpToMonth.forEach(p => {
+              const category = getCategory(p.insurer?.name, p.insurance_type, p.policy_type);
+              sTrend[category] += (p.premium_amount || 0);
+
+              const compName = p.insurer?.name || 'Unknown Company';
+              if (top5Companies.includes(compName)) {
+                  cTrend[compName] += (p.premium_amount || 0);
+              }
+         });
+         
+         sectorAUMTrend.push(sTrend);
+         companyAUMTrend.push(cTrend);
+     }
+
      return NextResponse.json({
        data: {
          totalPremium,
          totalAUM,
          sectorAUM,
+         sectorAUMTrend,
+         companyAUMTrend,
+         top5Companies,
          totalPolicies,
          activePolicies,
          customersCount: customerIds.size,

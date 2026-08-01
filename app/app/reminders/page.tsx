@@ -1,5 +1,7 @@
 'use client';
 
+import { useMutation } from '@tanstack/react-query';
+
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
   Bell, 
@@ -96,10 +98,29 @@ export default function RemindersPage() {
     fetchData();
   }, [fetchData]);
 
+  const mutation = useMutation({
+    mutationFn: async (policy: Policy) => {
+      const res = await fetch(`/api/policies/${policy.id}/send`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send notification');
+      return { data, policyId: policy.id };
+    },
+    onMutate: async (policy) => {
+      setSendingId(policy.id);
+      // Eagerly assume success visually by removing the sending ID after a tick
+    },
+    onSuccess: (data, policy) => {
+      toast.success('Ad-hoc notification sent successfully');
+      setSendingId(null);
+    },
+    onError: (err: Error, policy) => {
+      toast.error('Send Failed', { description: err.message });
+      setSendingId(null);
+    }
+  });
+
   const handleManualSend = async (policy: Policy) => {
     const customer = policy?.customers;
-    
-    // UI-side validation as requested
     const email = customer?.email?.toLowerCase() || '';
     const isDummyEmail = !email || email.includes('xxxx') || email.includes('dummy') || email.includes('example.com') || email.includes('upload.local');
 
@@ -110,20 +131,7 @@ export default function RemindersPage() {
       return;
     }
 
-    setSendingId(policy.id);
-    try {
-      const res = await fetch(`/api/policies/${policy.id}/send`, { method: 'POST' });
-      const data = await res.json();
-      
-      if (!res.ok) throw new Error(data.error || 'Failed to send notification');
-      
-      toast.success('Ad-hoc notification sent successfully');
-      // No need to refresh data since it doesn't affect automated journey statuses
-    } catch (err: any) {
-      toast.error('Send Failed', { description: err.message });
-    } finally {
-      setSendingId(null);
-    }
+    mutation.mutate(policy);
   };
 
   const getReminderLabel = (type: string) => {
@@ -182,16 +190,16 @@ export default function RemindersPage() {
   }, [prefs]);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 max-w-[1600px] mx-auto w-full p-4 md:p-8">
+    <div className="flex flex-col h-full bg-muted transition-colors max-w-[1600px] mx-auto w-full p-4 md:p-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Lifecycle Manager</h1>
-          <p className="text-slate-500 font-medium">Policy preservation journey and automated touchpoints</p>
+          <h1 className="text-3xl font-black text-foreground tracking-tight">Lifecycle Manager</h1>
+          <p className="text-muted-foreground font-medium">Policy preservation journey and automated touchpoints</p>
         </div>
         <div className="flex items-center gap-2">
-            <div className="px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+            <div className="px-4 py-2 bg-card transition-colors rounded-xl border border-border shadow-sm flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Engine Active</span>
+                <span className="text-xs font-bold text-foreground/90 uppercase tracking-wider">Engine Active</span>
             </div>
         </div>
       </div>
@@ -203,14 +211,14 @@ export default function RemindersPage() {
 
         <div className="lg:col-span-2 space-y-6">
           {isLoading ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-12">
+            <div className="bg-card transition-colors rounded-2xl border border-border p-12">
                 <PageLoader words={['cycles', 'journeys', 'policies', 'reminders']} label="mapping" />
             </div>
           ) : policyLifecycle.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+            <div className="text-center py-20 bg-card transition-colors rounded-2xl border-2 border-dashed border-border">
               <Bell className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-              <h3 className="text-xl font-bold text-slate-800 mb-2">No Active Journeys</h3>
-              <p className="text-slate-500 max-w-sm mx-auto">
+              <h3 className="text-xl font-bold text-foreground mb-2">No Active Journeys</h3>
+              <p className="text-muted-foreground max-w-sm mx-auto">
                 Once policies are added, their automated lifecycle touchpoints will appear here.
               </p>
             </div>
@@ -237,7 +245,7 @@ export default function RemindersPage() {
                 const hasInvalidData = isDataInvalid(customer);
 
                 return (
-                  <div key={policy.id} className="bg-white rounded-[24px] border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden p-6">
+                  <div key={policy.id} className="bg-card transition-colors rounded-[24px] border border-border shadow-sm hover:shadow-md transition-all overflow-hidden p-6">
                     <div className="flex flex-col md:flex-row gap-6">
                       {/* Left: Client Info */}
                       <div className="flex-1 min-w-0">
@@ -246,22 +254,22 @@ export default function RemindersPage() {
                               {customer?.name?.charAt(0).toUpperCase() || '?'}
                            </div>
                            <div>
-                              <h3 className="font-extrabold text-slate-900 truncate leading-none mb-1 text-lg">
+                              <h3 className="font-extrabold text-foreground truncate leading-none mb-1 text-lg">
                                  {customer?.name || 'Unknown Client'}
                               </h3>
-                              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100 w-fit px-1.5 rounded">
+                              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest bg-muted transition-colors w-fit px-1.5 rounded">
                                  Policy: {policy.policy_number}
                               </p>
                            </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 mb-4 ml-1">
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground mb-4 ml-1">
                            <span className="flex items-center gap-1.5">
-                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
                               Expiry: {new Date(policy.expiry_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                            </span>
                            {policy.premium_amount && (
-                              <span className="font-bold text-slate-700">
+                              <span className="font-bold text-foreground">
                                  ₹{(() => {
                                     const num = policy.premium_amount;
                                     if (num >= 10000000) return (num / 10000000).toFixed(2) + ' Cr';
@@ -277,9 +285,9 @@ export default function RemindersPage() {
                         </div>
 
                         <div className="mt-6">
-                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Communication Journey</p>
+                           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4">Communication Journey</p>
                            <div className="relative flex items-center justify-between max-w-sm">
-                              <div className="absolute left-0 right-0 h-0.5 bg-slate-100 z-0"></div>
+                              <div className="absolute left-0 right-0 h-0.5 bg-muted transition-colors z-0"></div>
                               {lifecycleStages.map((stage) => {
                                  const reminder = policyReminders.find(r => r.reminder_type === stage.type);
                                  const isSent = reminder?.status === 'sent';
@@ -305,7 +313,7 @@ export default function RemindersPage() {
                                        >
                                           {isSent ? <CheckCircle className="w-4 h-4" /> : <span className="text-[10px] font-black">{stage.label}</span>}
                                        </div>
-                                       <span className={`text-[9px] font-bold mt-2 uppercase tracking-tighter ${isSent ? 'text-emerald-600' : isDue ? 'text-blue-600' : 'text-slate-400'}`}>
+                                       <span className={`text-[9px] font-bold mt-2 uppercase tracking-tighter ${isSent ? 'text-emerald-600' : isDue ? 'text-blue-600' : 'text-muted-foreground'}`}>
                                           {isSent ? (reminder?.updated_at ? new Date(reminder.updated_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'Sent') : isDue ? 'Due' : 'Wait'}
                                        </span>
                                     </div>
@@ -316,12 +324,12 @@ export default function RemindersPage() {
                       </div>
 
                       {/* Right: Actions */}
-                      <div className="flex flex-col justify-between items-center sm:items-end min-w-[140px] border-l border-dashed border-slate-100 pl-6">
+                      <div className="flex flex-col justify-between items-center sm:items-end min-w-[140px] border-l border-dashed border-border pl-6">
                         <div className="text-right">
                            {nextPending ? (
                               <div className="mb-4">
-                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Next</p>
-                                 <p className="text-xs font-bold text-slate-800">{getReminderLabel(nextPending.reminder_type)}</p>
+                                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Due Next</p>
+                                 <p className="text-xs font-bold text-foreground">{getReminderLabel(nextPending.reminder_type)}</p>
                                  <p className="text-[10px] text-blue-600 font-bold">{new Date(nextPending.scheduled_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</p>
                               </div>
                            ) : (
@@ -341,8 +349,8 @@ export default function RemindersPage() {
                               {sendingId === policy.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-2" />}
                               {sendingId === policy.id ? 'Sending...' : 'Send Notification'}
                            </Button>
-                           <Link href={`/app/policies/${policy.id}`} className="w-full">
-                              <Button variant="ghost" size="sm" className="h-10 w-full rounded-xl text-slate-500 hover:bg-slate-50 font-bold text-[11px] gap-2">
+                           <Link href={`/app/policies/${policy.id}`} prefetch={true} className="w-full">
+                              <Button variant="ghost" size="sm" className="h-10 w-full rounded-xl text-muted-foreground hover:bg-muted transition-colors font-bold text-[11px] gap-2">
                                  View Details
                                  <ExternalLink className="w-3.5 h-3.5" />
                               </Button>
@@ -358,17 +366,17 @@ export default function RemindersPage() {
 
           {/* Pagination Footer */}
           {Math.ceil(totalRecords / pageSize) > 1 && (
-            <div className="mt-8 flex items-center justify-between bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+            <div className="mt-8 flex items-center justify-between bg-card transition-colors p-4 rounded-3xl border border-border shadow-sm">
+                <div className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
                   Page <span className="text-blue-600">{currentPage}</span> of {Math.ceil(totalRecords / pageSize)} 
                   <span className="mx-2 opacity-30">|</span> 
-                  Total <span className="text-slate-900">{totalRecords}</span> Reminders
+                  Total <span className="text-foreground">{totalRecords}</span> Reminders
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 rounded-xl border-slate-200 text-slate-600 font-bold px-4"
+                    className="h-9 rounded-xl border-border text-foreground/90 font-bold px-4"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                   >
@@ -377,7 +385,7 @@ export default function RemindersPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 rounded-xl border-slate-200 text-slate-600 font-bold px-4"
+                    className="h-9 rounded-xl border-border text-foreground/90 font-bold px-4"
                     onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalRecords / pageSize), p + 1))}
                     disabled={currentPage === Math.ceil(totalRecords / pageSize)}
                   >

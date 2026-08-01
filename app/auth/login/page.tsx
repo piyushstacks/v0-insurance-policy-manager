@@ -162,18 +162,18 @@ function LoginContent() {
           <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
             <Shield className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900">PolicyVault</h1>
-          <p className="text-slate-500 text-sm mt-1">AI-Powered Insurance Management</p>
+          <h1 className="text-2xl font-black text-foreground">PolicyVault</h1>
+          <p className="text-muted-foreground text-sm mt-1">AI-Powered Insurance Management</p>
         </div>
 
         {/* Card */}
-        <div className="bg-white border border-slate-200 rounded-[28px] p-8 shadow-xl shadow-slate-100">
+        <div className="bg-card transition-colors border border-border rounded-[28px] p-8 shadow-xl shadow-slate-100">
 
           {step === 'email' && (
             <>
               <div className="mb-6">
-                <h2 className="text-xl font-bold text-slate-900">Sign in</h2>
-                <p className="text-slate-500 text-sm mt-1">We'll send a 6-digit code to your email.</p>
+                <h2 className="text-xl font-bold text-foreground">Sign in</h2>
+                <p className="text-muted-foreground text-sm mt-1">We'll send a 6-digit code to your email.</p>
               </div>
 
               <form onSubmit={handleSendOTP} className="space-y-4">
@@ -181,9 +181,9 @@ function LoginContent() {
                   <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl">{error}</div>
                 )}
                 <div>
-                  <label htmlFor="email" className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Email</label>
+                  <label htmlFor="email" className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
@@ -191,7 +191,7 @@ function LoginContent() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       disabled={loading}
-                      className="pl-10 h-12 rounded-2xl border-slate-200"
+                      className="pl-10 h-12 rounded-2xl border-border"
                       autoFocus
                     />
                   </div>
@@ -212,10 +212,10 @@ function LoginContent() {
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-1">
                   <CheckCircle className="w-5 h-5 text-emerald-500" />
-                  <h2 className="text-xl font-bold text-slate-900">Check your email</h2>
+                  <h2 className="text-xl font-bold text-foreground">Check your email</h2>
                 </div>
-                <p className="text-slate-500 text-sm">
-                  Code sent to <strong className="text-slate-700">{email}</strong>. Valid 5 minutes.
+                <p className="text-muted-foreground text-sm">
+                  Code sent to <strong className="text-foreground">{email}</strong>. Valid 5 minutes.
                 </p>
               </div>
 
@@ -242,7 +242,7 @@ function LoginContent() {
                             ? 'border-red-400 bg-red-50 text-red-700'
                             : digit
                             ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-slate-200 bg-slate-50 text-slate-900'
+                            : 'border-border bg-muted transition-colors text-foreground'
                         }
                         focus:border-blue-500 focus:bg-blue-50`}
                     />
@@ -267,7 +267,7 @@ function LoginContent() {
                   <button
                     type="button"
                     onClick={() => { setStep('email'); setError(''); setOtp(['','','','','','']); }}
-                    className="text-slate-400 hover:text-slate-600"
+                    className="text-muted-foreground hover:text-foreground/90"
                   >
                     ← Change email
                   </button>
@@ -275,7 +275,7 @@ function LoginContent() {
                     type="button"
                     onClick={() => handleSendOTP()}
                     disabled={cooldown > 0 || loading}
-                    className="text-blue-600 hover:text-blue-700 disabled:text-slate-400 flex items-center gap-1 font-medium"
+                    className="text-blue-600 hover:text-blue-700 disabled:text-muted-foreground flex items-center gap-1 font-medium"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
@@ -286,7 +286,7 @@ function LoginContent() {
           )}
         </div>
 
-        <p className="text-center text-sm text-slate-500 mt-6">
+        <p className="text-center text-sm text-muted-foreground mt-6">
           Don't have an account?{' '}
           <Link href="/auth/signup" className="text-blue-600 font-semibold hover:underline">Sign up</Link>
         </p>

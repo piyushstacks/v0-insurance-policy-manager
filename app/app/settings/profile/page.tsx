@@ -131,14 +131,14 @@ export default function ProfileSectionPage() {
           : <Shield className="w-5 h-5 text-blue-600 shrink-0" />
         }
         <div>
-          <p className="text-sm font-bold text-slate-900">{profile?.role} Account</p>
-          <p className="text-xs text-slate-500">Member since {new Date(profile?.id ? new Date().toISOString() : '').toLocaleDateString()}</p>
+          <p className="text-sm font-bold text-foreground">{profile?.role} Account</p>
+          <p className="text-xs text-muted-foreground">Member since {new Date(profile?.id ? new Date().toISOString() : '').toLocaleDateString()}</p>
         </div>
       </div>
 
       {/* Name */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-        <h3 className="font-bold text-slate-900 flex items-center gap-2">
+      <div className="bg-card transition-colors border border-border rounded-2xl p-6 space-y-4">
+        <h3 className="font-bold text-foreground flex items-center gap-2">
           <User className="w-4 h-4 text-blue-600" /> Display Name
         </h3>
         <div className="flex gap-3">
@@ -160,8 +160,8 @@ export default function ProfileSectionPage() {
       </div>
 
       {/* Email */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-        <h3 className="font-bold text-slate-900 flex items-center gap-2">
+      <div className="bg-card transition-colors border border-border rounded-2xl p-6 space-y-4">
+        <h3 className="font-bold text-foreground flex items-center gap-2">
           <Mail className="w-4 h-4 text-blue-600" /> Email Address
           <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full ml-1">OTP Verified</span>
         </h3>

@@ -89,11 +89,11 @@ export default function ApprovalCenterPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Bell className="w-6 h-6 text-blue-600" />
             Approval Center
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             {role === 'ADMIN' || role === 'SUB_ADMIN'
               ? 'Review and approve member action requests.'
               : 'Track your pending action requests.'}
@@ -117,12 +117,12 @@ export default function ApprovalCenterPage() {
             className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${
               filter === key
                 ? `border-${color}-400 bg-${color}-50`
-                : 'border-slate-200 bg-white hover:border-slate-300'
+                : 'border-border bg-card transition-colors hover:border-border/80'
             }`}
           >
             <Icon className={`w-5 h-5 text-${color}-500 mb-1`} />
             <p className={`text-2xl font-bold text-${color}-600`}>{statusCounts[key as keyof typeof statusCounts]}</p>
-            <p className="text-xs text-slate-500 font-medium">{label}</p>
+            <p className="text-xs text-muted-foreground font-medium">{label}</p>
           </div>
         ))}
       </div>
@@ -136,7 +136,7 @@ export default function ApprovalCenterPage() {
             className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
               filter === f
                 ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                : 'bg-muted transition-colors text-foreground/90 hover:bg-slate-200'
             }`}
           >
             {f}
@@ -150,21 +150,21 @@ export default function ApprovalCenterPage() {
           <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto" />
         </div>
       ) : displayed.length === 0 ? (
-        <div className="text-center py-16 bg-slate-50 rounded-3xl border border-slate-200">
+        <div className="text-center py-16 bg-muted transition-colors rounded-3xl border border-border">
           <Bell className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-500 font-medium">No {filter !== 'ALL' ? filter.toLowerCase() : ''} requests</p>
+          <p className="text-muted-foreground font-medium">No {filter !== 'ALL' ? filter.toLowerCase() : ''} requests</p>
         </div>
       ) : (
         <div className="space-y-3">
           {displayed.map((req) => {
-            const typeInfo = TYPE_LABELS[req.type] || { label: req.type, icon: AlertTriangle, color: 'text-slate-500' };
+            const typeInfo = TYPE_LABELS[req.type] || { label: req.type, icon: AlertTriangle, color: 'text-muted-foreground' };
             const TypeIcon = typeInfo.icon;
             const isPending = req.status === 'PENDING';
 
             return (
               <div
                 key={req.id}
-                className={`bg-white border rounded-2xl p-5 shadow-sm transition-all ${
+                className={`bg-card transition-colors border rounded-2xl p-5 shadow-sm transition-all ${
                   isPending ? 'border-amber-200' : req.status === 'APPROVED' ? 'border-emerald-200' : 'border-red-100'
                 }`}
               >
@@ -177,7 +177,7 @@ export default function ApprovalCenterPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-slate-900 text-sm">{typeInfo.label}</span>
+                        <span className="font-semibold text-foreground text-sm">{typeInfo.label}</span>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           req.status === 'PENDING' ? 'bg-amber-100 text-amber-700'
                           : req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700'
@@ -186,11 +186,11 @@ export default function ApprovalCenterPage() {
                           {req.status}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-0.5 font-mono truncate">
+                      <p className="text-xs text-muted-foreground mt-0.5 font-mono truncate">
                         {req.entity_type}: {req.entity_id.slice(0, 20)}...
                       </p>
                       {req.reason && (
-                        <p className="text-xs text-slate-600 mt-2 bg-slate-50 px-3 py-1.5 rounded-lg">
+                        <p className="text-xs text-foreground/90 mt-2 bg-muted transition-colors px-3 py-1.5 rounded-lg">
                           💬 "{req.reason}"
                         </p>
                       )}
@@ -199,7 +199,7 @@ export default function ApprovalCenterPage() {
                           📝 Admin note: "{req.note}"
                         </p>
                       )}
-                      <p className="text-xs text-slate-400 mt-2">
+                      <p className="text-xs text-muted-foreground mt-2">
                         Requested {new Date(req.created_at).toLocaleString()}
                         {req.reviewed_at && ` · Reviewed ${new Date(req.reviewed_at).toLocaleString()}`}
                       </p>

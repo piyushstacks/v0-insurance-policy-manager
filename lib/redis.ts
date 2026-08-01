@@ -1,4 +1,6 @@
 import { Redis } from '@upstash/redis';
+import { supabaseAdmin } from './supabase';
+import { sendEmail } from '@/services/email';
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -87,7 +89,16 @@ export async function getNextJob() {
   console.log('[v0/redis] Job data from redis:', jobData ? 'found' : 'not found');
   
   if (!jobData) {
-    console.log('[v0/redis] ⚠️ Job ID was in queue but job data not found. JobId:', jobId);
+    // Job ID was popped from the queue but its Redis key has expired (24h TTL) or
+    // was never written.  We cannot recover the original payload from Redis alone.
+    // The corresponding row in the Supabase extraction_jobs table will remain in
+    // 'queued' status — an admin can re-trigger via POST /api/extract/process.
+    console.error(
+      `[v0/redis] 🔴 ORPHANED JOB — job ID "${jobId}" was popped from queue:extraction ` +
+      `but key "${jobKey}" does not exist in Redis (likely TTL-expired). ` +
+      `Action required: check Supabase extraction_jobs for job_id = "${jobId}" ` +
+      `and re-trigger extraction manually via POST /api/extract/process.`
+    );
     return null;
   }
 
@@ -122,9 +133,30 @@ export async function failJob(jobId: string, error: string) {
     });
     await redis.lpush(`${QUEUE_PREFIX}extraction`, jobId);
   } else {
-    // Too many retries, delete
+    // Too many retries, delete from queue and fail permanently
     await redis.del(`${JOB_PREFIX}${jobId}`);
-    // Could log failure to database for monitoring
+    
+    if (supabaseAdmin) {
+      await supabaseAdmin.from('extraction_jobs').update({
+        status: 'failed_permanently',
+        error_message: error
+      }).eq('job_id', jobId);
+
+      // Send email notification to admin or specific recipient
+      const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
+      if (adminEmail) {
+        await sendEmail({
+          to: adminEmail,
+          subject: '🚨 PolicyVault Extraction Job Failed Permanently',
+          html: `<p>An extraction job has permanently failed after max retries.</p>
+                 <p><strong>Job ID:</strong> ${jobId}</p>
+                 <p><strong>Document ID:</strong> ${job.payload?.documentId || 'Unknown'}</p>
+                 <p><strong>User ID:</strong> ${job.payload?.userId || 'Unknown'}</p>
+                 <p><strong>Error:</strong> ${error}</p>
+                 <p>Please check the PolicyVault dashboard or Supabase logs for more details.</p>`
+        });
+      }
+    }
   }
 }
 

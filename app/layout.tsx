@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from "sonner"
+import { QueryProvider } from '@/components/query-provider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -30,17 +31,28 @@ export const metadata: Metadata = {
   },
 }
 
+import { ThemeProvider } from '@/components/theme-provider'
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className="font-sans antialiased">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
-        <Toaster position="top-center" richColors theme="light" />
+    <html lang="en" suppressHydrationWarning>
+      <body className="font-sans antialiased" suppressHydrationWarning>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <QueryProvider>
+            {children}
+            {process.env.NODE_ENV === 'production' && <Analytics />}
+            <Toaster position="top-center" richColors />
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

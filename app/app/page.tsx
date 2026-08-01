@@ -1,425 +1,361 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { IndianRupee, FileText, Users, Building, TrendingUp, BarChart3, Upload, Plus, AlertCircle, Clock, CheckCircle2, ArrowUpRight, Zap, FileSearch } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, AreaChart, Area } from 'recharts';
-import { Button } from '@/components/ui/button';
+import { IndianRupee, FileText, Users, TrendingUp, ArrowUpRight, Zap, Target, ShieldAlert, CheckCircle2, ArrowDown, Activity, ShieldCheck, CalendarDays, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { PageLoader } from '@/components/ui/loader';
 import { useTeam } from '@/hooks/use-team';
+import { Sparkline } from '@/components/ui/sparkline';
+import { SkeletonHero, SkeletonCard, SkeletonRow } from '@/components/ui/skeleton-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Progress } from '@/components/ui/progress';
+import { Fab } from '@/components/ui/fab';
+import { AIBusinessSummaryCard } from '@/components/dashboard/ai-summary-card';
+import { GapDetectionCard } from '@/components/dashboard/gap-detection-card';
 
-interface DashboardData {
-  totalPremium: number;
+import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+
+interface BasicDashboardData {
+  totalPremiumValue: number;
   totalAUM: number;
-  sectorAUM: { name: string; aum: number }[];
   totalPolicies: number;
   activePolicies: number;
   customersCount: number;
-  companiesCount: number;
-  companyChartData: { name: string; premium: number }[];
-  customerChartData: { name: string; premium: number }[];
-  topCustomers: { name: string; policies: number; premium: number }[];
+  expiringSoon: number;
+  sectorAUM: Array<{name: string, aum: number}>;
+  sectorAUMTrend: Array<{ period: string; Life: number; Health: number; General: number; }>;
+  companyChartData: Array<{name: string, premium: number}>;
+  companyAUMTrend: Array<any>;
+  top5Companies: string[];
+  customerChartData: Array<{name: string, premium: number}>;
 }
 
-interface RecentPolicy {
-  id: string;
-  policy_number: string;
-  policy_type: string;
-  status: string;
-  created_at: string;
-  premium_amount: number;
-  customers?: { name: string } | null;
-  insurers?: { name: string } | null;
+interface AdvancedDashboardData {
+  aum: number;
+  aumGrowthMoM: number;
+  aumGrowthYoY: number;
+  persistency13M: number;
+  persistency25M: number;
+  topClients: Array<{ id: string; name: string; premium: number }>;
+  lapseRiskPolicies: Array<{
+    id: string;
+    policy_number: string;
+    customer_name: string;
+    expiry_date: string;
+    days_since_last_contact: number;
+  }>;
+  mdrtProgress: { current: number; mdrt: number; cot: number; tot: number };
+}
+
+// Mock sparkline data generated deterministically from a seed
+function genSparkline(seed: number, points = 12): number[] {
+  return Array.from({ length: points }, (_, i) => {
+    const base = seed * 0.00001;
+    return Math.max(0, base + base * 0.3 * Math.sin(i * 0.8 + seed * 0.01) + base * 0.1 * i);
+  });
+}
+
+function fmt(n: number) {
+  if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
+  if (n >= 100000)   return `₹${(n / 100000).toFixed(2)} L`;
+  if (n >= 1000)     return `₹${(n / 1000).toFixed(1)} K`;
+  return `₹${n.toLocaleString('en-IN')}`;
+}
+
+function GrowthPill({ value, suffix = '%' }: { value: number; suffix?: string }) {
+  const positive = value >= 0;
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-xs font-black px-2 py-0.5 rounded-full ${
+      positive ? 'bg-[var(--status-healthy-bg)] text-[var(--status-healthy)]' : 'bg-[var(--status-risk-bg)] text-[var(--status-risk)]'
+    }`}>
+      {positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+      {Math.abs(value).toFixed(1)}{suffix}
+    </span>
+  );
+}
+
+function StatusDot({ status }: { status: 'healthy' | 'attention' | 'risk' | 'neutral' }) {
+  const cls = {
+    healthy:   'bg-[var(--status-healthy)]',
+    attention: 'bg-[var(--status-attention)]',
+    risk:      'bg-[var(--status-risk)]',
+    neutral:   'bg-[var(--status-neutral)]',
+  }[status];
+  return <span className={`inline-block w-2 h-2 rounded-full ${cls} shrink-0`} />;
 }
 
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [recentPolicies, setRecentPolicies] = useState<RecentPolicy[]>([]);
+  const [basicData, setBasicData] = useState<BasicDashboardData | null>(null);
+  const [advData, setAdvData] = useState<AdvancedDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'company' | 'customer'>('company');
   const [greeting, setGreeting] = useState('Good morning');
-  const [filter, setFilter] = useState('all');
-  const { isMember } = useTeam();
+
+  const { isMember, loading: teamLoading } = useTeam();
+  const router = useRouter();
 
   useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good morning');
-    else if (hour < 17) setGreeting('Good afternoon');
-    else setGreeting('Good evening');
+    const h = new Date().getHours();
+    setGreeting(h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening');
   }, []);
 
   useEffect(() => {
+    if (!teamLoading && isMember) {
+      router.replace('/app/customers');
+      return;
+    }
+
+    if (teamLoading || isMember) return;
+
     async function fetchMetrics() {
       setIsLoading(true);
       try {
-        const dashRes = await fetch(`/api/dashboard?filter=${filter}`);
-        const json = await dashRes.json();
-        if (!dashRes.ok) throw new Error(json.error || 'Failed to load dashboard data');
-        
-        setData(json.data);
-        setRecentPolicies(json.data.recentPolicies || []);
-      } catch (err: any) {
-        toast.error('Failed to load dashboard', { description: err.message });
+        const [basicRes, advRes] = await Promise.all([
+          fetch('/api/dashboard'),
+          fetch('/api/dashboard/advanced'),
+        ]);
+        const basicJson = await basicRes.json();
+        const advJson   = await advRes.json();
+        if (!basicRes.ok) throw new Error(basicJson.error);
+        if (!advRes.ok)   throw new Error(advJson.error);
+        setBasicData(basicJson.data);
+        setAdvData(advJson.data);
+      } catch (e: any) {
+        toast.error('Failed to load dashboard', { description: e.message });
       } finally {
         setIsLoading(false);
       }
     }
     fetchMetrics();
-  }, [filter]);
+  }, [isMember, teamLoading, router]);
 
-  if (isLoading) {
-    return <PageLoader words={['analytics', 'policies', 'customers', 'charts', 'analytics']} label="loading" />;
+  if (isLoading || teamLoading) {
+    return (
+      <div className="p-4 md:p-8 space-y-4 max-w-6xl mx-auto">
+        <SkeletonHero />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1,2,3,4].map(i => <SkeletonCard key={i} lines={3} />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 space-y-4">
+            <SkeletonCard lines={5} className="h-40" />
+            {[1,2,3].map(i => <SkeletonRow key={i} />)}
+          </div>
+          <SkeletonCard lines={6} className="h-64" />
+        </div>
+      </div>
+    );
   }
 
-  if (!data) return null;
+  if (!basicData) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] p-8 text-center space-y-4">
+        <h2 className="text-xl font-bold text-foreground">Failed to load Dashboard</h2>
+        <p className="text-muted-foreground max-w-md mx-auto text-sm">
+          There was an error fetching your dashboard data. If you recently updated the app, please ensure you have run the latest SQL migrations in your Supabase project.
+        </p>
+      </div>
+    );
+  }
 
-  const expiringSoonCount = Math.max(0, Math.floor(data.totalPolicies * 0.08));
-  const pendingExtraction = Math.max(0, Math.floor(data.totalPolicies * 0.03));
+  // Use fallback empty object if advanced data fails or cache is outdated
+  const adv = (advData || {}) as AdvancedDashboardData;
+
+  const aum = adv.aum || 0;
+  const aumGrowthMoM = adv.aumGrowthMoM || 0;
+  const persistency13M = adv.persistency13M || 0;
+  const persistency25M = adv.persistency25M || 0;
+  const topClients = adv.topClients || ([] as Array<{ id: string; name: string; premium: number }>);
+  const lapseRiskPolicies = adv.lapseRiskPolicies || ([] as Array<{ id: string; policy_number: string; customer_name: string; expiry_date: string; days_since_last_contact: number }>);
+  
+  const mdrtProgress = adv.mdrtProgress || { current: 0, mdrt: 875000, cot: 2625000, tot: 5250000 };
+  const sparkData = genSparkline(basicData.totalPremiumValue || 500000);
+  const mdrtPct   = Math.min(100, Math.round((mdrtProgress.current / (mdrtProgress.mdrt || 1)) * 100));
+  const cotPct    = Math.min(100, Math.round((mdrtProgress.current / (mdrtProgress.cot || 1)) * 100));
+  const metrics = [
+    { label: 'Active Policies', value: basicData.activePolicies.toString(), isRisk: false, icon: ShieldCheck },
+    { label: 'Renewals Due',    value: basicData.expiringSoon?.toString() ?? '—', isRisk: false, icon: CalendarDays },
+    { label: 'At-Risk',         value: lapseRiskPolicies.length.toString(), isRisk: lapseRiskPolicies.length > 0, icon: AlertTriangle },
+    { label: 'Total Clients',   value: basicData.customersCount.toString(), isRisk: false, icon: Users },
+  ];
 
   return (
-    <div className="flex flex-col min-h-full bg-slate-50/50">
-      
-      {/* Hero Section */}
-      <div className="px-4 md:px-8 pt-6 pb-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {greeting}. 👋
-            </h1>
-            <p className="text-slate-500 mt-1 text-sm md:text-base">
-              System status: <span className="text-emerald-600 font-semibold">All extraction nodes optimal.</span>
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <select 
-              value={filter} 
-              onChange={(e) => setFilter(e.target.value)}
-              className="bg-white border border-slate-200 text-sm rounded-lg px-3 py-1.5 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20"
-            >
-              <option value="all">All Time</option>
-              <option value="this_year">This Year</option>
-              <option value="prev_fin_year">Prev Fin Year</option>
-            </select>
-            <Link href="/app/policies/new">
-              <Button size="sm" variant="default" className="gap-2">
-                <Upload className="w-4 h-4" /> Upload Batch
-              </Button>
-            </Link>
-            <Link href="/app/policies/new" className="hidden sm:inline-flex">
-              <Button size="sm" variant="outline" className="gap-2">
-                <Plus className="w-4 h-4" /> New Policy
-              </Button>
-            </Link>
+    <div className="flex flex-col min-h-full bg-[var(--surface-subtle)] pb-24 lg:pb-12">
+
+      {/* ─── Hero ──────────────────────────────────────────────── */}
+      <div className="px-4 md:px-8 pt-5 pb-0">
+        <h1 className="text-lg md:text-xl font-serif font-bold text-foreground tracking-tight mb-3">{greeting} 👋</h1>
+
+        {/* Main Metric Hero */}
+        <div className="bg-primary rounded-2xl p-5 md:p-7 text-primary-foreground shadow-xl relative overflow-hidden border border-primary/20 transition-colors">
+          <div className="absolute inset-0 opacity-5 pointer-events-none select-none" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+
+          <div className="relative z-10">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <p className="text-[#B38D4F] text-xs font-bold uppercase tracking-widest mb-1">Total AUM</p>
+                <h2 className="text-4xl md:text-6xl font-serif tabular-nums tracking-tight leading-none text-white drop-shadow-sm">{fmt(aum)}</h2>
+                <div className="mt-2 flex items-center gap-2 bg-primary-foreground/10 px-3 py-1.5 rounded-full inline-flex backdrop-blur-sm border border-primary-foreground/10">
+                  <GrowthPill value={adv.aumGrowthMoM || 0} />
+                  <span className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wider">vs last month</span>
+                </div>
+              </div>
+              <div className="w-28 md:w-40 h-12 shrink-0 opacity-90">
+                <Sparkline data={sparkData} color="blue" height={48} />
+              </div>
+            </div>
+
+            {/* Secondary metric pills row */}
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 pt-2 snap-x">
+              {metrics.map(m => (
+                <div key={m.label} className={`shrink-0 rounded-xl px-4 py-3 min-w-[120px] border snap-start ${m.isRisk ? 'bg-destructive border-destructive text-destructive-foreground shadow-lg' : 'bg-primary-foreground/5 border-primary-foreground/10 backdrop-blur text-primary-foreground/90'}`}>
+                  <div className="flex items-center gap-1.5 mb-1 text-inherit">
+                    {m.icon && <m.icon className="w-3.5 h-3.5 opacity-80" />}
+                    <p className={`text-[10px] font-bold uppercase tracking-wider ${m.isRisk ? 'text-destructive-foreground/80' : 'text-primary-foreground/60'}`}>{m.label}</p>
+                  </div>
+                  <p className="font-serif text-lg font-bold tracking-tight">{m.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Dashboard content */}
-      <div className="px-4 md:px-8 pb-8">
-
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 mb-6">
-          
-          {/* Total AUM */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-5 flex flex-col relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute -right-3 -top-3 w-12 h-12 bg-emerald-50 rounded-full group-hover:scale-[2] transition-transform duration-700 ease-out" />
-            <div className="flex items-center justify-between mb-3 relative z-10">
-               <span className="text-[11px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest">Total AUM</span>
-               <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                 <Building className="w-4 h-4 text-emerald-600" />
-               </div>
-            </div>
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 relative z-10 tabular-nums">
-              {isMember ? '***' : `₹${data.totalAUM >= 100000 
-                ? `${(data.totalAUM / 100000).toFixed(1)}L` 
-                : data.totalAUM.toLocaleString('en-IN')}`}
-            </h2>
-            <span className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1 relative z-10">
-              {isMember ? 'Restricted access' : 'Overall Business Portfolio'}
-            </span>
-          </div>
-
-          {/* Annual Premium */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-5 flex flex-col relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute -right-3 -top-3 w-12 h-12 bg-blue-50 rounded-full group-hover:scale-[2] transition-transform duration-700 ease-out" />
-            <div className="flex items-center justify-between mb-3 relative z-10">
-              <span className="text-[11px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest">Annual Premium</span>
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                <IndianRupee className="w-4 h-4 text-blue-600" />
+      {/* AUM Breakdown Mini */}
+      {basicData.sectorAUM && basicData.sectorAUM.length > 0 && (
+        <div className="px-4 md:px-8 mt-4">
+          <div className="bg-card rounded-xl shadow-sm border border-border p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors">
+            <div className="w-full md:w-1/3 shrink-0">
+              <div className="flex justify-between items-center mb-1.5">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Business Mix</span>
+                <span className="text-xs font-bold text-muted-foreground/70">100%</span>
+              </div>
+              <div className="h-3 w-full rounded-full overflow-hidden flex bg-muted">
+                {basicData.sectorAUM.map((s, idx) => (
+                  <div 
+                    key={s.name} 
+                    style={{ 
+                      width: `${(s.aum / (basicData.totalAUM || 1)) * 100}%`,
+                      backgroundColor: `var(--chart-${idx + 1})`
+                    }} 
+                    className="h-full first:rounded-l-full last:rounded-r-full border-r border-white/20 last:border-0 transition-all"
+                  />
+                ))}
               </div>
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 relative z-10 tabular-nums">
-              {isMember ? '***' : `₹${data.totalPremium >= 100000 
-                ? `${(data.totalPremium / 100000).toFixed(1)}L` 
-                : data.totalPremium.toLocaleString('en-IN')}`}
-            </h2>
-            <span className="text-[11px] text-blue-600 font-semibold mt-1 flex items-center gap-1 relative z-10">
-              {isMember ? 'Restricted access' : `For ${filter === 'this_year' ? 'This Year' : filter === 'prev_fin_year' ? 'Prev Year' : 'All Time'}`}
-            </span>
-          </div>
-
-          {/* Active Policies */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-5 flex flex-col relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute -right-3 -top-3 w-12 h-12 bg-blue-50 rounded-full group-hover:scale-[2] transition-transform duration-700 ease-out" />
-            <div className="flex items-center justify-between mb-3 relative z-10">
-              <span className="text-[11px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest">Active Policies</span>
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-                <FileText className="w-4 h-4 text-indigo-600" />
-              </div>
+            <div className="flex gap-4 shrink-0">
+              {basicData.sectorAUM.map((s, idx) => (
+                <div key={s.name} className="flex flex-col">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: `var(--chart-${idx + 1})` }} />
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{s.name}</span>
+                  </div>
+                  <span className="text-xs font-serif font-bold text-foreground tabular-nums">{((s.aum / (basicData.totalAUM || 1)) * 100).toFixed(1)}%</span>
+                </div>
+              ))}
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 relative z-10 tabular-nums">{data.totalPolicies}</h2>
-            <span className="text-[11px] text-indigo-600 font-semibold mt-1 relative z-10">
-              {data.activePolicies} active
-            </span>
-          </div>
-
-          {/* Expiring Soon */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-5 flex flex-col relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute -right-3 -top-3 w-12 h-12 bg-orange-50 rounded-full group-hover:scale-[2] transition-transform duration-700 ease-out" />
-            <div className="flex items-center justify-between mb-3 relative z-10">
-              <span className="text-[11px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest">Expiring Soon</span>
-              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-                <AlertCircle className="w-4 h-4 text-orange-600" />
-              </div>
-            </div>
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 relative z-10 tabular-nums">{expiringSoonCount}</h2>
-            <span className="text-[11px] text-orange-600 font-semibold mt-1 relative z-10">
-              Priority 1 next 7 days
-            </span>
-          </div>
-
-          {/* Customers */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-5 flex flex-col relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute -right-3 -top-3 w-12 h-12 bg-purple-50 rounded-full group-hover:scale-[2] transition-transform duration-700 ease-out" />
-            <div className="flex items-center justify-between mb-3 relative z-10">
-              <span className="text-[11px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest">Customers</span>
-              <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-                <Users className="w-4 h-4 text-purple-600" />
-              </div>
-            </div>
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 relative z-10 tabular-nums">{data.customersCount}</h2>
-            <span className="text-[11px] text-purple-600 font-semibold mt-1 relative z-10">
-              {data.companiesCount} Companies
-            </span>
           </div>
         </div>
+      )}
 
-        {/* Main Content — 2/3 + 1/3 layout */}
-        <div className="flex flex-col lg:flex-row gap-6">
+      {/* ─── Body ─────────────────────────────────────────────── */}
+      <div className="px-4 md:px-8 mt-5 space-y-5 max-w-6xl mx-auto w-full">
 
-          {/* Left Column — Chart + Recent Uploads */}
-          <div className="flex-1 flex flex-col gap-6 min-w-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+           <div className="lg:col-span-2">
+              <AIBusinessSummaryCard />
+           </div>
+           <div className="lg:col-span-1 h-full min-h-[300px]">
+              <GapDetectionCard />
+           </div>
+        </div>
 
-            {/* Chart Card */}
-            {!isMember ? (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-blue-500" />
-                    Activity Flow
-                  </h3>
-                  <div className="flex items-center p-0.5 bg-slate-100 rounded-md border border-slate-200/60">
-                    <button
-                      onClick={() => setViewMode('company')}
-                      className={`px-3 py-1 text-xs font-semibold rounded-sm transition-all ${viewMode === 'company' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                      Company
-                    </button>
-                    <button
-                      onClick={() => setViewMode('customer')}
-                      className={`px-3 py-1 text-xs font-semibold rounded-sm transition-all ${viewMode === 'customer' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                      Customer
-                    </button>
-                  </div>
-                </div>
-                <div className="w-full h-[260px] md:h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={viewMode === 'company' ? data.companyChartData : data.customerChartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(val) => val >= 100000 ? `₹${(val / 100000).toFixed(1)}L` : `₹${val.toLocaleString('en-IN')}`} dx={-10} />
-                      <Tooltip 
-                        cursor={{ fill: '#f1f5f9' }}
-                        contentStyle={{ borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 8px 32px rgb(0 0 0 / 0.08)', fontSize: '13px' }}
-                        formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Premium']}
-                      />
-                      <Bar dataKey="premium" radius={[6, 6, 0, 0]} barSize={36}>
-                        {(viewMode === 'company' ? data.companyChartData : data.customerChartData).map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#2563eb' : '#93c5fd'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 flex flex-col items-center justify-center text-center">
-                <BarChart3 className="w-12 h-12 text-slate-200 mb-3" />
-                <h3 className="text-base font-bold text-slate-700 mb-1">Activity Flow Restricted</h3>
-                <p className="text-sm text-slate-500 max-w-sm">You do not have permission to view revenue and premium activity. Please contact your administrator.</p>
-              </div>
-            )}
+        {/* Main Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-card rounded-3xl shadow-sm border border-border p-6 flex flex-col transition-colors">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Portfolio Diversification</h3>
+              <Activity className="w-4 h-4 text-muted-foreground/50" />
+            </div>
+            <p className="text-xs font-medium text-muted-foreground/70 mb-6">AUM distribution by insurance sector</p>
 
-            {/* Recent Uploads Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-              <div className="border-b border-slate-100 p-4 bg-slate-50/50 flex justify-between items-center">
-                <h3 className="font-bold text-slate-700 text-sm">Recent Uploads</h3>
-                <Link href="/app/policies" className="text-xs font-semibold text-blue-600 hover:text-blue-700">View All</Link>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-[11px] text-slate-500 uppercase bg-slate-50/60 border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 md:px-6 py-3 font-semibold tracking-wider">Policy No.</th>
-                      <th className="px-4 md:px-6 py-3 font-semibold tracking-wider hidden sm:table-cell">Customer</th>
-                      <th className="px-4 md:px-6 py-3 font-semibold tracking-wider hidden md:table-cell">Date</th>
-                      <th className="px-4 md:px-6 py-3 font-semibold tracking-wider text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {recentPolicies.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 md:px-6 py-3 font-medium text-slate-900">
-                          <Link href={`/app/policies/${p.id}`} className="hover:text-blue-600 transition-colors">
-                            {p.policy_number}
-                          </Link>
-                        </td>
-                        <td className="px-4 md:px-6 py-3 text-slate-600 hidden sm:table-cell truncate max-w-[160px]">
-                          {(p.customers as any)?.name || '—'}
-                        </td>
-                        <td className="px-4 md:px-6 py-3 text-slate-500 text-xs hidden md:table-cell">
-                          {new Date(p.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </td>
-                        <td className="px-4 md:px-6 py-3 text-right">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            p.status === 'active' ? 'bg-emerald-50 text-emerald-700' :
-                            p.status === 'expired' ? 'bg-red-50 text-red-600' :
-                            'bg-slate-100 text-slate-600'
-                          }`}>
-                            {p.status === 'active' && <CheckCircle2 className="w-3 h-3" />}
-                            {p.status}
-                          </span>
-                        </td>
-                      </tr>
+            <div className="flex-1 w-full flex flex-col">
+              {(!basicData.sectorAUM || basicData.sectorAUM.length === 0) ? (
+                <EmptyState icon={FileText} title="No sector data" description="Add policies to see trends." />
+              ) : (
+                <>
+                  <div className="flex justify-center mt-6 flex-wrap gap-4 px-4">
+                      {basicData.sectorAUM.map((s: any, idx: number) => (
+                        <div key={s.name} className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: `var(--chart-${idx + 1})` }} />
+                          {s.name}
+                        </div>
                     ))}
-                    {recentPolicies.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-8 text-center text-slate-400 text-sm">No policies uploaded yet</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                  
+                  <div className="flex-1 min-h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={basicData.sectorAUM} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 0 }}>
+                        <XAxis type="number" hide />
+                        <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }} width={70} />
+                        <Tooltip 
+                          cursor={{ fill: '#f8fafc' }}
+                          formatter={(value: number) => [fmt(value), 'Sum Assured']}
+                          contentStyle={{ backgroundColor: '#0B1B3D', borderRadius: '8px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '12px 16px', color: '#fff' }}
+                          itemStyle={{ fontSize: '13px', paddingTop: '4px', fontWeight: 600, color: '#fff' }}
+                          labelStyle={{ color: '#94a3b8', marginBottom: '8px', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                        />
+                        <Bar dataKey="aum" radius={[0, 4, 4, 0]} barSize={28}>
+                          {basicData.sectorAUM.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={`var(--chart-${index + 1})`} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Right Column — Quick Actions + Top Companies */}
-          <div className="w-full lg:w-80 flex flex-col gap-4">
-
-            {/* Quick Actions */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-              <h3 className="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-500" /> Quick Actions
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                <Link href="/app/policies/new" className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-slate-100 hover:bg-slate-50 hover:border-slate-200 transition-all text-center group">
-                  <FileSearch className="w-5 h-5 text-slate-500 group-hover:text-blue-600 transition-colors" />
-                  <span className="text-[11px] font-medium text-slate-600">Upload PDF</span>
-                </Link>
-                <Link href="/app/customers" className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-slate-100 hover:bg-slate-50 hover:border-slate-200 transition-all text-center group">
-                  <Users className="w-5 h-5 text-slate-500 group-hover:text-purple-600 transition-colors" />
-                  <span className="text-[11px] font-medium text-slate-600">Customers</span>
-                </Link>
-                <Link href="/app/reminders" className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-slate-100 hover:bg-slate-50 hover:border-slate-200 transition-all text-center group">
-                  <Clock className="w-5 h-5 text-slate-500 group-hover:text-orange-600 transition-colors" />
-                  <span className="text-[11px] font-medium text-slate-600">Reminders</span>
-                </Link>
-                <Link href="/app/settings" className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-slate-100 hover:bg-slate-50 hover:border-slate-200 transition-all text-center group">
-                  <BarChart3 className="w-5 h-5 text-slate-500 group-hover:text-emerald-600 transition-colors" />
-                  <span className="text-[11px] font-medium text-slate-600">Reports</span>
-                </Link>
+          <div className="bg-card rounded-3xl shadow-sm border border-border p-6 flex-1 flex flex-col transition-colors">
+              <div className="flex justify-between items-start mb-6">
+                <h3 className="text-lg font-serif font-bold text-foreground flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" /> High Net Worth Ledger
+                </h3>
+                <Link href="/app/customers" className="text-[10px] font-bold text-primary hover:text-primary/80 bg-primary/10 px-3 py-1 rounded-full transition-colors uppercase tracking-wide">View all</Link>
               </div>
-            </div>
 
-            {/* Top Customers Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-              <div className="border-b border-slate-100 p-3 bg-slate-50/50 flex justify-between items-center">
-                <h3 className="font-bold text-slate-700 text-xs uppercase tracking-wider">Top Customers</h3>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {data.topCustomers.slice(0, 4).map((c, i) => (
-                  <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
-                      <span className="text-sm font-medium text-slate-800 truncate">{c.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold">{c.policies}</span>
-                      {!isMember && (
-                        <span className="text-xs font-semibold text-slate-600 tabular-nums">₹{c.premium >= 100000 ? (c.premium / 100000).toFixed(1) + 'L' : c.premium.toLocaleString('en-IN')}</span>
-                      )}
-                    </div>
+              <div className="flex-1 w-full">
+                {(!adv.topClients || adv.topClients.length === 0) ? (
+                  <EmptyState icon={Users} title="No client data" description="Add customers to see clients." />
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {adv.topClients.slice(0, 5).map((client: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl hover:bg-accent transition-colors border border-transparent hover:border-border">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-muted-foreground font-bold font-serif text-sm border border-border">
+                            {client.name.substring(0,2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-foreground leading-none mb-1">{client.name.length > 20 ? client.name.substring(0, 20) + '...' : client.name}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Top Client</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-serif font-bold text-foreground">{fmt(client.total_aum || client.premium || 0)}</p>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Total AUM</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {data.topCustomers.length === 0 && (
-                  <div className="p-4 text-center text-xs text-slate-400">No customer data</div>
                 )}
               </div>
-            </div>
-
-            {/* Top Companies Dark Card */}
-            {!isMember && (
-              <div className="bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700 flex flex-col">
-                <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wider">
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Top Companies
-                </h3>
-                <div className="space-y-2.5">
-                  {data.companyChartData.slice(0, 4).map((comp, i) => (
-                    <div key={i} className="flex justify-between items-center text-xs">
-                      <div className="flex gap-2 items-center min-w-0">
-                        <span className="w-4 h-4 rounded bg-slate-700 text-slate-300 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
-                        <span className="text-slate-200 truncate">{comp.name}</span>
-                      </div>
-                      <span className="text-emerald-400 font-semibold shrink-0 ml-2 tabular-nums">₹{comp.premium >= 100000 ? (comp.premium / 100000).toFixed(1) + 'L' : comp.premium.toLocaleString('en-IN')}</span>
-                    </div>
-                  ))}
-                  {data.companyChartData.length === 0 && (
-                    <div className="text-slate-400 text-[11px]">No data available.</div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Sector AUM Dark Card */}
-            {!isMember && (
-              <div className="bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 flex flex-col">
-                <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wider">
-                  <BarChart3 className="w-3.5 h-3.5 text-blue-400" /> Sector Wise AUM
-                </h3>
-                <div className="space-y-2.5">
-                  {data.sectorAUM.map((sector, i) => (
-                    <div key={i} className="flex justify-between items-center text-xs">
-                      <div className="flex gap-2 items-center min-w-0">
-                        <span className="w-4 h-4 rounded bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
-                        <span className="text-slate-200 truncate">{sector.name}</span>
-                      </div>
-                      <span className="text-blue-400 font-semibold shrink-0 ml-2 tabular-nums">₹{sector.aum >= 100000 ? (sector.aum / 100000).toFixed(1) + 'L' : sector.aum.toLocaleString('en-IN')}</span>
-                    </div>
-                  ))}
-                  {data.sectorAUM.length === 0 && (
-                    <div className="text-slate-400 text-[11px]">No data available.</div>
-                  )}
-                </div>
-              </div>
-            )}
-
           </div>
         </div>
       </div>
+
+      <Fab />
     </div>
   );
 }

@@ -108,14 +108,14 @@ export default function PolicyEditPage() {
   return (
     <div className="flex-1 flex flex-col p-4 md:p-8 max-w-3xl mx-auto w-full">
       <div className="mb-6">
-        <Link href={`/app/policies/${policyId}`} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors">
+        <Link href={`/app/policies/${policyId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Policy
         </Link>
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
             {isManualEntry ? 'Manual Entry Required' : 'Edit Policy Details'}
           </h1>
-          <p className="text-slate-500 mt-2 text-sm max-w-2xl">
+          <p className="text-muted-foreground mt-2 text-sm max-w-2xl">
             {isManualEntry 
               ? `The AI extraction could not confidently identify the premium or ${isMotor ? 'IDV' : isLife ? 'sum assured' : 'sum insured'}. Please verify the document and enter the missing details below to finalize the policy.`
               : 'Update the core financial details for this policy.'}
@@ -133,48 +133,48 @@ export default function PolicyEditPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-card transition-colors rounded-xl border border-border shadow-sm p-6 space-y-6">
         
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Policy Number</label>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Policy Number</label>
             <Input 
               value={formData.policy_number}
               onChange={(e) => setFormData(prev => ({ ...prev, policy_number: e.target.value }))}
               placeholder="e.g. P/141100/01/2025/001234"
-              className="h-11 bg-slate-50 border-slate-200"
+              className="h-11 bg-muted transition-colors border-border"
               required
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Gross Premium Amount (₹)</label>
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Gross Premium Amount (₹)</label>
               <Input 
                 type="number"
                 value={formData.premium_amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, premium_amount: e.target.value }))}
                 placeholder="e.g. 25000"
-                className="h-11 bg-slate-50 border-slate-200"
+                className="h-11 bg-muted transition-colors border-border"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{sumInsuredLabel}</label>
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{sumInsuredLabel}</label>
               <Input 
                 type="number"
                 value={formData.sum_insured}
                 onChange={(e) => setFormData(prev => ({ ...prev, sum_insured: e.target.value }))}
                 placeholder="e.g. 500000"
-                className="h-11 bg-slate-50 border-slate-200"
+                className="h-11 bg-muted transition-colors border-border"
                 required
               />
             </div>
           </div>
         </div>
 
-        <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+        <div className="pt-4 border-t border-border flex justify-end gap-3">
           <Button 
             type="button" 
             variant="ghost" 

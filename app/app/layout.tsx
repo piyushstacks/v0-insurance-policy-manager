@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import Sidebar from '@/components/sidebar';
 import BottomNav from '@/components/bottom-nav';
 import { TeamProvider } from '@/hooks/use-team';
+import { GlobalCommandPalette } from '@/components/ui/command-palette';
 
 export default async function AppLayout({
   children,
@@ -42,7 +43,7 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50/50 font-sans overflow-hidden">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-background font-sans overflow-hidden transition-colors">
       <Sidebar user={user} />
       <main className="flex-1 w-full flex flex-col min-w-0 h-screen">
         <div className="flex-1 overflow-y-auto w-full pb-20 lg:pb-0 relative">
@@ -52,6 +53,7 @@ export default async function AppLayout({
         </div>
       </main>
       <BottomNav />
+      <GlobalCommandPalette />
     </div>
   );
 }

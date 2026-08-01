@@ -184,6 +184,8 @@ export async function getReminders(userId: string, page = 1, pageSize = 20) {
   }
 }
 
+import { invalidateDashboardCache } from './dashboard-cache';
+
 /**
  * Dismiss a reminder
  */
@@ -205,6 +207,7 @@ export async function dismissReminder(reminderId: string, userId: string) {
 
     if (error) throw error;
 
+    await invalidateDashboardCache(userId);
     return { success: true };
   } catch (error) {
     console.error('[v0] Failed to dismiss reminder:', error);

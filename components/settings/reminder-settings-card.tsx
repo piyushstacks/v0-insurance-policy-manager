@@ -96,19 +96,19 @@ export function ReminderSettingsCard({ onSave }: { onSave?: () => void }) {
   if (loading) return <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-500" /></div>;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+    <div className="bg-card transition-colors rounded-2xl border border-border overflow-hidden shadow-sm">
+      <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-muted transition-colors">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${prefs.enabled ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${prefs.enabled ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-muted-foreground'}`}>
             <Bell className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900">Central Database Reminders</h3>
-            <p className="text-sm text-slate-500">Configure global automated alerts for all policies</p>
+            <h3 className="font-bold text-foreground">Central Database Reminders</h3>
+            <p className="text-sm text-muted-foreground">Configure global automated alerts for all policies</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-600">{prefs.enabled ? 'Active' : 'Disabled'}</span>
+          <span className="text-sm font-bold text-foreground/90">{prefs.enabled ? 'Active' : 'Disabled'}</span>
           <Switch checked={prefs.enabled} onCheckedChange={(enabled) => setPrefs(p => ({ ...p, enabled }))} />
         </div>
       </div>
@@ -117,21 +117,21 @@ export function ReminderSettingsCard({ onSave }: { onSave?: () => void }) {
         
         {/* Delivery Method */}
         <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Delivery Method</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Delivery Method</p>
           <div className="flex gap-4">
             <button
               onClick={() => setPrefs(p => ({ ...p, email: !p.email }))}
-              className={`flex-1 p-4 rounded-xl border flex items-center gap-3 transition-colors ${prefs.email ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-200'}`}
+              className={`flex-1 p-4 rounded-xl border flex items-center gap-3 transition-colors ${prefs.email ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-semibold' : 'bg-card transition-colors border-border text-foreground/90 hover:border-indigo-200'}`}
             >
-              <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${prefs.email ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+              <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${prefs.email ? 'bg-indigo-600 text-white' : 'bg-muted transition-colors text-muted-foreground'}`}>
                 <Mail className="w-4 h-4" />
               </div>
               Email Notification
               {prefs.email && <CheckCircle className="w-4 h-4 ml-auto text-indigo-600" />}
             </button>
-            <div className="flex-1 p-4 rounded-xl border border-slate-100 bg-slate-50 text-slate-400 flex items-center gap-3 opacity-50 cursor-not-allowed">
+            <div className="flex-1 p-4 rounded-xl border border-border bg-muted transition-colors text-muted-foreground flex items-center gap-3 opacity-50 cursor-not-allowed">
               <div className="w-8 h-8 rounded-lg shrink-0 bg-slate-200 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-slate-400" />
+                <Clock className="w-4 h-4 text-muted-foreground" />
               </div>
               SMS (Coming Soon)
             </div>
@@ -140,17 +140,17 @@ export function ReminderSettingsCard({ onSave }: { onSave?: () => void }) {
 
         {/* Reminder Types */}
         <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Notification Types</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Notification Types</p>
           <div className="flex gap-3">
             {['renewal', 'premium'].map(t => (
-              <label key={t} className="flex items-center gap-2 cursor-pointer border rounded-full px-4 py-2 hover:bg-slate-50 transition-colors border-slate-200">
+              <label key={t} className="flex items-center gap-2 cursor-pointer border rounded-full px-4 py-2 hover:bg-muted transition-colors transition-colors border-border">
                 <input 
                   type="checkbox" 
                   checked={prefs.types.includes(t)}
                   onChange={() => handleTypeToggle(t)}
                   className="rounded text-indigo-600 accent-indigo-600 cursor-pointer w-4 h-4"
                 />
-                <span className="text-sm font-semibold text-slate-700 capitalize">{t === 'renewal' ? 'Policy Renewal' : 'Premium Payment'}</span>
+                <span className="text-sm font-semibold text-foreground capitalize">{t === 'renewal' ? 'Policy Renewal' : 'Premium Payment'}</span>
               </label>
             ))}
           </div>
@@ -158,9 +158,9 @@ export function ReminderSettingsCard({ onSave }: { onSave?: () => void }) {
 
         {/* Timings */}
         <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center justify-between">
             Schedule Timing
-            <span className="normal-case tracking-normal font-normal text-slate-500">Days before expiry</span>
+            <span className="normal-case tracking-normal font-normal text-muted-foreground">Days before expiry</span>
           </p>
           <div className="flex flex-wrap gap-3 items-center">
             {[30, 15, 7, 3, 1].map(days => (
@@ -170,7 +170,7 @@ export function ReminderSettingsCard({ onSave }: { onSave?: () => void }) {
                 className={`px-4 py-2 rounded-xl border text-sm font-bold transition-colors ${
                   prefs.timing_days.includes(days) 
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-                  : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                  : 'bg-card transition-colors border-border text-muted-foreground hover:border-border/80'
                 }`}
               >
                 {prefs.timing_days.includes(days) && <span className="inline-block mr-1.5">•</span>}
@@ -184,14 +184,14 @@ export function ReminderSettingsCard({ onSave }: { onSave?: () => void }) {
                 value={customDays}
                 onChange={e => setCustomDays(e.target.value.replace(/\D/g, ''))}
                 onKeyDown={handleAddCustom}
-                className="px-4 py-2 w-44 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                className="px-4 py-2 w-44 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
               />
             </div>
           </div>
         </div>
 
       </div>
-      <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+      <div className="px-6 py-4 border-t border-border bg-muted transition-colors flex justify-end">
         <Button onClick={saveSettings} disabled={saving} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl gap-2 font-bold px-6">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Save Reminder Config

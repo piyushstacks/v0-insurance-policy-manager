@@ -11,7 +11,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Client for browser (with anon key - automatically manages cookies)
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+  cookieOptions: {
+    maxAge: 86400, // Enforce 24-hour session timeout
+  }
+});
 
 // Server-side client (with service role key for admin operations)
 export const supabaseAdmin = supabaseServiceKey

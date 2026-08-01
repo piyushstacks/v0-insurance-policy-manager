@@ -28,9 +28,11 @@ export async function POST(request: NextRequest) {
             return request.cookies.getAll();
           },
           setAll(cookiesToSet: any[]) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options)
-            );
+            cookiesToSet.forEach(({ name, value, options }) => {
+              // Enforce 24-hour (86400 seconds) session timeout
+              const cookieOptions = { ...options, maxAge: 86400 };
+              response.cookies.set(name, value, cookieOptions);
+            });
           },
         },
       }

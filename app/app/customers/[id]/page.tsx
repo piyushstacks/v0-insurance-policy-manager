@@ -240,12 +240,7 @@ export default function CustomerProfilePage() {
             <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Total Active Cover</p>
             <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2">₹{totalActiveCover.toLocaleString('en-IN')}</h3>
           </div>
-          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50 rounded-xl shadow-sm border border-indigo-100 dark:border-indigo-900/50 p-5 flex flex-col justify-between">
-            <p className="text-xs text-indigo-500 dark:text-indigo-400 uppercase font-bold tracking-wider flex items-center gap-1">
-               <Sparkles className="w-3 h-3" /> Est. Commission
-            </p>
-            <h3 className="text-2xl font-black text-indigo-700 dark:text-indigo-300 mt-2">₹{estimatedCommission.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</h3>
-          </div>
+
         </div>
 
         {/* AI Gap Detection */}

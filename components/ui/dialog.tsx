@@ -60,16 +60,30 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
+          // Core positioning
+          'fixed top-[50%] left-[50%] z-50 translate-x-[-50%] translate-y-[-50%]',
+          // Sizing — stays within viewport on every device
+          'w-full max-w-[calc(100%-1.5rem)] sm:max-w-lg',
+          'max-h-[90dvh] flex flex-col',
+          // Visuals
+          'bg-background border rounded-2xl shadow-2xl',
+          // Animations
+          'data-[state=open]:animate-in data-[state=closed]:animate-out',
+          'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+          'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          'duration-200',
           className,
         )}
         {...props}
       >
-        {children}
+        {/* Scrollable inner content */}
+        <div className="flex flex-col overflow-hidden flex-1 min-h-0">
+          {children}
+        </div>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-full w-8 h-8 flex items-center justify-center opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 z-10 bg-background/80 backdrop-blur border border-border/50"
           >
             <XIcon />
             <span className="sr-only">Close</span>
@@ -84,7 +98,12 @@ function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn('flex flex-col gap-2 text-center sm:text-left', className)}
+      className={cn(
+        'flex flex-col gap-1.5 text-left',
+        'px-6 pt-6 pb-4 border-b border-border',
+        'sticky top-0 bg-background z-[1] rounded-t-2xl',
+        className
+      )}
       {...props}
     />
   )
@@ -96,6 +115,9 @@ function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
       data-slot="dialog-footer"
       className={cn(
         'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end',
+        'px-6 py-4 border-t border-border',
+        'sticky bottom-0 bg-background z-[1] rounded-b-2xl',
+        'shadow-[0_-4px_16px_rgba(0,0,0,0.06)]',
         className,
       )}
       {...props}

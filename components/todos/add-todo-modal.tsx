@@ -135,8 +135,8 @@ export function AddTodoModal({ open, onOpenChange, onSuccess, initialDate, editI
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden bg-background border-border shadow-2xl rounded-xl">
-        <div className="px-6 py-4 bg-card border-b border-border flex flex-col gap-1">
+      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden bg-background border-border shadow-2xl rounded-2xl">
+        <div className="px-6 py-5 bg-card border-b border-border flex flex-col gap-1 sticky top-0 z-[1] rounded-t-2xl">
           <DialogTitle className="text-xl font-bold text-foreground">
             {editItem ? 'Edit Todo' : 'New Todo'}
           </DialogTitle>
@@ -145,8 +145,8 @@ export function AddTodoModal({ open, onOpenChange, onSuccess, initialDate, editI
           </DialogDescription>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-6">
-          <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-6">
             <div className="space-y-2">
               <Label className="text-xs font-bold text-foreground">Task Title <span className="text-red-500">*</span></Label>
               <Input
@@ -229,8 +229,8 @@ export function AddTodoModal({ open, onOpenChange, onSuccess, initialDate, editI
               </div>
             </div>
           </div>
-
-          <DialogFooter className="pt-4 border-t border-border gap-2 sm:justify-end">
+          </div>
+          <DialogFooter className="px-6 py-4 border-t border-border gap-2 sm:justify-end sticky bottom-0 bg-background shadow-[0_-4px_16px_rgba(0,0,0,0.06)] rounded-b-2xl">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="font-bold">
               Cancel
             </Button>

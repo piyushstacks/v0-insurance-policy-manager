@@ -112,18 +112,20 @@ export const WavyBackground = ({
   return (
     <div
       className={cn(
-        "min-h-screen flex flex-col items-center justify-center",
+        "min-h-screen flex flex-col items-center justify-center bg-black",
         containerClassName
       )}
     >
       <canvas
-        className="absolute inset-0 z-0"
+        className="absolute inset-0 z-0 opacity-40"
         ref={canvasRef}
         id="canvas"
         style={{
           ...(isSafari ? { filter: `blur(${blur}px)` } : {}),
         }}
       ></canvas>
+      {/* Subtle vignette effect for better contrast behind central content */}
+      <div className="absolute inset-0 z-[1] pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.8)_100%)]" />
       <div className={cn("relative z-10", className)} {...props}>
         {children}
       </div>

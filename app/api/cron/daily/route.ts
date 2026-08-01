@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     // Perform a tiny, fast read query to register activity in Supabase
     // Just checking the current time or a lightweight table
     const { data, error } = await supabase
-      .from('profiles')
+      .from('customers')
       .select('id')
       .limit(1);
 

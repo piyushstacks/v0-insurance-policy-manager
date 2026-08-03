@@ -268,7 +268,8 @@ export default function FollowupsPage() {
           >
             {/* Left side */}
             <div className="flex items-start md:items-center gap-3 md:gap-4 overflow-hidden w-full md:w-auto">
-              <div className={`items-center gap-2 mt-1 md:mt-0 shrink-0 ${isSelectionMode ? 'flex' : 'hidden md:flex'}`}>
+              {/* Completion button — always visible on all screen sizes */}
+              <div className={`flex items-center gap-2 mt-1 md:mt-0 shrink-0`}>
                 <div {...dragHandleProps} className={`text-muted-foreground/30 hover:text-foreground cursor-grab active:cursor-grabbing p-1 rounded hover:bg-accent transition-colors hidden sm:block ${(!isCompleted && !isSelectionMode) ? 'opacity-0 group-hover:opacity-100' : ''}`}>
                   <GripVertical className="w-4 h-4" />
                 </div>
@@ -278,17 +279,19 @@ export default function FollowupsPage() {
                     type="checkbox" 
                     checked={isSelected}
                     onChange={(e) => handleSelect(e as any, item.id)}
-                    className="w-4 h-4 rounded border-border/80 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    className="w-5 h-5 rounded border-border/80 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                 ) : (
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleStatus.mutate({ id: item.id, status: isCompleted ? 'pending' : 'completed' }); }}
-                    className={`flex items-center justify-center w-6 h-6 rounded-full border transition-all shrink-0 ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white shadow-inner shadow-emerald-700/50' : 'border-muted-foreground/30 text-transparent hover:border-emerald-500 hover:text-emerald-500 bg-card hover:bg-emerald-50 dark:hover:bg-emerald-950 shadow-sm'}`}
+                    aria-label={isCompleted ? 'Mark as pending' : 'Mark as completed'}
+                    className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all shrink-0 ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white shadow-inner shadow-emerald-700/50' : 'border-muted-foreground/30 text-transparent hover:border-emerald-500 hover:text-emerald-500 bg-card hover:bg-emerald-50 dark:hover:bg-emerald-950 shadow-sm'}`}
                   >
-                    {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                    {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                   </button>
                 )}
               </div>
+
               
               <div className={`min-w-0 truncate ${isCompleted ? 'opacity-50' : ''}`}>
                 <div className="flex flex-col gap-0.5">
@@ -484,7 +487,7 @@ export default function FollowupsPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background relative pb-20 lg:pb-8 font-sans transition-colors duration-200">
+    <div className="flex flex-col h-full bg-background relative font-sans transition-colors duration-200" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
       {/* Header */}
       <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border px-4 md:px-8 xl:px-12 py-4 flex items-center justify-between transition-colors duration-200">
         <div className="flex items-center gap-3">
@@ -509,10 +512,28 @@ export default function FollowupsPage() {
               }
             }} 
             size="sm" 
-            className={`shadow-sm hidden md:flex rounded-md h-8 px-4 text-xs font-semibold tracking-wide ${isSelectionModeActive || selectedItems.size > 0 ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50' : 'text-foreground/90 border-border dark:bg-slate-800 dark:hover:bg-slate-700'}`}
+            className={`shadow-sm flex rounded-md h-8 px-3 sm:px-4 text-[11px] sm:text-xs font-semibold tracking-wide ${isSelectionModeActive || selectedItems.size > 0 ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50' : 'text-foreground/90 border-border dark:bg-slate-800 dark:hover:bg-slate-700'}`}
           >
-            {isSelectionModeActive || selectedItems.size > 0 ? 'Cancel Selection' : 'Select'}
+            {isSelectionModeActive || selectedItems.size > 0 ? 'Cancel' : 'Select'}
           </Button>
+
+          {(isSelectionModeActive || selectedItems.size > 0) && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedItems.size === followups.length) {
+                  setSelectedItems(new Set());
+                } else {
+                  setSelectedItems(new Set(followups.map((f: any) => f.id)));
+                }
+              }}
+              size="sm"
+              className="shadow-sm flex rounded-md h-8 px-3 sm:px-4 text-[11px] sm:text-xs font-semibold tracking-wide text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100"
+            >
+              {selectedItems.size === followups.length ? 'Deselect All' : 'Select All'}
+            </Button>
+          )}
+
           <Button onClick={() => { setEditItem(null); setIsAddModalOpen(true); }} size="sm" className="bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 text-white shadow-sm hidden md:flex rounded-md h-8 px-4 text-xs font-semibold tracking-wide border-0">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> New Follow-up
           </Button>
@@ -672,58 +693,71 @@ export default function FollowupsPage() {
       />
 
       {/* Bulk Action Toolbar */}
-      {selectedItems.size > 0 && (
-        <div className="fixed bottom-20 lg:bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5">
-          <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-4 border border-primary/20">
-            <span className="text-sm font-medium bg-primary-foreground/20 px-2 py-1 rounded-md">{selectedItems.size} selected</span>
-            <div className="w-px h-6 bg-primary-foreground/20" />
-            <div className="flex items-center gap-1">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
-                onClick={async () => {
-                  await Promise.all(Array.from(selectedItems).map(id => fetch(`/api/followups/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'completed' }) })));
-                  queryClient.invalidateQueries({ queryKey: ['followups', selectedDate] });
-                  setSelectedItems(new Set());
-                  setIsSelectionModeActive(false);
-                  toast.success(`Marked ${selectedItems.size} items as completed`);
-                }}
-              >
-                <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-400" /> Complete
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-red-400"
-                onClick={() => {
-                  Array.from(selectedItems).forEach(id => {
-                    const item = followups.find((f:any) => f.id === id);
-                    if (item) handleQuickDelete(item);
-                  });
-                  setSelectedItems(new Set());
-                  setIsSelectionModeActive(false);
-                }}
-              >
-                <Trash2 className="w-4 h-4 mr-2" /> Delete
-              </Button>
-              <Button variant="ghost" size="sm" className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground" onClick={() => toast.info('Reschedule selected items (Coming soon)')}>
-                <CalendarDays className="w-4 h-4 mr-2" /> Reschedule
-              </Button>
-              <Button variant="ghost" size="sm" className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground" onClick={() => toast.info('Assign to teammate (Coming soon)')}>
-                <UserPlus className="w-4 h-4 mr-2" /> Assign
-              </Button>
-              <Button variant="ghost" size="sm" className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground" onClick={() => toast.info('Export selected items (Coming soon)')}>
-                <Download className="w-4 h-4 mr-2" /> Export
+      {selectedItems.size > 0 && (() => {
+        const allSelectedAreCompleted = Array.from(selectedItems).every(id => {
+          const item = followups.find((f:any) => f.id === id);
+          return item?.status === 'completed';
+        });
+        const targetStatus = allSelectedAreCompleted ? 'pending' : 'completed';
+
+        return (
+          <div className="fixed left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5 w-max max-w-[calc(100vw-32px)]" style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}>
+            <div className="bg-primary text-primary-foreground px-3 py-2 sm:px-4 sm:py-3 rounded-2xl shadow-2xl flex items-center gap-2 sm:gap-4 border border-primary/20">
+              <span className="text-xs sm:text-sm font-medium bg-primary-foreground/20 px-2 py-1 rounded-md shrink-0">{selectedItems.size} <span className="hidden sm:inline">selected</span></span>
+              <div className="w-px h-6 bg-primary-foreground/20 shrink-0" />
+              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground px-2 sm:px-3"
+                  onClick={async () => {
+                    await Promise.all(Array.from(selectedItems).map(id => fetch(`/api/followups/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: targetStatus }) })));
+                    queryClient.invalidateQueries({ queryKey: ['followups', selectedDate] });
+                    setSelectedItems(new Set());
+                    setIsSelectionModeActive(false);
+                    toast.success(`Marked ${selectedItems.size} items as ${targetStatus}`);
+                  }}
+                >
+                  {allSelectedAreCompleted ? (
+                    <Circle className="w-4 h-4 lg:mr-2 text-amber-400" /> 
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 lg:mr-2 text-emerald-400" />
+                  )}
+                  <span className="hidden lg:inline">{allSelectedAreCompleted ? 'Mark Pending' : 'Complete'}</span>
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-red-400 px-2 sm:px-3"
+                  onClick={() => {
+                    Array.from(selectedItems).forEach(id => {
+                      const item = followups.find((f:any) => f.id === id);
+                      if (item) handleQuickDelete(item);
+                    });
+                    setSelectedItems(new Set());
+                    setIsSelectionModeActive(false);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 lg:mr-2" /> <span className="hidden lg:inline">Delete</span>
+                </Button>
+                <Button variant="ghost" size="sm" className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground px-2 sm:px-3" onClick={() => toast.info('Reschedule selected items (Coming soon)')}>
+                  <CalendarDays className="w-4 h-4 lg:mr-2" /> <span className="hidden lg:inline">Reschedule</span>
+                </Button>
+                <Button variant="ghost" size="sm" className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground px-2 sm:px-3" onClick={() => toast.info('Assign to teammate (Coming soon)')}>
+                  <UserPlus className="w-4 h-4 lg:mr-2" /> <span className="hidden lg:inline">Assign</span>
+                </Button>
+                <Button variant="ghost" size="sm" className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground px-2 sm:px-3" onClick={() => toast.info('Export selected items (Coming soon)')}>
+                  <Download className="w-4 h-4 lg:mr-2" /> <span className="hidden lg:inline">Export</span>
+                </Button>
+              </div>
+              <div className="w-px h-6 bg-primary-foreground/20 shrink-0" />
+              <Button variant="ghost" size="sm" onClick={() => { setSelectedItems(new Set()); setIsSelectionModeActive(false); }} className="text-primary-foreground/60 hover:text-primary-foreground hover:bg-primary-foreground/10 px-2">
+                <X className="w-4 h-4" />
               </Button>
             </div>
-            <div className="w-px h-6 bg-primary-foreground/20" />
-            <Button variant="ghost" size="sm" onClick={() => { setSelectedItems(new Set()); setIsSelectionModeActive(false); }} className="text-primary-foreground/60 hover:text-primary-foreground hover:bg-primary-foreground/10">
-              <X className="w-4 h-4" />
-            </Button>
           </div>
-        </div>
-      )}
+        );
+      })()}
       
       <AddTodoModal
         open={isConvertToTodoOpen}

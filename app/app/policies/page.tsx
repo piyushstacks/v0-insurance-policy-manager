@@ -72,6 +72,16 @@ export default function PoliciesPage() {
   const [uniqueProducts, setUniqueProducts] = useState<string[]>([]);
   const [uniqueCompanies, setUniqueCompanies] = useState<string[]>([]);
 
+  // Client-side sort for the current page slice
+  type PolicySortKey = 'policy_number' | 'customer_name' | 'insurer_name' | 'premium_amount' | 'expiry_date';
+  const [policySortKey, setPolicySortKey] = useState<PolicySortKey>('expiry_date');
+  const [policySortDir, setPolicySortDir] = useState<'asc' | 'desc'>('asc');
+
+  function togglePolicySort(key: PolicySortKey) {
+    if (policySortKey === key) setPolicySortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setPolicySortKey(key); setPolicySortDir('asc'); }
+  }
+
   const fetchPolicies = useCallback(async (background = false) => {
     if (!background) setIsLoading(true);
     try {
@@ -166,8 +176,21 @@ export default function PoliciesPage() {
   // Derive Paginated Context
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   const paginatedPolicies = useMemo(() => {
-    return filteredPolicies;
-  }, [filteredPolicies]);
+    return [...filteredPolicies].sort((a, b) => {
+      let av: any, bv: any;
+      switch (policySortKey) {
+        case 'policy_number':  av = a.policy_number || ''; bv = b.policy_number || ''; break;
+        case 'customer_name':  av = a.customer?.name || ''; bv = b.customer?.name || ''; break;
+        case 'insurer_name':   av = a.insurer?.name || ''; bv = b.insurer?.name || ''; break;
+        case 'premium_amount': av = a.premium_amount || 0; bv = b.premium_amount || 0; break;
+        case 'expiry_date':    av = a.expiry_date || ''; bv = b.expiry_date || ''; break;
+        default:               av = ''; bv = '';
+      }
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      return policySortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+    });
+  }, [filteredPolicies, policySortKey, policySortDir]);
 
   // Actions
   const toggleSelect = (id: string) => {
@@ -261,7 +284,7 @@ export default function PoliciesPage() {
   };
 
   return (
-    <div className="flex flex-col p-4 md:p-8 min-h-full max-w-[1600px] mx-auto w-full">
+    <div className="flex flex-col p-4 md:p-8 min-h-full max-w-[1600px] mx-auto w-full pb-24 lg:pb-8">
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
         <div>
@@ -390,7 +413,7 @@ export default function PoliciesPage() {
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Category</label>
               <select 
-                className="flex h-9 w-full rounded-md border border-border bg-muted px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="flex h-12 w-full rounded-md border border-border bg-muted px-3 py-1 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0"
                 value={filterProduct} 
                 onChange={e => { setFilterProduct(e.target.value); setCurrentPage(1); }}
               >
@@ -403,7 +426,7 @@ export default function PoliciesPage() {
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Insurer</label>
               <select 
-                className="flex h-9 w-full rounded-md border border-border bg-muted px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="flex h-12 w-full rounded-md border border-border bg-muted px-3 py-1 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0"
                 value={filterCompany} 
                 onChange={e => { setFilterCompany(e.target.value); setCurrentPage(1); }}
               >
@@ -430,6 +453,36 @@ export default function PoliciesPage() {
           </div>
         </div>
       )}
+
+      {/* ─── Mobile Sort Bar (< md) ─────────────────────────── */}
+      <div className="md:hidden flex items-center gap-2 px-4 py-2.5 border-b border-border bg-card overflow-x-auto hide-scrollbar">
+        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest shrink-0">Sort:</span>
+        {([
+          { key: 'policy_number',  label: 'Policy No' },
+          { key: 'customer_name',  label: 'Customer' },
+          { key: 'insurer_name',   label: 'Company' },
+          { key: 'premium_amount', label: 'Premium' },
+          { key: 'expiry_date',    label: 'Expiry' },
+        ] as { key: PolicySortKey; label: string }[]).map(({ key, label }) => {
+          const active = policySortKey === key;
+          return (
+            <button
+              key={key}
+              onClick={() => togglePolicySort(key)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all shrink-0 ${
+                active
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                  : 'bg-background text-muted-foreground border-border hover:bg-accent'
+              }`}
+            >
+              {label}
+              {active && (
+                <span className="text-[10px] font-black leading-none">{policySortDir === 'asc' ? '↑' : '↓'}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {/* --- FULL WIDTH TABLE --- */}
       <main className="flex-1 flex flex-col min-w-0 bg-card rounded-xl border border-border shadow-sm overflow-hidden">

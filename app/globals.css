@@ -166,25 +166,62 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Prevent double-tap zoom and improve tap responsiveness */
+    touch-action: manipulation;
+    /* Remove iOS tap highlight flash */
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground;
+    /* Prevent horizontal overflow at all breakpoints */
+    overflow-x: hidden;
+    /* Smooth scroll with reduced-motion fallback */
+    scroll-behavior: smooth;
+  }
+  /* Ensure all interactive elements have visible focus */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar — uses CSS variables for dark mode safety */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
+  height: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-  border-radius: 10px;
+  background: var(--border);
+  border-radius: 999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1;
+  background: var(--muted-foreground);
+}
+
+/* Safe-area utilities for notched phones */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom);
+}
+.bottom-nav-height {
+  height: calc(64px + env(safe-area-inset-bottom));
+}
+
+/* Hide scrollbar visually but keep scroll functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── Auth Redesign Aesthetics ── */
@@ -249,4 +286,29 @@
 .mask-edges {
   mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+/* ── Reduced Motion — respect OS accessibility setting ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-marquee {
+    animation: none !important;
+  }
+  .animate-fade-in,
+  .animate-fade-in-up {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .mesh-bg {
+    animation: none !important;
+    background-position: 0% 50% !important;
+  }
 }

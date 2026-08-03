@@ -180,7 +180,11 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="flex flex-col min-h-full bg-[var(--surface-subtle)] pb-24 lg:pb-12">
+    <div className="flex flex-col min-h-full bg-[var(--surface-subtle)]" style={{ paddingBottom: 'calc(88px + env(safe-area-inset-bottom))' }}>
+      {/* aria-live region: screen readers announce metric changes */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        Dashboard loaded
+      </div>
 
       {/* ─── Hero ──────────────────────────────────────────────── */}
       <div className="px-4 md:px-8 pt-5 pb-0">
@@ -205,10 +209,18 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Secondary metric pills row */}
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 pt-2 snap-x">
+            {/* Secondary metric pills row — snap scroll on mobile */}
+            <div
+              role="list"
+              aria-label="Key metrics"
+              className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 pt-2 snap-x snap-mandatory"
+            >
               {metrics.map(m => (
-                <div key={m.label} className={`shrink-0 rounded-xl px-4 py-3 min-w-[120px] border snap-start ${m.isRisk ? 'bg-destructive border-destructive text-destructive-foreground shadow-lg' : 'bg-primary-foreground/5 border-primary-foreground/10 backdrop-blur text-primary-foreground/90'}`}>
+                <div
+                  key={m.label}
+                  role="listitem"
+                  className={`shrink-0 rounded-xl px-4 py-3 min-w-[140px] border snap-start ${m.isRisk ? 'bg-destructive border-destructive text-destructive-foreground shadow-lg' : 'bg-primary-foreground/5 border-primary-foreground/10 backdrop-blur text-primary-foreground/90'}`}
+                >
                   <div className="flex items-center gap-1.5 mb-1 text-inherit">
                     {m.icon && <m.icon className="w-3.5 h-3.5 opacity-80" />}
                     <p className={`text-[10px] font-bold uppercase tracking-wider ${m.isRisk ? 'text-destructive-foreground/80' : 'text-primary-foreground/60'}`}>{m.label}</p>

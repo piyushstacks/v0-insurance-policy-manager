@@ -286,8 +286,8 @@ export default function RemindersPage() {
 
                         <div className="mt-6">
                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4">Communication Journey</p>
-                           <div className="relative flex items-center justify-between max-w-sm">
-                              <div className="absolute left-0 right-0 h-0.5 bg-muted transition-colors z-0"></div>
+                           <div className="relative flex items-center justify-between max-w-sm overflow-x-auto pb-2 hide-scrollbar">
+                              <div className="absolute left-0 right-0 h-0.5 bg-muted transition-colors z-0 min-w-max"></div>
                               {lifecycleStages.map((stage) => {
                                  const reminder = policyReminders.find(r => r.reminder_type === stage.type);
                                  const isSent = reminder?.status === 'sent';
@@ -302,7 +302,7 @@ export default function RemindersPage() {
                                  const isWait = isPending && !isDue;
 
                                  return (
-                                    <div key={stage.type} className="relative z-10 flex flex-col items-center">
+                                    <div key={stage.type} className="relative z-10 flex flex-col items-center min-w-[50px]">
                                        <div 
                                           className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
                                              isSent ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100' :
@@ -323,9 +323,9 @@ export default function RemindersPage() {
                         </div>
                       </div>
 
-                      {/* Right: Actions */}
-                      <div className="flex flex-col justify-between items-center sm:items-end min-w-[140px] border-l border-dashed border-border pl-6">
-                        <div className="text-right">
+                      {/* Right: Actions — border-top on mobile, border-left on desktop */}
+                      <div className="flex flex-col justify-between items-start md:items-end min-w-0 md:min-w-[140px] border-t md:border-t-0 md:border-l border-dashed border-border pt-4 md:pt-0 md:pl-6">
+                        <div className="text-right w-full">
                            {nextPending ? (
                               <div className="mb-4">
                                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Due Next</p>

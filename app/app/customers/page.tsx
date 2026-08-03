@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -39,6 +40,7 @@ export default function CustomersPage() {
   const [pageSize, setPageSize] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   const { canDirectlyAct } = useTeam();
+  const router = useRouter();
 
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
@@ -199,7 +201,7 @@ export default function CustomersPage() {
       {/* Header */}
       <div className="px-6 py-4 border-b bg-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-foreground tracking-tight">Customers</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">Customers</h1>
           <p className="text-sm text-muted-foreground">
             {isLoading ? '...' : `${totalRecords} total clients`}
           </p>
@@ -211,10 +213,10 @@ export default function CustomersPage() {
               value={searchTerm}
               onChange={e => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1); // Reset page on query
+                setCurrentPage(1);
               }}
               placeholder="Search name, email, phone..."
-              className="pl-9 h-10 rounded-xl bg-muted border-border"
+              className="pl-9 rounded-xl bg-muted border-border"
             />
           </div>
           {selected.size > 0 && canDirectlyAct && (
@@ -230,6 +232,35 @@ export default function CustomersPage() {
             </Button>
           )}
         </div>
+      </div>
+
+      {/* ─── Mobile Sort Bar (< lg) ─────────────────────────── */}
+      <div className="lg:hidden flex items-center gap-2 px-4 py-2.5 border-b border-border bg-card overflow-x-auto hide-scrollbar">
+        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest shrink-0">Sort:</span>
+        {([
+          { key: 'name',          label: 'Name' },
+          { key: 'totalPremium',  label: 'Premium' },
+          { key: 'policiesCount', label: 'Policies' },
+          { key: 'nextRenewal',   label: 'Renewal' },
+        ] as { key: SortKey; label: string }[]).map(({ key, label }) => {
+          const active = sortKey === key;
+          return (
+            <button
+              key={key}
+              onClick={() => toggleSort(key)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all shrink-0 ${
+                active
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                  : 'bg-background text-muted-foreground border-border hover:bg-accent'
+              }`}
+            >
+              {label}
+              {active && (
+                <span className="text-[10px] font-black leading-none">{sortDir === 'asc' ? '↑' : '↓'}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* AI Suggestions Banner */}
@@ -301,7 +332,15 @@ export default function CustomersPage() {
             {/* ─── Mobile card list (< lg) ─────────────────────── */}
             <div className="lg:hidden flex flex-col gap-3 p-3 bg-muted/30">
               {paginatedCustomers.map(c => (
-                <div key={c.id} className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col gap-3 relative">
+                <div
+                  key={c.id}
+                  onClick={(e) => {
+                    // Don't navigate if user clicked the checkbox
+                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+                    router.push(`/app/customers/${c.id}`);
+                  }}
+                  className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col gap-3 relative cursor-pointer active:bg-accent/60 transition-colors"
+                >
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex items-center gap-3">
                       <div className="relative">

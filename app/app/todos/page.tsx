@@ -220,13 +220,14 @@ export default function TodosPage() {
                 
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleStatus.mutate({ id: item.id, status: isCompleted ? 'pending' : 'completed' }); }}
-                  className={`flex items-center justify-center w-6 h-6 rounded-full border transition-all shrink-0
+                  aria-label={isCompleted ? 'Mark as pending' : 'Mark as completed'}
+                  className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all shrink-0
                     ${isCompleted 
                       ? 'bg-emerald-500 border-emerald-500 text-white shadow-inner shadow-emerald-700/50' 
                       : 'border-muted-foreground/30 text-transparent hover:border-emerald-500 hover:text-emerald-500 bg-card hover:bg-emerald-50 dark:hover:bg-emerald-950 shadow-sm'
                     }`}
                 >
-                  {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                  {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                 </button>
               </div>
               
@@ -337,8 +338,8 @@ export default function TodosPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 custom-scrollbar">
-      <div className="max-w-6xl mx-auto space-y-6 lg:space-y-8">
+    <div className="bg-background w-full" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
+        <div className="max-w-6xl mx-auto space-y-6 lg:space-y-8 p-4 sm:p-6 lg:p-8">
         
         {/* Header & Date Navigation */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

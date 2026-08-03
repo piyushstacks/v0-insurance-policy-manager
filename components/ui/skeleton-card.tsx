@@ -7,6 +7,7 @@ function SkeletonBlock({ className }: { className?: string }) {
         'animate-pulse rounded-lg bg-accent',
         className
       )}
+      aria-hidden="true"
     />
   );
 }
@@ -18,7 +19,12 @@ interface SkeletonCardProps {
 
 export function SkeletonCard({ lines = 3, className }: SkeletonCardProps) {
   return (
-    <div className={cn('bg-card transition-colors rounded-xl border border-border p-4 space-y-3 shadow-sm', className)}>
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading content"
+      className={cn('bg-card rounded-xl border border-border p-4 space-y-3 shadow-sm', className)}
+    >
       <div className="flex items-center justify-between">
         <SkeletonBlock className="h-3 w-24" />
         <SkeletonBlock className="h-5 w-14 rounded-full" />
@@ -29,13 +35,19 @@ export function SkeletonCard({ lines = 3, className }: SkeletonCardProps) {
           className={cn('h-3', i === lines - 2 ? 'w-2/3' : 'w-full')}
         />
       ))}
+      <span className="sr-only">Loading…</span>
     </div>
   );
 }
 
 export function SkeletonHero({ className }: { className?: string }) {
   return (
-    <div className={cn('bg-card transition-colors rounded-2xl border border-border p-6 shadow-sm space-y-4', className)}>
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading dashboard"
+      className={cn('bg-card rounded-2xl border border-border p-6 shadow-sm space-y-4', className)}
+    >
       <SkeletonBlock className="h-3 w-20" />
       <SkeletonBlock className="h-10 w-48" />
       <SkeletonBlock className="h-10 w-full rounded-lg" />
@@ -44,19 +56,26 @@ export function SkeletonHero({ className }: { className?: string }) {
           <SkeletonBlock key={i} className="h-16 flex-1 rounded-xl" />
         ))}
       </div>
+      <span className="sr-only">Loading dashboard…</span>
     </div>
   );
 }
 
 export function SkeletonRow({ className }: { className?: string }) {
   return (
-    <div className={cn('flex items-center gap-3 py-3 px-4', className)}>
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading row"
+      className={cn('flex items-center gap-3 py-3 px-4', className)}
+    >
       <SkeletonBlock className="h-9 w-9 rounded-full shrink-0" />
       <div className="flex-1 space-y-2">
         <SkeletonBlock className="h-3 w-32" />
         <SkeletonBlock className="h-2.5 w-20" />
       </div>
       <SkeletonBlock className="h-3 w-16" />
+      <span className="sr-only">Loading…</span>
     </div>
   );
 }

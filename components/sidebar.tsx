@@ -108,6 +108,16 @@ export default function Sidebar({ user }: SidebarProps) {
     router.push('/auth/login');
   }
 
+  // Close mobile overlay on Escape key
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isMobileMenuOpen]);
+
   const NavLink = ({ item }: { item: any }) => {
     if (item.divider) return <div className="h-px bg-border my-4 mx-3" />;
     
@@ -118,7 +128,9 @@ export default function Sidebar({ user }: SidebarProps) {
       <div className={`space-y-1 ${isLocked ? 'opacity-50 grayscale' : ''}`}>
         <Link
           href={isLocked ? '#' : item.href}
-          className={`flex items-center justify-between group px-3 py-2 rounded-xl transition-all duration-200 ${
+          aria-current={isActive && !isLocked ? 'page' : undefined}
+          aria-disabled={isLocked ? 'true' : undefined}
+          className={`flex items-center justify-between group px-3 py-2.5 rounded-xl transition-all duration-200 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
             isActive && !isLocked
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-blue-900/20' 
               : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
@@ -159,7 +171,11 @@ export default function Sidebar({ user }: SidebarProps) {
   return (
     <>
       {/* Sidebar Desktop */}
-      <aside className="hidden lg:flex inset-y-0 left-0 z-50 w-60 xl:w-72 bg-sidebar border-r border-border flex-col h-screen transition-colors">
+      <aside
+        role="navigation"
+        aria-label="Sidebar navigation"
+        className="hidden lg:flex inset-y-0 left-0 z-50 w-60 xl:w-72 bg-sidebar border-r border-border flex-col h-screen transition-colors"
+      >
         {/* Main Content Area (Scrollable) */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {/* Header / Logo */}
@@ -197,12 +213,12 @@ export default function Sidebar({ user }: SidebarProps) {
               <p className="text-[10px] font-semibold text-muted-foreground truncate mt-0.5 transition-colors">{user.email}</p>
             </div>
             <ThemeToggle />
-            <button 
+          <button 
               onClick={handleLogout}
-              className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-              title="Logout"
+              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+              aria-label="Sign out"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
         </div>

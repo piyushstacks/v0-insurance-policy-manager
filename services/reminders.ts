@@ -33,6 +33,14 @@ export async function generateExpiryReminders(maxLookaheadDays: number = 45) {
 
     const prefs = profile?.reminder_preferences || { enabled: true, timing_days: [7, 15, 30], types: ['renewal'] };
     
+    const policyIds = policies.map(p => p.id);
+    const { data: existingRemindersData } = await supabaseAdmin!
+      .from('reminders')
+      .select('policy_id, reminder_type')
+      .in('policy_id', policyIds);
+    
+    const existingSet = new Set(existingRemindersData?.map(r => `${r.policy_id}:${r.reminder_type}`) || []);
+
     const reminders: any[] = [];
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -53,15 +61,8 @@ export async function generateExpiryReminders(maxLookaheadDays: number = 45) {
 
         const reminderType = prefs.types?.includes('renewal') ? `renewal_${daysBefore}days` : `premium_${daysBefore}days`;
 
-        // Check if reminder exists
-        const { data: existing } = await supabaseAdmin!
-          .from('reminders')
-          .select('id')
-          .eq('policy_id', policy.id)
-          .eq('reminder_type', reminderType)
-          .maybeSingle();
-
-        if (existing) continue;
+        // Check if reminder exists from our pre-fetched set
+        if (existingSet.has(`${policy.id}:${reminderType}`)) continue;
 
         reminders.push({
           policy_id: policy.id,

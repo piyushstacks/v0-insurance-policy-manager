@@ -57,26 +57,25 @@ function DialogContent({
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
-      <DialogPrimitive.Content
-        data-slot="dialog-content"
-        className={cn(
-          // Core positioning
-          'fixed top-[50%] left-[50%] z-50 translate-x-[-50%] translate-y-[-50%]',
-          // Sizing — stays within viewport on every device
-          'w-full max-w-[calc(100%-1.5rem)] sm:max-w-lg',
-          'max-h-[90dvh] flex flex-col',
-          // Visuals
-          'bg-background border rounded-2xl shadow-2xl',
-          // Animations
-          'data-[state=open]:animate-in data-[state=closed]:animate-out',
-          'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-          'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-          'duration-200',
-          className,
-        )}
-        {...props}
-      >
-        {/* Scrollable inner content */}
+      <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto overflow-x-hidden pointer-events-none p-4 sm:p-8">
+        <DialogPrimitive.Content
+          data-slot="dialog-content"
+          className={cn(
+            // Core sizing & structure
+            'relative z-50 flex flex-col w-full sm:max-w-lg pointer-events-auto',
+            'max-h-[min(90dvh,800px)]', // Prevent extending beyond viewport, scroll internally
+            // Visuals
+            'bg-background border rounded-2xl shadow-2xl',
+            // Animations
+            'data-[state=open]:animate-in data-[state=closed]:animate-out',
+            'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+            'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+            'duration-200',
+            className,
+          )}
+          {...props}
+        >
+          {/* Scrollable inner content */}
         <div className="flex flex-col overflow-hidden flex-1 min-h-0">
           {children}
         </div>
@@ -89,7 +88,8 @@ function DialogContent({
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
-      </DialogPrimitive.Content>
+        </DialogPrimitive.Content>
+      </div>
     </DialogPortal>
   )
 }

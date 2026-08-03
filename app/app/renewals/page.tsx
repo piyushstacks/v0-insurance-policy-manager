@@ -93,7 +93,7 @@ export default function RenewalsPage() {
               <CalendarDays className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Renewals</h1>
+              <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-foreground">Renewals</h1>
               <p className="text-muted-foreground font-medium">Policies expiring in the next 90 days</p>
             </div>
           </div>
@@ -130,7 +130,8 @@ export default function RenewalsPage() {
               <p className="text-muted-foreground max-w-sm mx-auto">You have no policies expiring in the next 90 days. Everything is up to date!</p>
             </div>
           ) : (
-            <div className="w-full min-w-[800px]">
+            <div className="w-full overflow-x-auto custom-scrollbar">
+              <div className="min-w-[800px]">
               <table className="w-full text-left border-collapse table-auto">
                 <thead>
                   <tr className="bg-muted transition-colors border-b text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -231,6 +232,7 @@ export default function RenewalsPage() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>

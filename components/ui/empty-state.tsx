@@ -19,19 +19,26 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
+      role="region"
+      aria-label={title}
       className={cn(
-        'flex flex-col items-center justify-center py-16 px-6 text-center',
+        /* Generous padding ensures readability even on 320px screens */
+        'flex flex-col items-center justify-center py-12 px-6 text-center min-h-[200px]',
         className
       )}
     >
-      <div className="w-14 h-14 rounded-2xl bg-muted transition-colors flex items-center justify-center mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4 shrink-0" aria-hidden="true">
         <Icon className="w-7 h-7 text-muted-foreground" strokeWidth={1.5} />
       </div>
-      <h3 className="text-base font-bold text-foreground mb-1">{title}</h3>
+      <h3 className="text-base font-bold text-foreground mb-2 leading-snug">{title}</h3>
       {description && (
         <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">{description}</p>
       )}
-      {action && <div className="mt-5">{action}</div>}
+      {action && (
+        <div className="mt-6 w-full max-w-[240px]">
+          {action}
+        </div>
+      )}
     </div>
   );
 }

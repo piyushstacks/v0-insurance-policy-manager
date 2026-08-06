@@ -301,8 +301,7 @@ function LoginContent() {
         </div>
 
         <p className="text-center text-sm md:text-base text-slate-400 mt-6 font-medium">
-          Don't have an account?{' '}
-          <Link href="/auth/signup" className="text-blue-400 hover:text-blue-300 transition-colors py-1 px-2 rounded-lg hover:bg-blue-500/10">Request Access</Link>
+          Note: Public registration is currently closed.
         </p>
       </div>
 

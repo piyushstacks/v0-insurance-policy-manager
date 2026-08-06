@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Button as ActionButton } from '@/components/base/buttons/button';
 import { Input } from '@/components/ui/input';
-import { PageLoader } from '@/components/ui/loader';
+import { SkeletonRow } from '@/components/ui/skeleton-card';
 import {
   Sheet,
   SheetTrigger,
@@ -49,8 +49,7 @@ interface Policy {
 export default function PoliciesPage() {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [pendingPolicies, setPendingPolicies] = useState<Policy[]>([]);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [isFetching, setIsFetching] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
   
   // UI State
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -119,7 +118,6 @@ export default function PoliciesPage() {
       toast.error(err instanceof Error ? err.message : 'Error loading policies');
     } finally {
       if (!background) setIsFetching(false);
-      setIsInitialLoad(false);
     }
   }, [currentPage, pageSize, searchTerm, filterProduct, filterCompany, dateStart, dateEnd]);
 
@@ -548,9 +546,11 @@ export default function PoliciesPage() {
         </div>
 
         {/* Table Area */}
-        <div className="flex-1 overflow-auto bg-card relative">
-          {isInitialLoad ? (
-            <PageLoader words={['policies', 'documents', 'schedules', 'records', 'policies']} label="loading" />
+        <div className="flex-1 overflow-auto bg-card relative p-4 md:p-0">
+          {isFetching ? (
+            <div className="space-y-3 md:p-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <SkeletonRow key={i} className="bg-card rounded-xl border border-border" />)}
+            </div>
           ) : filteredPolicies.length === 0 ? (
             <div className="p-12 text-center">
               <div className="w-12 h-12 rounded-full bg-muted items-center justify-center flex mx-auto mb-3">
@@ -561,11 +561,6 @@ export default function PoliciesPage() {
             </div>
           ) : (
             <>
-            {isFetching && (
-              <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
-                <RefreshCw className="w-8 h-8 text-primary animate-spin" />
-              </div>
-            )}
             {/* Desktop Table */}
             <div className="w-full overflow-x-auto custom-scrollbar hidden md:block">
               <table className="w-full text-left border-collapse min-w-full table-auto">

@@ -54,9 +54,10 @@ export function Recommendations({ data, scores }: RecommendationsProps) {
   let totalGoalTarget = 0;
   let maxGoalYears = 0;
   data.goals.forEach(g => {
-    totalGoalTarget += (g.targetAmount || 0);
-    if ((g.targetYear || 0) > maxGoalYears) {
-      maxGoalYears = g.targetYear;
+    totalGoalTarget += Number(g.targetAmount || 0);
+    const targetYr = Number(g.targetYear || 0);
+    if (targetYr > maxGoalYears) {
+      maxGoalYears = targetYr;
     }
   });
 

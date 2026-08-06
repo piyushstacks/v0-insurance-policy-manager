@@ -16,6 +16,7 @@ import {
   Clock,
   ListTodo,
   HelpCircle,
+  TrendingUp,
   X
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ const MORE_NAV = [
   { name: 'Todo',        href: '/app/todos',      icon: ListTodo },
   { name: 'Renewals',    href: '/app/renewals',   icon: CalendarDays },
   { name: 'Reporting',   href: '/app/reporting',  icon: BarChart3 },
+  { name: 'Financial Plan', href: '/app/financial-planning', icon: TrendingUp },
   { name: 'Approvals',   href: '/app/approvals',  icon: ShieldCheck },
   { name: 'Settings',    href: '/app/settings',   icon: Settings },
   { name: 'Support',     href: '/app/support',    icon: HelpCircle },

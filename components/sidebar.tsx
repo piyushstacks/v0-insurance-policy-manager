@@ -22,7 +22,8 @@ import {
   ShieldCheck,
   Lock,
   Clock,
-  ListTodo
+  ListTodo,
+  TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlobalSearch } from '@/components/global-search';
@@ -85,7 +86,10 @@ export default function Sidebar({ user }: SidebarProps) {
     { name: 'Todo', href: '/app/todos', icon: ListTodo, exact: false },
     { name: 'Renewals', href: '/app/renewals', icon: CalendarDays, exact: false },
     { name: 'Reminders', href: '/app/reminders', icon: CalendarDays, exact: false },
-    ...(!isMember ? [{ name: 'Reporting', href: '/app/reporting', icon: PieChart, exact: false }] : []),
+    ...(!isMember ? [
+      { name: 'Reporting', href: '/app/reporting', icon: PieChart, exact: false },
+      { name: 'Financial Planning', href: '/app/financial-planning', icon: TrendingUp, exact: false }
+    ] : []),
     { divider: true },
     { 
       name: 'Approvals', 

@@ -176,16 +176,26 @@ export default function TodosPage() {
   const pending = filteredTodos.filter((f: any) => f.status === 'pending');
   const completed = filteredTodos.filter((f: any) => f.status === 'completed');
   
+  const pastPending = pending.filter((f: any) => f.scheduled_date && f.scheduled_date < localTodayStr);
+  const todayPending = pending.filter((f: any) => !f.scheduled_date || f.scheduled_date >= localTodayStr);
+
   const overdueCount = todos.filter((f: any) => f.status === 'pending' && f.scheduled_date < localTodayStr).length;
   const highPriorityCount = todos.filter((f: any) => f.status === 'pending' && f.priority === 'High').length;
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    if (result.source.index === result.destination.index) return;
+    if (result.source.index === result.destination.index && result.source.droppableId === result.destination.droppableId) return;
 
-    const newPending = Array.from(pending);
-    const [moved] = newPending.splice(result.source.index, 1);
-    newPending.splice(result.destination.index, 0, moved);
+    // Only allow reordering within the same list for simplicity
+    if (result.source.droppableId !== result.destination.droppableId) return;
+
+    const isPast = result.source.droppableId === 'past-pending-todos';
+    const list = isPast ? Array.from(pastPending) : Array.from(todayPending);
+
+    const [moved] = list.splice(result.source.index, 1);
+    list.splice(result.destination.index, 0, moved);
+
+    const newPending = isPast ? [...list, ...todayPending] : [...pastPending, ...list];
 
     queryClient.setQueryData(['todos', selectedDate], (old: any) => {
       if (!old || !old.data) return old;
@@ -452,17 +462,49 @@ export default function TodosPage() {
             </div>
           ) : (
             <div className="space-y-10">
-              {/* Pending Section */}
-              {pending.length > 0 && (
+              {/* Today's Pending Section */}
+              {todayPending.length > 0 && (
                 <div className="space-y-3">
                   <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending ({pending.length})
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Today's Pending ({todayPending.length})
                   </h2>
                   <DragDropContext onDragEnd={onDragEnd}>
-                    <Droppable droppableId="todos">
+                    <Droppable droppableId="today-pending-todos">
                       {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2.5 sm:space-y-3">
-                          {pending.map((item: any, index: number) => (
+                          {todayPending.map((item: any, index: number) => (
+                            <Draggable key={item.id} draggableId={item.id} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  style={{ ...provided.draggableProps.style }}
+                                  className={`${snapshot.isDragging ? 'z-50 shadow-2xl opacity-90 scale-[1.02]' : ''} transition-transform`}
+                                >
+                                  <TodoCard item={item} dragHandleProps={provided.dragHandleProps} />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                </div>
+              )}
+
+              {/* Past Pending Section */}
+              {pastPending.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Past Pending ({pastPending.length})
+                  </h2>
+                  <DragDropContext onDragEnd={onDragEnd}>
+                    <Droppable droppableId="past-pending-todos">
+                      {(provided) => (
+                        <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2.5 sm:space-y-3">
+                          {pastPending.map((item: any, index: number) => (
                             <Draggable key={item.id} draggableId={item.id} index={index}>
                               {(provided, snapshot) => (
                                 <div

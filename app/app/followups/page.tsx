@@ -221,16 +221,28 @@ export default function FollowupsPage() {
   const pending = filteredFollowups.filter((f: any) => f.status === 'pending');
   const completed = filteredFollowups.filter((f: any) => f.status === 'completed');
   
+  const pastPending = pending.filter((f: any) => f.scheduled_date && f.scheduled_date < localTodayStr);
+  const todayPending = pending.filter((f: any) => !f.scheduled_date || f.scheduled_date >= localTodayStr);
+
   const overdueCount = followups.filter((f: any) => f.status === 'pending' && f.scheduled_date < localTodayStr).length;
   const highPriorityCount = followups.filter((f: any) => f.status === 'pending' && f.category?.toLowerCase().includes('high')).length;
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    if (result.source.index === result.destination.index) return;
+    if (result.source.index === result.destination.index && result.source.droppableId === result.destination.droppableId) return;
 
-    const newPending = Array.from(pending);
-    const [moved] = newPending.splice(result.source.index, 1);
-    newPending.splice(result.destination.index, 0, moved);
+    // Only allow reordering within the same list for simplicity
+    if (result.source.droppableId !== result.destination.droppableId) return;
+
+    const isPast = result.source.droppableId === 'past-pending-list';
+    const list = isPast ? Array.from(pastPending) : Array.from(todayPending);
+    
+    const [moved] = list.splice(result.source.index, 1);
+    list.splice(result.destination.index, 0, moved);
+
+    // Reconstruct full pending array for DB update
+    // Note: This naive concatenation might change global order if dragged, but since they are rendered separately, it's fine.
+    const newPending = isPast ? [...list, ...todayPending] : [...pastPending, ...list];
 
     queryClient.setQueryData(['followups', selectedDate], (old: any) => {
       if (!old || !old.data) return old;
@@ -625,18 +637,18 @@ export default function FollowupsPage() {
         ) : (
           <div className="space-y-10">
             
-            {/* Pending Section */}
-            {pending.length > 0 && (
+            {/* Today's Pending Section */}
+            {todayPending.length > 0 && (
               <div className="space-y-3">
                 <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending ({pending.length})
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Today's Pending ({todayPending.length})
                 </h2>
                 
                 <DragDropContext onDragEnd={onDragEnd}>
-                  <Droppable droppableId="pending-list">
+                  <Droppable droppableId="today-pending-list">
                     {(provided) => (
                       <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2.5">
-                        {pending.map((item: any, index: number) => (
+                        {todayPending.map((item: any, index: number) => (
                           <Draggable 
                             key={item.id} 
                             draggableId={item.id} 
@@ -649,6 +661,46 @@ export default function FollowupsPage() {
                                 {...provided.draggableProps}
                               >
                                 {FollowupCard({ item, dragHandleProps: provided.dragHandleProps })}
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              </div>
+            )}
+
+            {/* Past Pending Section */}
+            {pastPending.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Past Pending ({pastPending.length})
+                </h2>
+                
+                <DragDropContext onDragEnd={onDragEnd}>
+                  <Droppable droppableId="past-pending-list">
+                    {(provided) => (
+                      <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2.5">
+                        {pastPending.map((item: any, index: number) => (
+                          <Draggable 
+                            key={item.id} 
+                            draggableId={item.id} 
+                            index={index}
+                            isDragDisabled={isSelectionModeActive || selectedItems.size > 0}
+                          >
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                style={{
+                                  ...provided.draggableProps.style,
+                                  opacity: snapshot.isDragging ? 0.8 : 1,
+                                }}
+                              >
+                                <FollowupCard item={item} dragHandleProps={provided.dragHandleProps} />
                               </div>
                             )}
                           </Draggable>

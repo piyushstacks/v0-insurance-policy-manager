@@ -607,7 +607,7 @@ export default function PoliciesPage() {
                         <td className="px-3 py-3 text-foreground/90 text-xs truncate max-w-[120px]">
                           {p.policy_type ? (
                             <div className="flex flex-col gap-1 min-w-0">
-                               <span className="font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded-sm w-max uppercase text-[9px] tracking-wider border border-indigo-100 dark:border-indigo-800/50">{p.policy_type.split(' | ')[0] || 'General'}</span>
+                               <span className="font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded-sm w-max uppercase text-[9px] tracking-wider border border-indigo-100 dark:border-indigo-800/50">{p.policy_type.split(' | ')[0] || '—'}</span>
                                <span className="text-[11px] truncate" title={p.policy_type.split(' | ')[1] || ''}>{p.policy_type.split(' | ')[1] || ''}</span>
                             </div>
                           ) : '—'}
@@ -680,7 +680,7 @@ export default function PoliciesPage() {
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">Product</span>
-                        <span className="font-medium text-indigo-600 dark:text-indigo-400 truncate">{p.policy_type?.split(' | ')[0] || 'General'}</span>
+                        <span className="font-medium text-indigo-600 dark:text-indigo-400 truncate">{p.policy_type?.split(' | ')[0] || '—'}</span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">Expiry Date</span>

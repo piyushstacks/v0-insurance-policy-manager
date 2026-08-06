@@ -49,7 +49,7 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
     assignees: []
   });
   
-  const [categories, setCategories] = useState<string[]>(['General']);
+  const [categories, setCategories] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [priority, setPriority] = useState('Medium');
   
@@ -108,7 +108,7 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
             scheduled_date: editItem.scheduled_date || new Date().toISOString().split('T')[0],
             assignees: editItem.assignees || (editItem.user_id ? [editItem.user_id] : [])
           });
-          const cats = editItem.category ? editItem.category.split(',').map((s: string) => s.trim()) : ['General'];
+          const cats = editItem.category ? editItem.category.split(',').map((s: string) => s.trim()) : [];
           const hasHigh = cats.some((c: string) => c.toLowerCase() === 'high priority' || c.toLowerCase() === 'high');
           const hasLow = cats.some((c: string) => c.toLowerCase() === 'low priority' || c.toLowerCase() === 'low');
           setPriority(hasHigh ? 'High' : hasLow ? 'Low' : 'Medium');
@@ -123,7 +123,7 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
             scheduled_date: initialData.scheduled_date || initialDate || new Date().toISOString().split('T')[0],
             assignees: currentUser?.id ? [currentUser.id] : []
           });
-          setCategories([initialData.category || 'General']);
+          setCategories(initialData.category ? [initialData.category] : []);
           setPriority(initialData.priority || 'Medium');
        } else {
           setFormData({
@@ -134,7 +134,7 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
             scheduled_date: initialDate || new Date().toISOString().split('T')[0],
             assignees: currentUser?.id ? [currentUser.id] : []
           });
-          setCategories(['General']);
+          setCategories([]);
           setPriority('Medium');
        }
     }
@@ -186,7 +186,7 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
         customer_id: isExisting ? formData.customer_id : null,
         prospect_name: !isExisting ? formData.prospect_name : null,
         prospect_mobile: !isExisting ? formData.prospect_mobile : null,
-        category: finalCategories.length > 0 ? finalCategories.join(', ') : 'General'
+        category: finalCategories.length > 0 ? finalCategories.join(', ') : null
       };
 
       const url = editItem ? `/api/followups/${editItem.id}` : '/api/followups';

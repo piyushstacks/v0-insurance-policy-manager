@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
         customer_id: customer_id || null,
         prospect_name: prospect_name || null,
         prospect_mobile: prospect_mobile || null,
-        category: category || 'General',
+        category: category || null,
         notes: notes || '',
         scheduled_date,
         status: 'pending'

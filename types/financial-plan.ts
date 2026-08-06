@@ -102,6 +102,7 @@ export interface FinancialPlanData {
   savings: SavingsDetails;
   investments: InvestmentItem[];
   insurance: InsuranceItem[];
+  hasPersonalAccident: boolean;
   loans: LoanItem[];
   goals: FinancialGoal[];
   

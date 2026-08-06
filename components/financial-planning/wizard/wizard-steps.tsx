@@ -209,7 +209,9 @@ export function ProtectionStep({ data, updateData }: StepProps) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Insurance & Protection</h3>
+        <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Let's Secure Your Family's Future</h3>
+        <p className="text-sm text-muted-foreground mb-4">Protection is the foundation of any strong financial plan. Let's see where you stand.</p>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label>Total Life/Term Cover (Sum Assured)</Label>
@@ -218,7 +220,7 @@ export function ProtectionStep({ data, updateData }: StepProps) {
               const existing = data.insurance.filter(i => i.type !== 'Term Insurance');
               updateData('insurance', '', [...existing, { id: 'term', type: 'Term Insurance', company: '', coverage: val, premium: 0, expiry: '', nominee: '' }]);
             }} className="h-12" placeholder="₹0" />
-            <p className="text-xs text-muted-foreground">Ideally 10x - 15x of annual income</p>
+            <p className="text-xs text-muted-foreground">Ideally 20x of your annual income</p>
           </div>
           <div className="space-y-2">
             <Label>Total Health Cover (Mediclaim)</Label>
@@ -227,7 +229,30 @@ export function ProtectionStep({ data, updateData }: StepProps) {
               const existing = data.insurance.filter(i => i.type !== 'Health Insurance');
               updateData('insurance', '', [...existing, { id: 'health', type: 'Health Insurance', company: '', coverage: val, premium: 0, expiry: '', nominee: '' }]);
             }} className="h-12" placeholder="₹0" />
-            <p className="text-xs text-muted-foreground">Base + Super Top-up combined</p>
+            <p className="text-xs text-muted-foreground">Base + Super Top-up combined (Min 10 Lakh)</p>
+          </div>
+        </div>
+
+        <div className="pt-4 mt-6 border-t border-border">
+          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/50">
+            <div className="space-y-0.5">
+              <Label className="text-base font-medium">Personal Accident Policy</Label>
+              <p className="text-sm text-muted-foreground">Do you currently hold an active personal accident and disability policy?</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => updateData('hasPersonalAccident', '', true)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${data.hasPersonalAccident ? 'bg-indigo-600 text-white' : 'bg-background border border-border hover:bg-muted'}`}
+              >
+                Yes
+              </button>
+              <button 
+                onClick={() => updateData('hasPersonalAccident', '', false)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!data.hasPersonalAccident ? 'bg-rose-500 text-white' : 'bg-background border border-border hover:bg-muted'}`}
+              >
+                No
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -272,28 +297,76 @@ export function GoalsRiskStep({ data, updateData }: StepProps) {
       </div>
       
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Top Goals</h3>
-        <p className="text-sm text-muted-foreground">What are you primarily planning for? (Select one for quick setup)</p>
-        <div className="flex flex-wrap gap-3">
-          {['Retirement', 'Child Education', 'House Purchase', 'Wealth Creation'].map(goal => {
-            const isSelected = data.goals.some(g => g.type === goal || (goal === 'Wealth Creation' && g.type === 'Other Goals'));
-            return (
-              <button
-                key={goal}
-                onClick={() => {
-                  if (isSelected) {
-                    updateData('goals', '', data.goals.filter(g => g.type !== goal && g.type !== 'Other Goals'));
-                  } else {
-                    updateData('goals', '', [...data.goals, { id: goal, type: goal === 'Wealth Creation' ? 'Other Goals' : goal, targetAmount: 10000000, targetYear: 2035, priority: 'High' }]);
-                  }
-                }}
-                className={`px-4 py-2 rounded-full border text-sm font-semibold transition-all ${isSelected ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-card text-foreground/80 hover:bg-accent hover:border-border'}`}
-              >
-                {goal}
-              </button>
-            )
-          })}
-        </div>
+        <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Financial Goals</h3>
+        <p className="text-sm text-muted-foreground">Add specific goals you want to achieve.</p>
+        
+        {data.goals.map((goal, index) => (
+          <div key={goal.id} className="p-4 border rounded-xl bg-card space-y-4 relative">
+            <button 
+              onClick={() => updateData('goals', '', data.goals.filter(g => g.id !== goal.id))}
+              className="absolute top-4 right-4 text-rose-500 text-sm font-semibold hover:underline"
+            >
+              Remove
+            </button>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pr-16">
+              <div className="space-y-2">
+                <Label>Goal Name</Label>
+                <Select value={goal.type} onValueChange={v => {
+                  const newGoals = [...data.goals];
+                  newGoals[index] = { ...goal, type: v as any };
+                  updateData('goals', '', newGoals);
+                }}>
+                  <SelectTrigger className="h-10 bg-background">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Child Education">Child Education</SelectItem>
+                    <SelectItem value="House Purchase">House Purchase</SelectItem>
+                    <SelectItem value="Retirement">Retirement</SelectItem>
+                    <SelectItem value="Vacation">Vacation</SelectItem>
+                    <SelectItem value="Car Purchase">Car Purchase</SelectItem>
+                    <SelectItem value="Other Goals">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Target Amount (₹)</Label>
+                <Input 
+                  type="number" 
+                  value={goal.targetAmount || ''} 
+                  onChange={e => {
+                    const newGoals = [...data.goals];
+                    newGoals[index] = { ...goal, targetAmount: parseFloat(e.target.value) || 0 };
+                    updateData('goals', '', newGoals);
+                  }}
+                  className="h-10 bg-background" 
+                  placeholder="e.g. 5000000" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Years to Achieve</Label>
+                <Input 
+                  type="number" 
+                  value={goal.targetYear || ''} 
+                  onChange={e => {
+                    const newGoals = [...data.goals];
+                    newGoals[index] = { ...goal, targetYear: parseInt(e.target.value) || 0 };
+                    updateData('goals', '', newGoals);
+                  }}
+                  className="h-10 bg-background" 
+                  placeholder="e.g. 10" 
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+        
+        <button
+          onClick={() => updateData('goals', '', [...data.goals, { id: crypto.randomUUID(), type: 'Other Goals', targetAmount: 0, targetYear: '', priority: 'Medium' }])}
+          className="px-4 py-2 border-2 border-dashed border-indigo-200 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-50 transition-colors w-full"
+        >
+          + Add New Goal
+        </button>
       </div>
     </div>
   );

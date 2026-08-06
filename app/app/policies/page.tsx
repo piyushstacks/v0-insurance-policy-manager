@@ -49,7 +49,8 @@ interface Policy {
 export default function PoliciesPage() {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [pendingPolicies, setPendingPolicies] = useState<Policy[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   
   // UI State
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -62,6 +63,7 @@ export default function PoliciesPage() {
   const [pageSize, setPageSize] = useState(10);
   
   // Filters
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProduct, setFilterProduct] = useState('');
   const [filterCompany, setFilterCompany] = useState('');
@@ -82,8 +84,19 @@ export default function PoliciesPage() {
     else { setPolicySortKey(key); setPolicySortDir('asc'); }
   }
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm !== searchInput) {
+        setSearchTerm(searchInput);
+        setCurrentPage(1);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput, searchTerm]);
+
   const fetchPolicies = useCallback(async (background = false) => {
-    if (!background) setIsLoading(true);
+    if (!background) setIsFetching(true);
     try {
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -105,7 +118,8 @@ export default function PoliciesPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error loading policies');
     } finally {
-      if (!background) setIsLoading(false);
+      if (!background) setIsFetching(false);
+      setIsInitialLoad(false);
     }
   }, [currentPage, pageSize, searchTerm, filterProduct, filterCompany, dateStart, dateEnd]);
 
@@ -296,11 +310,8 @@ export default function PoliciesPage() {
           <div className="relative flex-1 w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              value={searchTerm}
-              onChange={e => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
               placeholder="Search policies..."
               className="pl-9 h-10 rounded-xl bg-muted border-border w-full"
             />
@@ -537,8 +548,8 @@ export default function PoliciesPage() {
         </div>
 
         {/* Table Area */}
-        <div className="flex-1 overflow-auto bg-card">
-          {isLoading ? (
+        <div className="flex-1 overflow-auto bg-card relative">
+          {isInitialLoad ? (
             <PageLoader words={['policies', 'documents', 'schedules', 'records', 'policies']} label="loading" />
           ) : filteredPolicies.length === 0 ? (
             <div className="p-12 text-center">
@@ -550,6 +561,11 @@ export default function PoliciesPage() {
             </div>
           ) : (
             <>
+            {isFetching && (
+              <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+                <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+              </div>
+            )}
             {/* Desktop Table */}
             <div className="w-full overflow-x-auto custom-scrollbar hidden md:block">
               <table className="w-full text-left border-collapse min-w-full table-auto">

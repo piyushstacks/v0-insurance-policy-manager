@@ -24,6 +24,7 @@ const INITIAL_DATA: FinancialPlanData = {
   savings: { savingsAccount: 0, currentAccount: 0, cash: 0, fixedDeposit: 0, recurringDeposit: 0, liquidFunds: 0, emergencySavings: 0, gold: 0, silver: 0, epf: 0, ppf: 0, nps: 0, providentFund: 0, gratuity: 0 },
   investments: [],
   insurance: [],
+  hasPersonalAccident: false,
   loans: [],
   goals: [],
   riskProfile: '',

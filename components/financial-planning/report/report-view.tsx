@@ -46,9 +46,6 @@ export function ReportView({ data, onEdit, pdfRef }: ReportViewProps) {
           <Button variant="outline" size="sm" onClick={onEdit}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit Data
           </Button>
-          <Button variant="outline" size="sm" onClick={() => toast.info('Share via WhatsApp coming soon!')}>
-            <Share2 className="w-4 h-4 mr-2" /> Share
-          </Button>
           <PdfExportButton planData={data} pdfRef={pdfRef} />
         </div>
       </div>

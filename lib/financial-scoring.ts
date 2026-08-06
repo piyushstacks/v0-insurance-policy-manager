@@ -12,9 +12,10 @@ export function calculateFinancialScores(data: FinancialPlanData): FinancialScor
   // 1. Savings Score (Target: 30% savings rate)
   const savingsScore = Math.min(100, Math.max(0, (savingsRate / 30) * 100));
 
-  // 2. Emergency Score (Target: 6 months of expenses in Liquid assets/Savings)
+  // 2. Emergency Score (Target: 1 year of annual income in Liquid assets/Savings)
+  const annualIncomeForScore = totalMonthlyIncome * 12;
   const liquidAssets = data.savings.savingsAccount + data.savings.cash + data.savings.liquidFunds + data.savings.emergencySavings;
-  const targetEmergency = totalMonthlyExpense * 6;
+  const targetEmergency = annualIncomeForScore; // 1 year of annual income
   const emergencyScore = targetEmergency > 0 ? Math.min(100, (liquidAssets / targetEmergency) * 100) : 100;
 
   // 3. Debt Score (Target: EMI <= 30% of income)
@@ -23,7 +24,7 @@ export function calculateFinancialScores(data: FinancialPlanData): FinancialScor
   const debtScore = Math.max(0, 100 - (emiRatio * 2));
 
   // 4. Protection (Insurance) Score
-  // Life Cover Target: 10x Annual Income
+  // Life Cover Target: 20x Annual Income
   // Health Cover Target: 10 Lakh minimum
   let totalLifeCover = 0;
   let totalHealthCover = 0;
@@ -34,7 +35,7 @@ export function calculateFinancialScores(data: FinancialPlanData): FinancialScor
   });
 
   const annualIncome = totalMonthlyIncome * 12;
-  const targetLifeCover = annualIncome * 10;
+  const targetLifeCover = annualIncome * 20;
   const targetHealthCover = 1000000; // 10 Lakhs
   
   const lifeScore = targetLifeCover > 0 ? Math.min(100, (totalLifeCover / targetLifeCover) * 100) : 100;

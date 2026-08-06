@@ -36,8 +36,8 @@ export default function FinancialPlanningPage() {
         )
       )}
 
-      {/* Hidden Container for PDF Rendering */}
-      <div style={{ display: 'none' }}>
+      {/* Off-screen Container for PDF Rendering (Must be in layout tree for html2canvas) */}
+      <div className="absolute top-[-9999px] left-[-9999px] opacity-0 pointer-events-none w-[794px]">
         {planData && (
           <PdfRenderer 
             ref={pdfRef} 

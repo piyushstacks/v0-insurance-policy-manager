@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlobalSearch } from '@/components/global-search';
+import { KeyboardShortcutsModal } from '@/components/keyboard-shortcuts-modal';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { useTeam } from '@/hooks/use-team';
@@ -60,6 +61,7 @@ export default function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
   const { isMember } = useTeam();
 
@@ -73,9 +75,13 @@ export default function Sidebar({ user }: SidebarProps) {
         { name: 'Dashboard', href: '/app', icon: BarChart3, exact: true }
       ]
     }] : []),
-    { name: 'Policies', href: '/app/policies', icon: FileText, exact: false },
     { divider: true },
+    { name: 'Policies', href: '/app/policies', icon: FileText, exact: false },
     { name: 'Customers', href: '/app/customers', icon: Users, exact: false },
+    ...(!isMember ? [
+      { name: 'Financial Planning', href: '/app/financial-planning', icon: TrendingUp, exact: false }
+    ] : []),
+    { divider: true },
     { 
       name: 'Follow-ups', 
       href: '/app/followups', 
@@ -84,11 +90,11 @@ export default function Sidebar({ user }: SidebarProps) {
       badge: <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" title="Pending Items" /> 
     },
     { name: 'Todo', href: '/app/todos', icon: ListTodo, exact: false },
+    { divider: true },
     { name: 'Renewals', href: '/app/renewals', icon: CalendarDays, exact: false },
     { name: 'Reminders', href: '/app/reminders', icon: CalendarDays, exact: false },
     ...(!isMember ? [
       { name: 'Reporting', href: '/app/reporting', icon: PieChart, exact: false },
-      { name: 'Financial Planning', href: '/app/financial-planning', icon: TrendingUp, exact: false }
     ] : []),
     { divider: true },
     { 
@@ -104,6 +110,11 @@ export default function Sidebar({ user }: SidebarProps) {
       href: '/app/support', 
       icon: ShieldCheck, 
       badge: <BadgeWithDot color="success">Online</BadgeWithDot> 
+    },
+    {
+      name: 'Shortcuts',
+      onClick: () => setIsShortcutsOpen(true),
+      icon: Menu,
     },
   ];
 
@@ -128,25 +139,42 @@ export default function Sidebar({ user }: SidebarProps) {
     const isActive = item.exact ? pathname === item.href : pathname?.startsWith(item.href);
     const isLocked = item.locked;
     
+    const content = (
+      <>
+        <div className="flex items-center gap-3">
+          <item.icon className={`w-5 h-5 ${isActive && !isLocked ? 'stroke-[2.5]' : 'stroke-2 group-hover:text-blue-600'}`} />
+          <span className="font-semibold text-sm tracking-tight">{item.name}</span>
+        </div>
+        {item.badge ? item.badge : isLocked ? <Lock className="w-4 h-4 opacity-70" /> : (isActive && <ChevronRight className="w-4 h-4 opacity-70" />)}
+      </>
+    );
+
+    const className = `flex items-center justify-between group px-3 py-2.5 rounded-xl transition-all duration-200 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
+      isActive && !isLocked
+        ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-blue-900/20' 
+        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+    } ${isLocked ? 'pointer-events-none' : ''}`;
+
     return (
       <div className={`space-y-1 ${isLocked ? 'opacity-50 grayscale' : ''}`}>
-        <Link
-          href={isLocked ? '#' : item.href}
-          aria-current={isActive && !isLocked ? 'page' : undefined}
-          aria-disabled={isLocked ? 'true' : undefined}
-          className={`flex items-center justify-between group px-3 py-2.5 rounded-xl transition-all duration-200 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
-            isActive && !isLocked
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-blue-900/20' 
-              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-          } ${isLocked ? 'pointer-events-none' : ''}`}
-          onClick={() => !isLocked && setIsMobileMenuOpen(false)}
-        >
-          <div className="flex items-center gap-3">
-            <item.icon className={`w-5 h-5 ${isActive && !isLocked ? 'stroke-[2.5]' : 'stroke-2 group-hover:text-blue-600'}`} />
-            <span className="font-semibold text-sm tracking-tight">{item.name}</span>
-          </div>
-          {item.badge ? item.badge : isLocked ? <Lock className="w-4 h-4 opacity-70" /> : (isActive && <ChevronRight className="w-4 h-4 opacity-70" />)}
-        </Link>
+        {item.onClick ? (
+          <button
+            onClick={() => { item.onClick(); !isLocked && setIsMobileMenuOpen(false); }}
+            className={className + " w-full text-left"}
+          >
+            {content}
+          </button>
+        ) : (
+          <Link
+            href={isLocked ? '#' : item.href}
+            aria-current={isActive && !isLocked ? 'page' : undefined}
+            aria-disabled={isLocked ? 'true' : undefined}
+            className={className}
+            onClick={() => !isLocked && setIsMobileMenuOpen(false)}
+          >
+            {content}
+          </Link>
+        )}
         
         {item.children && (
           <div className="pl-9 space-y-1">
@@ -235,6 +263,8 @@ export default function Sidebar({ user }: SidebarProps) {
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
+
+      <KeyboardShortcutsModal open={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} />
     </>
   );
 }

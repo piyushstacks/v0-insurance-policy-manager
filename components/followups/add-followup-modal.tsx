@@ -97,7 +97,6 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
     
     // Set form data based on editItem or initial defaults
     if (open) {
-       setTimeout(() => inputRef.current?.focus(), 100);
        if (editItem) {
           setIsExisting(!!editItem.customer_id);
           setFormData({
@@ -139,6 +138,12 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
        }
     }
   }, [open, editItem, initialDate, initialData, currentUser?.id]);
+
+  useEffect(() => {
+    if (open && !isExisting) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [open, isExisting]);
 
   const addTag = (tag: string) => {
     const trimmed = tag.trim();
@@ -214,7 +219,10 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px] bg-card border border-border">
+      <DialogContent 
+        className="sm:max-w-[450px] bg-card border border-border"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="text-foreground">{editItem ? 'Edit' : 'Add'} Business Follow-up</DialogTitle>
           <DialogDescription className="text-muted-foreground">
@@ -232,7 +240,6 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
                 <span className="text-[10px] text-muted-foreground font-normal">Try "Call Rahul tomorrow at 5pm"</span>
               </Label>
               <Input
-                ref={inputRef}
                 placeholder="Type naturally to parse date/time..."
                 value={magicInput}
                 onChange={(e) => handleMagicInput(e.target.value)}
@@ -315,6 +322,7 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-foreground">Prospect Name <span className="text-red-500">*</span></Label>
                 <Input
+                  ref={inputRef}
                   placeholder="E.g. Rajesh Kumar"
                   value={formData.prospect_name}
                   onChange={e => setFormData(prev => ({ ...prev, prospect_name: e.target.value }))}
@@ -333,6 +341,23 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
               </div>
             </div>
           )}
+
+          {/* Notes */}
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-foreground">Notes & Context</Label>
+            <textarea
+              className="w-full flex min-h-[80px] rounded-md border border-border bg-card px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 resize-none"
+              placeholder="E.g. Met at the networking event, interested in term plan for family..."
+              value={formData.notes}
+              onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e as any);
+                }
+              }}
+            />
+          </div>
 
           {/* Details Row */}
           <div className="space-y-2">
@@ -442,17 +467,6 @@ export function AddFollowupModal({ open, onOpenChange, onSuccess, initialDate, e
                 </Command>
               </PopoverContent>
             </Popover>
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label className="text-xs font-bold text-foreground">Notes & Context</Label>
-            <textarea
-              className="w-full flex min-h-[80px] rounded-md border border-border bg-card px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 resize-none"
-              placeholder="E.g. Met at the networking event, interested in term plan for family..."
-              value={formData.notes}
-              onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-            />
           </div>
 
           </div>

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Clock, Plus, Calendar as CalendarIcon, CheckCircle2, Circle, ChevronLeft, ChevronRight, User, Phone, Tag, GripVertical, Trash2, Edit2, CalendarDays, X, UserPlus, Download, ListTodo } from 'lucide-react';
+import { Clock, Plus, Calendar as CalendarIcon, CheckCircle2, Circle, ChevronLeft, ChevronRight, User, Phone, Tag, GripVertical, Trash2, Edit2, CalendarDays, X, UserPlus, Download, ListTodo, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { AddFollowupModal } from '@/components/followups/add-followup-modal';
 import { AddTodoModal } from '@/components/todos/add-todo-modal';
@@ -20,6 +21,14 @@ export default function FollowupsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [filter, setFilter] = useState('All');
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   
   const [isConvertToTodoOpen, setIsConvertToTodoOpen] = useState(false);
   const [conversionData, setConversionData] = useState<any>(null);
@@ -64,10 +73,13 @@ export default function FollowupsPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['followups', selectedDate],
+    queryKey: ['followups', selectedDate, debouncedSearch],
     queryFn: async () => {
       const localToday = new Date().toISOString().split('T')[0];
-      const res = await fetch(`/api/followups?date=${selectedDate}&localToday=${localToday}`);
+      const url = debouncedSearch 
+        ? `/api/followups?search=${encodeURIComponent(debouncedSearch)}` 
+        : `/api/followups?date=${selectedDate}&localToday=${localToday}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch');
       return res.json();
     }
@@ -104,7 +116,7 @@ export default function FollowupsPage() {
       toast.error('Failed to update status');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['followups', selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ['followups', selectedDate, debouncedSearch] });
     }
   });
 
@@ -155,7 +167,7 @@ export default function FollowupsPage() {
         body: JSON.stringify({ notes: tempNotes })
       }).catch(() => {
         toast.error('Failed to save notes');
-        queryClient.invalidateQueries({ queryKey: ['followups', selectedDate] });
+        queryClient.invalidateQueries({ queryKey: ['followups', selectedDate, debouncedSearch] });
       });
     }
   };
@@ -163,7 +175,7 @@ export default function FollowupsPage() {
   const executeDelete = async (id: string) => {
     const res = await fetch(`/api/followups/${id}`, { method: 'DELETE' });
     if (!res.ok) toast.error('Failed to delete follow-up');
-    queryClient.invalidateQueries({ queryKey: ['followups', selectedDate] });
+    queryClient.invalidateQueries({ queryKey: ['followups', selectedDate, debouncedSearch] });
   };
 
   const handleQuickDelete = (item: any) => {
@@ -193,7 +205,7 @@ export default function FollowupsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['followups', selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ['followups', selectedDate, debouncedSearch] });
       toast.success('Follow-up deleted');
     }
   });
@@ -577,7 +589,6 @@ export default function FollowupsPage() {
            </div>
         </div>
 
-        {/* Quick Filters */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
           {['All', 'Pending', 'Overdue', 'Completed', 'High Priority'].map(f => (
             <button
@@ -590,34 +601,48 @@ export default function FollowupsPage() {
           ))}
         </div>
 
-        {/* Date Navigator */}
-        <div className="bg-card rounded-lg border border-border shadow-sm p-1.5 flex items-center justify-between max-w-sm mx-auto">
-          <Button variant="ghost" onClick={() => changeDate(-1)} className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md h-8 px-3 text-xs font-semibold">
-            <ChevronLeft className="w-4 h-4 mr-1" /> Prev
-          </Button>
-          
-          <div 
-            className="flex items-center gap-1.5 relative px-2 cursor-pointer group"
-            onClick={(e) => {
-              const input = e.currentTarget.querySelector('input');
-              if (input && 'showPicker' in HTMLInputElement.prototype) {
-                input.showPicker();
-              }
-            }}
-          >
-            <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground/90 transition-colors" />
-            <span className="font-semibold text-[13px] text-foreground tracking-wide group-hover:text-foreground transition-colors">{getDayLabel(selectedDate)}</span>
-            <input 
-              type="date" 
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+        {/* Search & Date Navigator */}
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search throughout follow-ups..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-card border-border shadow-sm h-10 w-full"
             />
           </div>
-          
-          <Button variant="ghost" onClick={() => changeDate(1)} className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md h-8 px-3 text-xs font-semibold">
-            Next <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
+
+          {!debouncedSearch && (
+            <div className="bg-card rounded-lg border border-border shadow-sm p-1.5 flex items-center justify-between w-full sm:max-w-[240px]">
+              <Button variant="ghost" onClick={() => changeDate(-1)} className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md h-8 px-3 text-xs font-semibold">
+                <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+              </Button>
+              
+              <div 
+                className="flex items-center gap-1.5 relative px-2 cursor-pointer group"
+                onClick={(e) => {
+                  const input = e.currentTarget.querySelector('input');
+                  if (input && 'showPicker' in HTMLInputElement.prototype) {
+                    input.showPicker();
+                  }
+                }}
+              >
+                <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground/90 transition-colors" />
+                <span className="font-semibold text-[13px] text-foreground tracking-wide group-hover:text-foreground transition-colors">{getDayLabel(selectedDate)}</span>
+                <input 
+                  type="date" 
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
+              </div>
+              
+              <Button variant="ghost" onClick={() => changeDate(1)} className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md h-8 px-3 text-xs font-semibold">
+                Next <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -630,8 +655,8 @@ export default function FollowupsPage() {
           <div className="pt-12 pb-24">
              <EmptyState 
                icon={Clock} 
-               title="Inbox Zero" 
-               description={`No follow-ups scheduled for ${getDayLabel(selectedDate).toLowerCase()}.`} 
+               title={debouncedSearch ? 'No matches found' : 'Inbox Zero'} 
+               description={debouncedSearch ? 'Try a different search term.' : `No follow-ups scheduled for ${getDayLabel(selectedDate).toLowerCase()}.`} 
              />
           </div>
         ) : (
@@ -764,7 +789,7 @@ export default function FollowupsPage() {
                   className="text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground px-2 sm:px-3"
                   onClick={async () => {
                     await Promise.all(Array.from(selectedItems).map(id => fetch(`/api/followups/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: targetStatus }) })));
-                    queryClient.invalidateQueries({ queryKey: ['followups', selectedDate] });
+                    queryClient.invalidateQueries({ queryKey: ['followups', selectedDate, debouncedSearch] });
                     setSelectedItems(new Set());
                     setIsSelectionModeActive(false);
                     toast.success(`Marked ${selectedItems.size} items as ${targetStatus}`);

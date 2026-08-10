@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Calendar as CalendarIcon, CheckCircle2, Circle, ChevronLeft, ChevronRight, GripVertical, Trash2, Edit2, ListTodo, MoreHorizontal, UserPlus, Clock } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, CheckCircle2, Circle, ChevronLeft, ChevronRight, GripVertical, Trash2, Edit2, ListTodo, MoreHorizontal, UserPlus, Clock, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
@@ -17,6 +18,14 @@ export default function TodosPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [filter, setFilter] = useState('All');
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   
   // For cross-navigation conversion
   const [isConvertToFollowupOpen, setIsConvertToFollowupOpen] = useState(false);
@@ -60,10 +69,13 @@ export default function TodosPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['todos', selectedDate],
+    queryKey: ['todos', selectedDate, debouncedSearch],
     queryFn: async () => {
       const localToday = new Date().toISOString().split('T')[0];
-      const res = await fetch(`/api/todos?date=${selectedDate}&localToday=${localToday}`);
+      const url = debouncedSearch 
+        ? `/api/todos?search=${encodeURIComponent(debouncedSearch)}` 
+        : `/api/todos?date=${selectedDate}&localToday=${localToday}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch');
       return res.json();
     }
@@ -97,7 +109,7 @@ export default function TodosPage() {
       toast.error('Failed to update status');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['todos', selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ['todos', selectedDate, debouncedSearch] });
     }
   });
 
@@ -119,7 +131,7 @@ export default function TodosPage() {
         body: JSON.stringify({ description: tempNotes })
       }).catch(() => {
         toast.error('Failed to save description');
-        queryClient.invalidateQueries({ queryKey: ['todos', selectedDate] });
+        queryClient.invalidateQueries({ queryKey: ['todos', selectedDate, debouncedSearch] });
       });
     }
   };
@@ -127,7 +139,7 @@ export default function TodosPage() {
   const executeDelete = async (id: string) => {
     const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
     if (!res.ok) toast.error('Failed to delete task');
-    queryClient.invalidateQueries({ queryKey: ['todos', selectedDate] });
+    queryClient.invalidateQueries({ queryKey: ['todos', selectedDate, debouncedSearch] });
   };
 
   const handleQuickDelete = (item: any) => {
@@ -359,18 +371,30 @@ export default function TodosPage() {
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="flex items-center bg-card border border-border rounded-lg p-1 shadow-sm">
-              <Button variant="ghost" size="icon" onClick={() => changeDate(-1)} className="h-8 w-8 hover:bg-accent rounded-md text-foreground">
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <div className="flex items-center justify-center w-36 px-2">
-                <CalendarIcon className="w-4 h-4 text-muted-foreground mr-2" />
-                <span className="text-sm font-bold text-foreground">{getDayLabel(selectedDate)}</span>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => changeDate(1)} className="h-8 w-8 hover:bg-accent rounded-md text-foreground">
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+            <div className="relative hidden sm:block w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search throughout todos..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-card border-border shadow-sm h-10 w-full"
+              />
             </div>
+            
+            {!debouncedSearch && (
+              <div className="flex items-center bg-card border border-border rounded-lg p-1 shadow-sm">
+                <Button variant="ghost" size="icon" onClick={() => changeDate(-1)} className="h-8 w-8 hover:bg-accent rounded-md text-foreground">
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <div className="flex items-center justify-center w-36 px-2">
+                  <CalendarIcon className="w-4 h-4 text-muted-foreground mr-2" />
+                  <span className="text-sm font-bold text-foreground">{getDayLabel(selectedDate)}</span>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => changeDate(1)} className="h-8 w-8 hover:bg-accent rounded-md text-foreground">
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
             
             <Button onClick={() => { setEditItem(null); setIsAddModalOpen(true); }} className="h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-500/20 px-4">
               <Plus className="w-4 h-4 mr-2" />
@@ -378,6 +402,16 @@ export default function TodosPage() {
               <span className="sm:hidden">Add</span>
             </Button>
           </div>
+        </div>
+
+        <div className="sm:hidden relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search throughout todos..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-card border-border shadow-sm h-10 w-full"
+          />
         </div>
 
         {/* Dashboard Cards */}
@@ -451,8 +485,8 @@ export default function TodosPage() {
             <div className="pt-8">
               <EmptyState
                 icon={ListTodo}
-                title={`No tasks ${filter !== 'All' ? `matching "${filter}"` : 'for this date'}`}
-                description="Hit the Add Todo button or press 'N' to create one."
+                title={debouncedSearch ? 'No matches found' : `No tasks ${filter !== 'All' ? `matching "${filter}"` : 'for this date'}`}
+                description={debouncedSearch ? 'Try a different search term.' : "Hit the Add Todo button or press 'N' to create one."}
                 action={
                   <Button onClick={() => { setEditItem(null); setIsAddModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white font-bold">
                     Add Todo (N)

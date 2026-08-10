@@ -30,6 +30,22 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const dateStr = searchParams.get('date'); 
     const localToday = searchParams.get('localToday'); 
+    const search = searchParams.get('search');
+
+    if (search) {
+      const cleanSearch = search.replace(/,/g, '');
+      let query = supabaseAdmin!
+        .from('todos')
+        .select('*')
+        .eq('user_id', user.id)
+        .or(`title.ilike.%${cleanSearch}%,description.ilike.%${cleanSearch}%,category.ilike.%${cleanSearch}%`)
+        .order('scheduled_date', { ascending: false })
+        .limit(100);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return NextResponse.json({ data });
+    }
 
     let query = supabaseAdmin!
       .from('todos')
@@ -50,8 +66,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { data, error } = await query;
-
     if (error) throw error;
+
     return NextResponse.json({ data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

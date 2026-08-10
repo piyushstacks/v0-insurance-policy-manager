@@ -31,6 +31,7 @@ const PRIMARY_NAV = [
 const MORE_NAV = [
   { name: 'Follow-ups',  href: '/app/followups',  icon: Clock },
   { name: 'Todo',        href: '/app/todos',      icon: ListTodo },
+  { divider: true },
   { name: 'Renewals',    href: '/app/renewals',   icon: CalendarDays },
   { name: 'Reporting',   href: '/app/reporting',  icon: BarChart3 },
   { name: 'Financial Plan', href: '/app/financial-planning', icon: TrendingUp },
@@ -116,12 +117,13 @@ export default function BottomNav() {
             </div>
             
             <div className="p-3 grid grid-cols-1 gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar">
-              {MORE_NAV.map(item => {
-                const isActive = pathname?.startsWith(item.href);
+              {MORE_NAV.map((item, i) => {
+                if (item.divider) return <div key={`div-${i}`} className="h-px bg-border my-2 mx-4" />;
+                const isActive = pathname?.startsWith(item.href as string);
                 return (
                   <Link
                     key={item.name}
-                    href={item.href}
+                    href={item.href as string}
                     onClick={() => setMoreOpen(false)}
                     aria-current={isActive ? 'page' : undefined}
                     className={`flex items-center py-4 px-4 rounded-2xl gap-4 min-h-[56px] transition-all focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
@@ -129,7 +131,7 @@ export default function BottomNav() {
                     }`}
                   >
                     <div className={`flex items-center justify-center p-2 rounded-xl ${isActive ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600' : 'bg-muted text-muted-foreground'}`}>
-                      <item.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} aria-hidden="true" />
+                      {item.icon && <item.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} aria-hidden="true" />}
                     </div>
                     <span className={`text-base font-semibold ${isActive ? 'text-blue-600' : ''}`}>{item.name}</span>
                   </Link>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Calendar as CalendarIcon, CheckCircle2, Circle, ChevronLeft, ChevronRight, GripVertical, Trash2, Edit2, ListTodo, MoreHorizontal, UserPlus, Clock, Search } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, CheckCircle2, Circle, ChevronLeft, ChevronRight, GripVertical, Trash2, Edit2, ListTodo, MoreHorizontal, UserPlus, Clock, Search, Archive, ArchiveRestore } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -12,6 +12,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut } from '@/components/ui/context-menu';
 import { AddTodoModal } from '@/components/todos/add-todo-modal';
 import { AddFollowupModal } from '@/components/followups/add-followup-modal';
+import { VoiceRecorder } from '@/components/ui/voice-recorder';
 
 export default function TodosPage() {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -69,12 +70,17 @@ export default function TodosPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['todos', selectedDate, debouncedSearch],
+    queryKey: ['todos', selectedDate, debouncedSearch, filter],
     queryFn: async () => {
-      const localToday = new Date().toISOString().split('T')[0];
-      const url = debouncedSearch 
-        ? `/api/todos?search=${encodeURIComponent(debouncedSearch)}` 
-        : `/api/todos?date=${selectedDate}&localToday=${localToday}`;
+      let url = '';
+      if (filter === 'Archived') {
+        url = `/api/todos?status=archived`;
+      } else {
+        const localToday = new Date().toISOString().split('T')[0];
+        url = debouncedSearch 
+          ? `/api/todos?search=${encodeURIComponent(debouncedSearch)}` 
+          : `/api/todos?date=${selectedDate}&localToday=${localToday}`;
+      }
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch');
       return res.json();
@@ -108,8 +114,13 @@ export default function TodosPage() {
       queryClient.setQueryData(['todos', selectedDate], context?.previous);
       toast.error('Failed to update status');
     },
-    onSettled: () => {
+    onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: ['todos', selectedDate, debouncedSearch] });
+      if (!error) {
+        if (variables.status === 'archived') toast.success('Task archived');
+        else if (variables.status === 'completed') toast.success('Task marked as completed');
+        else toast.success('Task restored to pending');
+      }
     }
   });
 
@@ -129,6 +140,8 @@ export default function TodosPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: tempNotes })
+      }).then(res => {
+        if (res.ok) toast.success('Description saved');
       }).catch(() => {
         toast.error('Failed to save description');
         queryClient.invalidateQueries({ queryKey: ['todos', selectedDate, debouncedSearch] });
@@ -179,17 +192,32 @@ export default function TodosPage() {
 
   if (filter === 'Pending') filteredTodos = todos.filter((f: any) => f.status === 'pending');
   if (filter === 'Completed') filteredTodos = todos.filter((f: any) => f.status === 'completed');
+  if (filter === 'Archived') filteredTodos = todos.filter((f: any) => f.status === 'archived');
   if (filter === 'Overdue') filteredTodos = todos.filter((f: any) => f.status === 'pending' && f.scheduled_date < localTodayStr);
   if (filter === 'High Priority') filteredTodos = todos.filter((f: any) => f.status === 'pending' && f.priority === 'High');
   if (['Personal', 'Business', 'Development', 'Finance', 'Health', 'Meeting', 'Learning', 'Other'].includes(filter)) {
     filteredTodos = todos.filter((f: any) => f.category?.split(',').map((c:string)=>c.trim()).includes(filter));
   }
 
+  // Ensure default view excludes archived unless specifically requested
+  if (filter !== 'Archived') {
+    filteredTodos = filteredTodos.filter((f: any) => f.status !== 'archived');
+  }
+
   const pending = filteredTodos.filter((f: any) => f.status === 'pending');
   const completed = filteredTodos.filter((f: any) => f.status === 'completed');
+  const archived = filteredTodos.filter((f: any) => f.status === 'archived');
   
   const pastPending = pending.filter((f: any) => f.scheduled_date && f.scheduled_date < localTodayStr);
   const todayPending = pending.filter((f: any) => !f.scheduled_date || f.scheduled_date >= localTodayStr);
+
+  const pastPendingByDate = pastPending.reduce((acc: any, item: any) => {
+    const date = item.scheduled_date;
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(item);
+    return acc;
+  }, {});
+  const sortedPastDates = Object.keys(pastPendingByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
   const overdueCount = todos.filter((f: any) => f.status === 'pending' && f.scheduled_date < localTodayStr).length;
   const highPriorityCount = todos.filter((f: any) => f.status === 'pending' && f.priority === 'High').length;
@@ -201,13 +229,26 @@ export default function TodosPage() {
     // Only allow reordering within the same list for simplicity
     if (result.source.droppableId !== result.destination.droppableId) return;
 
-    const isPast = result.source.droppableId === 'past-pending-todos';
-    const list = isPast ? Array.from(pastPending) : Array.from(todayPending);
+    const isPast = result.source.droppableId.startsWith('past-pending-todos-');
+    let list: any[];
+    if (isPast) {
+      const date = result.source.droppableId.replace('past-pending-todos-', '');
+      list = Array.from(pastPendingByDate[date] || []);
+    } else {
+      list = Array.from(todayPending);
+    }
 
     const [moved] = list.splice(result.source.index, 1);
     list.splice(result.destination.index, 0, moved);
 
-    const newPending = isPast ? [...list, ...todayPending] : [...pastPending, ...list];
+    let newPending;
+    if (isPast) {
+      const date = result.source.droppableId.replace('past-pending-todos-', '');
+      const otherPast = pastPending.filter((f: any) => f.scheduled_date !== date);
+      newPending = [...otherPast, ...list, ...todayPending];
+    } else {
+      newPending = [...pastPending, ...list];
+    }
 
     queryClient.setQueryData(['todos', selectedDate], (old: any) => {
       if (!old || !old.data) return old;
@@ -231,7 +272,7 @@ export default function TodosPage() {
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div 
-            className={`group flex flex-col md:flex-row md:items-center justify-between p-3 sm:p-4 bg-card hover:bg-accent/40 border border-border shadow-sm rounded-xl transition-all duration-200 ${isCompleted ? 'bg-muted/30 border-muted opacity-80' : 'hover:shadow-md'}`}
+            className={`group flex flex-col md:flex-row md:items-center justify-between p-3 sm:p-4 bg-card hover:bg-accent/40 border border-border shadow-sm rounded-xl transition-all duration-200 ${item.status !== 'pending' ? 'bg-muted/30 border-muted opacity-80' : 'hover:shadow-md'}`}
           >
             {/* Left side */}
             <div className="flex items-start md:items-center gap-3 md:gap-4 overflow-hidden w-full md:w-auto">
@@ -320,6 +361,13 @@ export default function TodosPage() {
                   <Edit2 className="w-4 h-4" />
                 </button>
                 <button
+                  onClick={(e) => { e.stopPropagation(); toggleStatus.mutate({ id: item.id, status: item.status === 'archived' ? 'pending' : 'archived' }); }}
+                  className={`p-1.5 rounded transition-colors ml-0.5 ${item.status === 'archived' ? 'text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30' : 'text-muted-foreground hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30'}`}
+                  title={item.status === 'archived' ? "Unarchive" : "Archive"}
+                >
+                  {item.status === 'archived' ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                </button>
+                <button
                   onClick={(e) => { e.stopPropagation(); handleQuickDelete(item); }}
                   className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors ml-0.5"
                   title="Delete"
@@ -348,6 +396,10 @@ export default function TodosPage() {
           </ContextMenuItem>
           <ContextMenuItem onClick={() => { setConversionData(item); setIsConvertToFollowupOpen(true); }}>
             <UserPlus className="mr-2 h-4 w-4" /> Convert to Follow-up
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => toggleStatus.mutate({ id: item.id, status: item.status === 'archived' ? 'pending' : 'archived' })}>
+            {item.status === 'archived' ? <ArchiveRestore className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />} 
+            {item.status === 'archived' ? 'Unarchive' : 'Archive'}
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem className="text-red-600 dark:text-red-400" onClick={() => handleQuickDelete(item)}>
@@ -396,6 +448,10 @@ export default function TodosPage() {
               </div>
             )}
             
+            <VoiceRecorder 
+              onSuccess={() => queryClient.invalidateQueries({ queryKey: ['todos'] })} 
+              target="todo" 
+            />
             <Button onClick={() => { setEditItem(null); setIsAddModalOpen(true); }} className="h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-500/20 px-4">
               <Plus className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Add Todo</span>
@@ -460,7 +516,7 @@ export default function TodosPage() {
 
         {/* Filter Chips */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
-          {['All', 'Pending', 'Completed', 'Overdue', 'High Priority', 'Personal', 'Business', 'Development'].map(f => (
+          {['All', 'Pending', 'Completed', 'Archived', 'Overdue', 'High Priority', 'Personal', 'Business', 'Development'].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -529,34 +585,41 @@ export default function TodosPage() {
               )}
 
               {/* Past Pending Section */}
-              {pastPending.length > 0 && (
-                <div className="space-y-3">
-                  <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Past Pending ({pastPending.length})
-                  </h2>
-                  <DragDropContext onDragEnd={onDragEnd}>
-                    <Droppable droppableId="past-pending-todos">
-                      {(provided) => (
-                        <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2.5 sm:space-y-3">
-                          {pastPending.map((item: any, index: number) => (
-                            <Draggable key={item.id} draggableId={item.id} index={index}>
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  style={{ ...provided.draggableProps.style }}
-                                  className={`${snapshot.isDragging ? 'z-50 shadow-2xl opacity-90 scale-[1.02]' : ''} transition-transform`}
-                                >
-                                  <TodoCard item={item} dragHandleProps={provided.dragHandleProps} />
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
-                        </div>
-                      )}
-                    </Droppable>
-                  </DragDropContext>
+              {sortedPastDates.length > 0 && (
+                <div className="space-y-6">
+                  {sortedPastDates.map((date: string) => {
+                    const items = pastPendingByDate[date];
+                    return (
+                      <div key={date} className="space-y-3">
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} ({items.length})
+                        </h2>
+                        <DragDropContext onDragEnd={onDragEnd}>
+                          <Droppable droppableId={`past-pending-todos-${date}`}>
+                            {(provided) => (
+                              <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2.5 sm:space-y-3">
+                                {items.map((item: any, index: number) => (
+                                  <Draggable key={item.id} draggableId={item.id} index={index}>
+                                    {(provided, snapshot) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        style={{ ...provided.draggableProps.style }}
+                                        className={`${snapshot.isDragging ? 'z-50 shadow-2xl opacity-90 scale-[1.02]' : ''} transition-transform`}
+                                      >
+                                        <TodoCard item={item} dragHandleProps={provided.dragHandleProps} />
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                ))}
+                                {provided.placeholder}
+                              </div>
+                            )}
+                          </Droppable>
+                        </DragDropContext>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -568,6 +631,20 @@ export default function TodosPage() {
                   </h2>
                   <div className="space-y-2.5 sm:space-y-3">
                     {completed.map((item: any) => (
+                      <TodoCard key={item.id} item={item} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Archived Section */}
+              {archived.length > 0 && filter === 'Archived' && (
+                <div className="space-y-3">
+                  <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 opacity-50" /> Archived ({archived.length})
+                  </h2>
+                  <div className="space-y-2.5 sm:space-y-3">
+                    {archived.map((item: any) => (
                       <TodoCard key={item.id} item={item} />
                     ))}
                   </div>

@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Clock, Plus, Calendar as CalendarIcon, CheckCircle2, Circle, ChevronLeft, ChevronRight, User, Phone, Tag, GripVertical, Trash2, Edit2, CalendarDays, X, UserPlus, Download, ListTodo, Search } from 'lucide-react';
+import { Clock, Plus, Calendar as CalendarIcon, CheckCircle2, Circle, ChevronLeft, ChevronRight, User, Phone, Tag, GripVertical, Trash2, Edit2, CalendarDays, X, UserPlus, Download, ListTodo, Search, Archive, ArchiveRestore } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { AddFollowupModal } from '@/components/followups/add-followup-modal';
 import { AddTodoModal } from '@/components/todos/add-todo-modal';
+import { VoiceRecorder } from '@/components/ui/voice-recorder';
 import { toast } from 'sonner';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
 import Link from 'next/link';
@@ -73,12 +74,18 @@ export default function FollowupsPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['followups', selectedDate, debouncedSearch],
+    queryKey: ['followups', selectedDate, debouncedSearch, filter],
     queryFn: async () => {
-      const localToday = new Date().toISOString().split('T')[0];
-      const url = debouncedSearch 
-        ? `/api/followups?search=${encodeURIComponent(debouncedSearch)}` 
-        : `/api/followups?date=${selectedDate}&localToday=${localToday}`;
+      let url = '';
+      if (filter === 'Archived') {
+        url = `/api/followups?status=archived`;
+      } else {
+        const localToday = new Date().toISOString().split('T')[0];
+        url = debouncedSearch 
+          ? `/api/followups?search=${encodeURIComponent(debouncedSearch)}` 
+          : `/api/followups?date=${selectedDate}&localToday=${localToday}`;
+      }
+      
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch');
       return res.json();
@@ -115,8 +122,13 @@ export default function FollowupsPage() {
       queryClient.setQueryData(['followups', selectedDate], context?.previous);
       toast.error('Failed to update status');
     },
-    onSettled: () => {
+    onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: ['followups', selectedDate, debouncedSearch] });
+      if (!error) {
+        if (variables.status === 'archived') toast.success('Follow-up archived');
+        else if (variables.status === 'completed') toast.success('Follow-up marked as completed');
+        else toast.success('Follow-up restored to pending');
+      }
     }
   });
 
@@ -165,6 +177,8 @@ export default function FollowupsPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: tempNotes })
+      }).then(res => {
+        if (res.ok) toast.success('Notes saved');
       }).catch(() => {
         toast.error('Failed to save notes');
         queryClient.invalidateQueries({ queryKey: ['followups', selectedDate, debouncedSearch] });
@@ -227,14 +241,32 @@ export default function FollowupsPage() {
 
   if (filter === 'Pending') filteredFollowups = followups.filter((f: any) => f.status === 'pending');
   if (filter === 'Completed') filteredFollowups = followups.filter((f: any) => f.status === 'completed');
+  if (filter === 'Archived') filteredFollowups = followups.filter((f: any) => f.status === 'archived');
   if (filter === 'Overdue') filteredFollowups = followups.filter((f: any) => f.status === 'pending' && f.scheduled_date < localTodayStr);
   if (filter === 'High Priority') filteredFollowups = followups.filter((f: any) => f.status === 'pending' && f.category?.toLowerCase().includes('high'));
+  if (['Renewal', 'Cross-sell', 'Claim', 'General', 'Meeting'].includes(filter)) {
+    filteredFollowups = followups.filter((f: any) => f.category === filter);
+  }
+
+  // Ensure default view excludes archived unless specifically requested
+  if (filter !== 'Archived') {
+    filteredFollowups = filteredFollowups.filter((f: any) => f.status !== 'archived');
+  }
 
   const pending = filteredFollowups.filter((f: any) => f.status === 'pending');
   const completed = filteredFollowups.filter((f: any) => f.status === 'completed');
+  const archived = filteredFollowups.filter((f: any) => f.status === 'archived');
   
   const pastPending = pending.filter((f: any) => f.scheduled_date && f.scheduled_date < localTodayStr);
   const todayPending = pending.filter((f: any) => !f.scheduled_date || f.scheduled_date >= localTodayStr);
+
+  const pastPendingByDate = pastPending.reduce((acc: any, item: any) => {
+    const date = item.scheduled_date;
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(item);
+    return acc;
+  }, {});
+  const sortedPastDates = Object.keys(pastPendingByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
   const overdueCount = followups.filter((f: any) => f.status === 'pending' && f.scheduled_date < localTodayStr).length;
   const highPriorityCount = followups.filter((f: any) => f.status === 'pending' && f.category?.toLowerCase().includes('high')).length;
@@ -246,15 +278,26 @@ export default function FollowupsPage() {
     // Only allow reordering within the same list for simplicity
     if (result.source.droppableId !== result.destination.droppableId) return;
 
-    const isPast = result.source.droppableId === 'past-pending-list';
-    const list = isPast ? Array.from(pastPending) : Array.from(todayPending);
+    const isPast = result.source.droppableId.startsWith('past-pending-list-');
+    let list: any[];
+    if (isPast) {
+      const date = result.source.droppableId.replace('past-pending-list-', '');
+      list = Array.from(pastPendingByDate[date] || []);
+    } else {
+      list = Array.from(todayPending);
+    }
     
     const [moved] = list.splice(result.source.index, 1);
     list.splice(result.destination.index, 0, moved);
 
-    // Reconstruct full pending array for DB update
-    // Note: This naive concatenation might change global order if dragged, but since they are rendered separately, it's fine.
-    const newPending = isPast ? [...list, ...todayPending] : [...pastPending, ...list];
+    let newPending;
+    if (isPast) {
+      const date = result.source.droppableId.replace('past-pending-list-', '');
+      const otherPast = pastPending.filter((f: any) => f.scheduled_date !== date);
+      newPending = [...otherPast, ...list, ...todayPending];
+    } else {
+      newPending = [...pastPending, ...list];
+    }
 
     queryClient.setQueryData(['followups', selectedDate], (old: any) => {
       if (!old || !old.data) return old;
@@ -278,7 +321,8 @@ export default function FollowupsPage() {
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div 
-            className={`group flex flex-col md:flex-row md:items-center justify-between p-3 sm:p-4 bg-card hover:bg-accent/40 border shadow-sm rounded-xl transition-all duration-200 cursor-pointer ${isSelected ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 border-indigo-500 dark:border-indigo-400 bg-indigo-50/10 dark:bg-indigo-900/20' : isCompleted ? 'bg-muted/30 border-muted opacity-80' : 'border-border hover:shadow-md'}`}
+            className={`group flex flex-col md:flex-row md:items-center justify-between p-3 sm:p-4 bg-card hover:bg-accent/40 border shadow-sm rounded-xl transition-all duration-200 cursor-pointer 
+              ${isSelected ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 border-indigo-500 dark:border-indigo-400 bg-indigo-50/10 dark:bg-indigo-900/20' : item.status !== 'pending' ? 'bg-muted/30 border-muted opacity-80' : 'border-border hover:shadow-md'}`}
             onClick={(e) => {
               if ((e.target as HTMLElement).closest('button, a, input, textarea, .prevent-select')) return;
               
@@ -460,6 +504,13 @@ export default function FollowupsPage() {
                   <Edit2 className="w-4 h-4" />
                 </button>
                 <button
+                  onClick={(e) => { e.stopPropagation(); toggleStatus.mutate({ id: item.id, status: item.status === 'archived' ? 'pending' : 'archived' }); }}
+                  className={`p-1.5 rounded transition-colors ml-0.5 ${item.status === 'archived' ? 'text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30' : 'text-muted-foreground hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30'}`}
+                  title={item.status === 'archived' ? "Unarchive" : "Archive"}
+                >
+                  {item.status === 'archived' ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                </button>
+                <button
                   onClick={(e) => { e.stopPropagation(); handleQuickDelete(item); }}
                   className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors ml-0.5"
                   title="Delete"
@@ -479,13 +530,18 @@ export default function FollowupsPage() {
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
           <ContextMenuItem onClick={() => toggleStatus.mutate({ id: item.id, status: isCompleted ? 'pending' : 'completed' })}>
-            {isCompleted ? 'Mark Pending' : 'Mark Completed'}
+            <CheckCircle2 className="mr-2 h-4 w-4" /> {isCompleted ? 'Mark as Pending' : 'Mark as Completed'}
             <ContextMenuShortcut>C</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem onClick={() => { setEditItem(item); setIsAddModalOpen(true); }}>
-            Edit
+            <Edit2 className="mr-2 h-4 w-4" /> Edit Follow-up
             <ContextMenuShortcut>E</ContextMenuShortcut>
           </ContextMenuItem>
+          <ContextMenuItem onClick={() => toggleStatus.mutate({ id: item.id, status: item.status === 'archived' ? 'pending' : 'archived' })}>
+            {item.status === 'archived' ? <ArchiveRestore className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />} 
+            {item.status === 'archived' ? 'Unarchive' : 'Archive'}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem onClick={() => { setConversionData(item); setIsConvertToTodoOpen(true); }}>
             <ListTodo className="mr-2 h-4 w-4" /> Create Todo
           </ContextMenuItem>
@@ -502,7 +558,7 @@ export default function FollowupsPage() {
           )}
           <ContextMenuSeparator />
           <ContextMenuItem className="text-red-600 dark:text-red-400" onClick={() => handleQuickDelete(item)}>
-            Delete
+            <Trash2 className="mr-2 w-4 h-4" /> Delete
             <ContextMenuShortcut>⌫</ContextMenuShortcut>
           </ContextMenuItem>
         </ContextMenuContent>
@@ -558,11 +614,15 @@ export default function FollowupsPage() {
             </Button>
           )}
 
+          <VoiceRecorder 
+            onSuccess={() => queryClient.invalidateQueries({ queryKey: ['followups'] })} 
+            target="followup" 
+          />
           <Button onClick={() => { setEditItem(null); setIsAddModalOpen(true); }} size="sm" className="bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 text-white shadow-sm hidden md:flex rounded-md h-8 px-4 text-xs font-semibold tracking-wide border-0">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> New Follow-up
           </Button>
-          <Button onClick={() => { setEditItem(null); setIsAddModalOpen(true); }} size="icon" className="bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 text-white shadow-sm md:hidden rounded-full border-0">
-            <Plus className="w-5 h-5" />
+          <Button onClick={() => { setEditItem(null); setIsAddModalOpen(true); }} size="icon" className="bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 text-white shadow-sm md:hidden rounded-full border-0 h-8 w-8">
+            <Plus className="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -590,7 +650,7 @@ export default function FollowupsPage() {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
-          {['All', 'Pending', 'Overdue', 'Completed', 'High Priority'].map(f => (
+          {['All', 'Pending', 'Completed', 'Archived', 'Overdue', 'High Priority', 'Renewal', 'Cross-sell', 'Claim', 'General', 'Meeting'].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -699,42 +759,49 @@ export default function FollowupsPage() {
             )}
 
             {/* Past Pending Section */}
-            {pastPending.length > 0 && (
-              <div className="space-y-3">
-                <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Past Pending ({pastPending.length})
-                </h2>
-                
-                <DragDropContext onDragEnd={onDragEnd}>
-                  <Droppable droppableId="past-pending-list">
-                    {(provided) => (
-                      <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2.5">
-                        {pastPending.map((item: any, index: number) => (
-                          <Draggable 
-                            key={item.id} 
-                            draggableId={item.id} 
-                            index={index}
-                            isDragDisabled={isSelectionModeActive || selectedItems.size > 0}
-                          >
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                style={{
-                                  ...provided.draggableProps.style,
-                                  opacity: snapshot.isDragging ? 0.8 : 1,
-                                }}
-                              >
-                                <FollowupCard item={item} dragHandleProps={provided.dragHandleProps} />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </DragDropContext>
+            {sortedPastDates.length > 0 && (
+              <div className="space-y-6">
+                {sortedPastDates.map((date: string) => {
+                  const items = pastPendingByDate[date];
+                  return (
+                    <div key={date} className="space-y-3">
+                      <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} ({items.length})
+                      </h2>
+                      
+                      <DragDropContext onDragEnd={onDragEnd}>
+                        <Droppable droppableId={`past-pending-list-${date}`}>
+                          {(provided) => (
+                            <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2.5">
+                              {items.map((item: any, index: number) => (
+                                <Draggable 
+                                  key={item.id} 
+                                  draggableId={item.id} 
+                                  index={index}
+                                  isDragDisabled={isSelectionModeActive || selectedItems.size > 0}
+                                >
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      style={{
+                                        ...provided.draggableProps.style,
+                                        opacity: snapshot.isDragging ? 0.8 : 1,
+                                      }}
+                                    >
+                                      <FollowupCard item={item} dragHandleProps={provided.dragHandleProps} />
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))}
+                              {provided.placeholder}
+                            </div>
+                          )}
+                        </Droppable>
+                      </DragDropContext>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -746,9 +813,21 @@ export default function FollowupsPage() {
                 </h2>
                 <div className="space-y-2.5">
                   {completed.map((item: any) => (
-                    <div key={item.id}>
-                      {FollowupCard({ item })}
-                    </div>
+                    <FollowupCard key={item.id} item={item} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Archived Section */}
+            {archived.length > 0 && filter === 'Archived' && (
+              <div className="space-y-3">
+                <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 opacity-50" /> Archived ({archived.length})
+                </h2>
+                <div className="space-y-2.5">
+                  {archived.map((item: any) => (
+                    <FollowupCard key={item.id} item={item} />
                   ))}
                 </div>
               </div>

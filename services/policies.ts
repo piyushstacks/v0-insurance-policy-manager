@@ -66,6 +66,8 @@ export async function getPolicies(
     productName?: string;
     dateStart?: string;
     dateEnd?: string;
+    sortBy?: string;
+    sortDir?: 'asc' | 'desc';
   },
   page = 1,
   pageSize = 20
@@ -76,8 +78,26 @@ export async function getPolicies(
     let query = supabaseAdmin!
       .from('policies')
       .select('*, customer:customers(name, email), insurer:insurers(name), documents:policy_documents(file_path, file_name)', { count: 'exact' })
-      .in('user_id', teamUserIds)
-      .order('created_at', { ascending: false });
+      .in('user_id', teamUserIds);
+
+    // Default sorting
+    let orderColumn = 'created_at';
+    let ascending = false;
+
+    if (filters?.sortBy) {
+      const sortMap: Record<string, string> = {
+        'policy_number': 'policy_number',
+        'premium_amount': 'premium_amount',
+        'expiry_date': 'expiry_date'
+      };
+      
+      if (sortMap[filters.sortBy]) {
+        orderColumn = sortMap[filters.sortBy];
+        ascending = filters.sortDir === 'asc';
+      }
+    }
+
+    query = query.order(orderColumn, { ascending });
 
     if (filters?.status) {
       query = query.eq('status', filters.status);

@@ -108,6 +108,8 @@ export default function PoliciesPage() {
       if (filterCompany) params.set('companyName', filterCompany);
       if (dateStart) params.set('dateStart', dateStart);
       if (dateEnd) params.set('dateEnd', dateEnd);
+      if (policySortKey) params.set('sortBy', policySortKey);
+      if (policySortDir) params.set('sortDir', policySortDir);
 
       const response = await fetch(`/api/policies?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch');
@@ -119,7 +121,7 @@ export default function PoliciesPage() {
     } finally {
       if (!background) setIsFetching(false);
     }
-  }, [currentPage, pageSize, searchTerm, filterProduct, filterCompany, dateStart, dateEnd]);
+  }, [currentPage, pageSize, searchTerm, filterProduct, filterCompany, dateStart, dateEnd, policySortKey, policySortDir]);
 
   useEffect(() => {
     fetch('/api/policies/filters')
@@ -187,22 +189,7 @@ export default function PoliciesPage() {
 
   // Derive Paginated Context
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
-  const paginatedPolicies = useMemo(() => {
-    return [...filteredPolicies].sort((a, b) => {
-      let av: any, bv: any;
-      switch (policySortKey) {
-        case 'policy_number':  av = a.policy_number || ''; bv = b.policy_number || ''; break;
-        case 'customer_name':  av = a.customer?.name || ''; bv = b.customer?.name || ''; break;
-        case 'insurer_name':   av = a.insurer?.name || ''; bv = b.insurer?.name || ''; break;
-        case 'premium_amount': av = a.premium_amount || 0; bv = b.premium_amount || 0; break;
-        case 'expiry_date':    av = a.expiry_date || ''; bv = b.expiry_date || ''; break;
-        default:               av = ''; bv = '';
-      }
-      if (typeof av === 'string') av = av.toLowerCase();
-      if (typeof bv === 'string') bv = bv.toLowerCase();
-      return policySortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
-    });
-  }, [filteredPolicies, policySortKey, policySortDir]);
+  const paginatedPolicies = filteredPolicies;
 
   // Actions
   const toggleSelect = (id: string) => {

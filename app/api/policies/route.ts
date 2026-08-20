@@ -57,10 +57,12 @@ export async function GET(request: NextRequest) {
     const productName = searchParams.get('productName') || undefined;
     const dateStart = searchParams.get('dateStart') || undefined;
     const dateEnd = searchParams.get('dateEnd') || undefined;
+    const sortBy = searchParams.get('sortBy') || undefined;
+    const sortDir = (searchParams.get('sortDir') as 'asc' | 'desc') || undefined;
 
     const result = await getPolicies(user.id, { 
       status, customerId, insurerId, search, excludePending, onlyPending,
-      companyName, productName, dateStart, dateEnd
+      companyName, productName, dateStart, dateEnd, sortBy, sortDir
     }, page, pageSize);
 
     return NextResponse.json(result, { status: 200 });

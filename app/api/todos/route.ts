@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data });
     }
 
+    const status = searchParams.get('status');
+
     let query = supabaseAdmin!
       .from('todos')
       .select('*')
@@ -55,7 +57,9 @@ export async function GET(request: NextRequest) {
       .order('scheduled_date', { ascending: true })
       .order('created_at', { ascending: false });
 
-    if (dateStr) {
+    if (status) {
+      query = query.eq('status', status).limit(100);
+    } else if (dateStr) {
       if (localToday && dateStr === localToday) {
         // If viewing 'Today', show today's items + any past overdue (pending) items
         query = query.or(`scheduled_date.eq.${dateStr},and(status.eq.pending,scheduled_date.lt.${dateStr})`);
